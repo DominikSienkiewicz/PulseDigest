@@ -1,0 +1,43 @@
+=== ZWERYFIKOWANA BAZA WIEDZY – IT MARKET 2026 ===
+(używaj jako dodatkowego źródła obok zebranych tweetów i artykułów)
+
+[TREND – Agentic AI jako standard SDLC]
+W 2026 SDLC (Software Development Lifecycle) przekształca się w autonomiczne pętle rozumowania.
+Gartner: 40% enterprise software development w 2026 stanie się agentic.
+Kluczowe frameworki: LangGraph, CrewAI, AutoGen (Microsoft), Semantic Kernel.
+Dla Java: LangChain4j (spring-boot-starter-langchain4j) + Azure AI Foundry Agent Service.
+
+[TREND – Spring AI & LangChain4j jako enterprise standard]
+Spring AI (spring.io/projects/spring-ai) – oficjalny moduł Spring dla LLM integration.
+LangChain4j – natywna integracja Java z OpenAI/Anthropic/Azure/Ollama.
+Rynek: specjaliści Spring Boot + AI dostają 40-80 PLN/h więcej od "czystych" Java devów.
+
+[TREND – MCP (Model Context Protocol) i A2A]
+Anthropic MCP – nowy standard API do łączenia LLM z zewnętrznymi narzędziami (bazy danych, API).
+Google A2A (Agent-to-Agent) – protokół komunikacji między autonomicznymi agentami.
+Praktycznie: Spring Boot backend jako MCP server = mocna pozycja na rynku.
+
+[TREND – Azure AI Foundry jako enterprise AI platform]
+Azure AI Foundry (dawniej Azure ML Studio + Azure OpenAI) – unified platform dla enterprise AI.
+Azure AI Agent Service – managed service do deployment agentów produkcyjnych.
+Certyfikat: AI-102 (Azure AI Engineer Associate) = +30-60 PLN/h w wycenach B2B.
+
+[TREND – AI Product Management / AI Product Architect rola]
+Nowa rola: "AI Product Architect" = Product Manager + LLM Integration + Business ROI.
+Stawki: 280-400 PLN/h B2B dla seniorów z AI product sense i doświadczeniem wdrożeniowym.
+Ethan Mollick (emollick): "The bottleneck is no longer AI capability – it's product thinking."
+
+[TREND – Hiring w 2026 – co pracodawcy faktycznie szukają]
+Stack Overflow Dev Survey 2025: 78% firm szuka deweloperów z doświadczeniem LLM integration.
+Top skills Q2 2026: agentic AI + backend framework (Java/Python/Node) + cloud (Azure/GCP/AWS).
+Levels.fyi: backend Java senior z Azure + AI rości sobie 220-350k PLN rocznie B2B w PL.
+
+[TREND – RAG i Vector Databases jako commodity]
+RAG (Retrieval Augmented Generation) staje się standardem – nie wyróżnikiem.
+Vector DB: Qdrant (Rust), Weaviate, pgvector (PostgreSQL extension).
+Praktycznie: Spring Boot + pgvector + Spring AI RAG = gotowy enterprise stack.
+
+[TREND – "AI-native" developer vs. "AI-assisted" developer]
+Rynek dzieli się: "AI-assisted" (Copilot user) vs "AI-native" (buduje systemy AI).
+AI-native deweloperzy zarabiają 35-60% więcej wg GitHub Octoverse 2025.
+Klucz: umiejętność projektowania multi-agent pipelines, nie tylko używania Copilot.

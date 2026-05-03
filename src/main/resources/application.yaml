@@ -1,0 +1,210 @@
+spring:
+  application:
+    name: PulseDigest
+  main:
+    web-application-type: none
+  ai:
+    openai:
+      api-key: "${OPENAI_API_KEY:}"
+
+twitter:
+  bearer-token: "${TWITTER_BEARER_TOKEN:}"
+  queries:
+    - "Java Spring AI agents -is:retweet lang:en"
+    - "LangGraph LangChain agents -is:retweet lang:en"
+    - "AWS architecture serverless -is:retweet lang:en"
+    - "(Next.js OR React) performance -is:retweet lang:en"
+    - "DDD domain driven design -is:retweet lang:en"
+  accounts:
+    # Java ecosystem
+    - "java"
+    - "QuarkusIO"
+    - "springcentral"
+    - "grailsframework"
+    - "ApacheGroovy"
+    - "micronautfw"
+    - "gradle"
+    - "adoptium"
+    - "graalvm"
+    - "kotlin"
+    - "intellijidea"
+    - "jetbrains"
+    # AI / ML
+    - "cerebral_valley"
+    - "googlegemma"
+    - "ollama"
+    - "AnthropicAI"
+    - "claudeai"
+    - "OpenAI"
+    - "OpenAIDevs"
+    - "GoogleAIStudio"
+    - "googleaidevs"
+    - "antigravity"
+    - "geminicli"
+    - "GeminiApp"
+    - "ElevenLabs"
+    - "ElevenLabsDevs"
+    - "grok"
+    - "sama"
+    # Cloud / DevOps
+    - "kubernetesio"
+    - "Docker"
+    - "grafana"
+    - "linuxfoundation"
+    - "awscloud"
+    - "googlecloud"
+    - "GoogleCloudTech"
+    - "GoogleCloud_PL"
+    - "Azure"
+    - "googledevs"
+    - "GoogleWorkspace"
+    # Security
+    - "TheHackersNews"
+    - "metasploit"
+    - "owasp"
+    - "kalilinux"
+    - "Whonix"
+    - "QubesOS"
+    - "Tails_live"
+    - "torproject"
+    - "privacytests"
+    - "CERT_Polska"
+    - "konieczny"
+    - "sajdoor"
+    - "tryhackme"
+    - "0dayCTF"
+    - "niebezpiecznik"
+    - "CyberDefence24"
+    - "Sekurak"
+    - "Zaufana3Strona"
+    - "MateuszChrobok"
+    # Privacy
+    - "ProtonMail"
+    - "Proton_Pass"
+    - "ProtonPrivacy"
+    - "mullvadnet"
+    - "SimpleLogin"
+    - "DuckDuckGo"
+    - "signalapp"
+    - "brave"
+    # Databases / infra
+    - "PostgreSQL"
+    - "AMD"
+    # OS
+    - "ubuntu"
+    - "fedora"
+    # Dev tools
+    - "github"
+    - "code"
+    # Tech leaders
+    - "BillGates"
+    - "satyanadella"
+    - "unclebobmartin"
+    - "JeffBezos"
+    # Other tech
+    - "googleanalytics"
+    - "amazon"
+    - "SpaceX"
+
+report:
+  cache-ttl-minutes: 60
+  min-generation-interval-minutes: 30
+  email:
+    resend-api-key: "${RESEND_API_KEY:}"
+    from: "${DIGEST_FROM_EMAIL:}"
+    to: "${DIGEST_TO_EMAIL:}"
+
+  research:
+    min-likes: 3
+    days-back: 1
+    authority-usernames:
+      - karpathy
+      - swyx
+      - levelsio
+      - andrewchen
+      - emollick
+      - paulg
+      - sama
+      - xai
+      - OpenAI
+      - AnthropicAI
+      - IBM
+      - claudeai
+
+  hacker-news:
+    query: "ai OR agentic"
+    limit: 10
+    min-score: 50
+
+  github:
+    query: "topic:ai language:java"
+    limit: 5
+
+  rss:
+    limit: 5
+    feeds:
+      - name: "InfoQ"
+        url: "https://feed.infoq.com"
+      - name: "The Register"
+        url: "https://www.theregister.com/software/developer/headlines.atom"
+      - name: "Baeldung"
+        url: "https://www.baeldung.com/feed"
+      - name: "Spring Blog"
+        url: "https://spring.io/blog.atom"
+      - name: "DZone Java"
+        url: "https://feeds.dzone.com/java"
+      - name: "DZone AI"
+        url: "https://feeds.dzone.com/ai-ml"
+      - name: "Niebezpiecznik"
+        url: "https://niebezpiecznik.pl/feed"
+      - name: "Sekurak"
+        url: "https://sekurak.pl/feed"
+      - name: "JVM Bloggers"
+        url: "https://jvm-bloggers.com/pl/rss.xml"
+      - name: "devstyle.pl"
+        url: "https://devstyle.pl/feed"
+      - name: "TLDR Tech"
+        url: "https://tldr.tech/rss/tech"
+      - name: "Pragmatic Engineer"
+        url: "https://newsletter.pragmaticengineer.com/feed"
+      - name: "Quastor"
+        url: "https://blog.quastor.org/feed"
+
+  reddit:
+    limit: 10
+    min-score: 50
+    subreddits:
+      - "java"
+      - "programming"
+      - "MachineLearning"
+      - "LocalLLaMA"
+      - "devops"
+      - "netsec"
+      - "datascience"
+      - "artificial"
+  arxiv:
+    categories: "cs.AI,cs.LG,cs.CR,cs.DC,cs.PL"
+    keywords: "agent,llm,rag,inference,jvm,virtual thread,security,vulnerability"
+    max-results: 15
+    lookback-hours: 24
+
+  github-releases:
+    lookback-hours: 48
+    repositories:
+      - "spring-projects/spring-boot"
+      - "spring-projects/spring-ai"
+      - "quarkusio/quarkus"
+      - "oracle/graal"
+      - "micronaut-projects/micronaut-core"
+      - "langchain4j/langchain4j"
+      - "ollama/ollama"
+      - "vllm-project/vllm"
+      - "ggml-org/llama.cpp"
+      - "BerriAI/litellm"
+      - "anthropics/anthropic-java"
+      - "kubernetes/kubernetes"
+      - "hashicorp/terraform"
+      - "docker/compose"
+      - "testcontainers/testcontainers-java"
+      - "open-telemetry/opentelemetry-java"
+      - "grafana/grafana"

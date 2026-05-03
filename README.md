@@ -1,0 +1,120 @@
+# 🚀 PulseDigest
+**Architected & Developed by [Dominik](https://www.linkedin.com/in/dominik-sienkiewicz/)** *Principal AI Engineer | Full Stack Architect*
+
+Headless batch application that collects tech news from 5 sources every morning, scores items with GPT-4o, and delivers a prioritized digest to your inbox.
+
+![Java 26](https://img.shields.io/badge/Java-26-red?style=for-the-badge&logo=openjdk&logoColor=white)
+![Spring Boot 4.1](https://img.shields.io/badge/Spring_Boot-4.1.0--SNAPSHOT-green?style=for-the-badge&logo=springboot&logoColor=white)
+![Spring AI 2.0](https://img.shields.io/badge/Spring_AI-2.0.0--SNAPSHOT-blue?style=for-the-badge)
+![Architecture](https://img.shields.io/badge/Architecture-Hexagonal-orange?style=for-the-badge)
+
+## 🧠 The Vision: Signal over Noise
+In the era of AI-driven information overload, this tool is my personal solution to maintain high-level situational awareness without manual scrolling. It applies **Principal-level scoring logic** to filter out noise and focus only on high-impact architectural and AI shifts. It’s not just a scraper; it’s a cognitive filter designed for elite engineers.
+
+## How it works
+
+```
+Twitter/X ──┐
+Hacker News ┤
+GitHub      ├──► MarketResearchService ──► GPT-4o ──► Resend email
+RSS feeds   ┤     (parallel fetch,          (score 1-10,
+Reddit      ┘      last 24 h)                category,
+                                             PL summary)
+```
+
+1. **Fetch** — 5 sources run in parallel via Virtual Threads (`CompletableFuture`). Each source filters to the last 24
+   h.
+2. **Score** — GPT-4o deduplicates, scores each item 1–10 by relevance for a Senior/Principal Engineer + Architect
+   profile, assigns a category, and writes a 1–2 sentence Polish summary.
+3. **Deliver** — HTML email sent via Resend with a table sorted by score (green ≥ 7, orange ≥ 4, red < 4).
+
+## Sources
+
+| Source      | Filter                                                                  | Notes                                       |
+|-------------|-------------------------------------------------------------------------|---------------------------------------------|
+| Twitter/X   | 84 curated accounts + 5 topic queries, last 24 h                        | Batched into groups of 8 accounts per query |
+| Hacker News | Algolia `numericFilters=created_at_i>`                                  | `min-score: 50`                             |
+| GitHub      | `pushed:>=yesterday`                                                    | Stars desc, configurable query              |
+| RSS         | 8 feeds (InfoQ, Spring Blog, Baeldung, DZone, Niebezpiecznik, Sekurak…) | `pubDate` / `updated` filter                |
+| Reddit      | `t=day` (top 24 h)                                                      | 8 subreddits, `min-score: 50`               |
+
+## Tech stack
+
+- **Java 26** with `--enable-preview` (pattern matching, sealed interfaces)
+- **Spring Boot 4.1.0-SNAPSHOT** — `web-application-type: none` (headless)
+- **Spring AI 2.0.0-SNAPSHOT** — GPT-4o via OpenAI
+- **Gradle 9** (Kotlin DSL)
+- **Project Loom** — Virtual Threads for all I/O
+
+Architecture follows [Hexagonal (Ports & Adapters)](docs/adr/0002-hexagonal-architecture.md). No database, no messaging,
+no web layer.
+
+## Prerequisites
+
+- JDK 26 (Oracle EA or Temurin)
+- Twitter API v2 Bearer Token
+- OpenAI API key (GPT-4o)
+- Resend account + API key
+
+## Local setup
+
+```bash
+cp .env.example .env
+# fill in the 5 keys, then:
+./run.sh
+```
+
+`.env` keys:
+
+```
+TWITTER_BEARER_TOKEN=
+OPENAI_API_KEY=
+RESEND_API_KEY=
+DIGEST_FROM_EMAIL=
+DIGEST_TO_EMAIL=
+```
+
+## Build commands
+
+```bash
+./gradlew clean build      # full build (Checkstyle + tests + JaCoCo)
+./gradlew compileJava      # compile only
+./gradlew bootJar          # production JAR → build/libs/
+./gradlew test             # unit + integration tests
+./run.sh                   # run locally (sources .env automatically)
+```
+
+## GitHub Actions
+
+The workflow at [`.github/workflows/digest.yml`](.github/workflows/digest.yml) runs daily at **04:00 UTC** (06:00 CEST /
+05:00 CET) and can also be triggered manually via `workflow_dispatch`.
+
+Required repository secrets: `TWITTER_BEARER_TOKEN`, `OPENAI_API_KEY`, `RESEND_API_KEY`, `DIGEST_FROM_EMAIL`,
+`DIGEST_TO_EMAIL`.
+
+## Configuration
+
+All tuneable parameters live in [`src/main/resources/application.yaml`](src/main/resources/application.yaml) under the
+`report:` prefix:
+
+| Key                     | Default                  | Description              |
+|-------------------------|--------------------------|--------------------------|
+| `research.days-back`    | `1`                      | Tweet age window (days)  |
+| `research.min-likes`    | `3`                      | Minimum likes for tweets |
+| `hacker-news.min-score` | `50`                     | Minimum HN points        |
+| `hacker-news.limit`     | `10`                     | Max HN items             |
+| `github.query`          | `topic:ai language:java` | GitHub search query      |
+| `github.limit`          | `5`                      | Max GitHub repos         |
+| `rss.limit`             | `5`                      | Max items per RSS feed   |
+| `reddit.min-score`      | `50`                     | Minimum Reddit upvotes   |
+| `reddit.limit`          | `10`                     | Max posts per subreddit  |
+
+## Architecture decision records
+
+- [ADR-0002](docs/adr/0002-hexagonal-architecture.md) — Hexagonal Architecture
+- [ADR-0006](docs/adr/0006-virtual-threads-over-reactive.md) — Virtual Threads over WebFlux
+- [ADR-0007](docs/adr/0007-result-type-over-exceptions.md) — `Result<T,E>` over exceptions
+
+## License
+
+[MIT](LICENSE)
