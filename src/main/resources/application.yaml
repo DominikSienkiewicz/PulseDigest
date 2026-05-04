@@ -128,16 +128,16 @@ report:
       - claudeai
 
   hacker-news:
-    query: "ai OR agentic"
-    limit: 10
-    min-score: 50
+    query: "ai OR agentic OR java OR spring OR kubernetes OR llm OR security OR rust"
+    limit: 15
+    min-score: 25
 
   github:
     query: "topic:ai language:java"
     limit: 5
 
   rss:
-    limit: 5
+    limit: 10
     feeds:
       - name: "InfoQ"
         url: "https://feed.infoq.com"
@@ -167,8 +167,8 @@ report:
         url: "https://blog.quastor.org/feed"
 
   reddit:
-    limit: 10
-    min-score: 50
+    limit: 15
+    min-score: 20
     subreddits:
       - "java"
       - "programming"
@@ -181,11 +181,11 @@ report:
   arxiv:
     categories: "cs.AI,cs.LG,cs.CR,cs.DC,cs.PL"
     keywords: "agent,llm,rag,inference,jvm,virtual thread,security,vulnerability"
-    max-results: 15
-    lookback-hours: 24
+    max-results: 20
+    lookback-hours: 48
 
   github-releases:
-    lookback-hours: 48
+    lookback-hours: 72
     repositories:
       - "spring-projects/spring-boot"
       - "spring-projects/spring-ai"

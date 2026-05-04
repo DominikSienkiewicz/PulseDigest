@@ -26,7 +26,7 @@ public class GptSynthesisAdapter implements LlmSynthesisPort {
     private static final String OPENAI_BASE_URL = "https://api.openai.com/v1";
     private static final String MODEL = "gpt-4o";
     private static final double TEMPERATURE = 0.25;
-    private static final int MAX_TOKENS = 6500;
+    private static final int MAX_TOKENS = 10000;
 
     @Value("${spring.ai.openai.api-key:}")
     private String openAiApiKey;
