@@ -15,6 +15,7 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Software
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Tweet;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.MarketIntelligencePort;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportProperties;
+import pl.seniordeveloper.pulsedigest.shared.util.UrlCanonicalizer;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -157,11 +158,47 @@ public class MarketResearchService {
                 .toList();
 
         return new ResearchResult(
-                finalTweets, rawHn, rawGh, rawRss, rawReddit, rawPapers, rawReleases,
+                finalTweets,
+                rawHn.stream().map(MarketResearchService::canonicalize).toList(),
+                rawGh.stream().map(MarketResearchService::canonicalize).toList(),
+                rawRss.stream().map(MarketResearchService::canonicalize).toList(),
+                rawReddit.stream().map(MarketResearchService::canonicalize).toList(),
+                rawPapers.stream().map(MarketResearchService::canonicalize).toList(),
+                rawReleases.stream().map(MarketResearchService::canonicalize).toList(),
                 LocalDateTime.now(),
                 rawInfluencer.size() + rawTopic.size() + rawAnthropic.size(),
                 rawHn.size(), rawGh.size(), rawRss.size(), rawReddit.size()
         );
+    }
+
+    // ── URL canonicalization at the source boundary ──────────────────────────
+    // Strip tracking params (utm_*, fbclid, etc.) zaraz po fetchu, zanim cokolwiek
+    // dalej w pipeline zobaczy URL. Tweet pomijamy — record nie ma pola url.
+
+    private static HackerNewsPost canonicalize(HackerNewsPost p) {
+        return new HackerNewsPost(p.title(), UrlCanonicalizer.canonicalize(p.url()), p.points());
+    }
+
+    private static GithubRepo canonicalize(GithubRepo r) {
+        return new GithubRepo(r.name(), r.description(), r.stars(), UrlCanonicalizer.canonicalize(r.url()));
+    }
+
+    private static RssItem canonicalize(RssItem r) {
+        return new RssItem(r.title(), UrlCanonicalizer.canonicalize(r.url()), r.description(), r.feedName());
+    }
+
+    private static RedditPost canonicalize(RedditPost r) {
+        return new RedditPost(r.title(), UrlCanonicalizer.canonicalize(r.url()), r.score(), r.subreddit());
+    }
+
+    private static ResearchPaper canonicalize(ResearchPaper p) {
+        return new ResearchPaper(p.arxivId(), p.title(), p.abstractText(), p.authors(),
+                UrlCanonicalizer.canonicalize(p.url()), p.primaryCategory(), p.publishedAt());
+    }
+
+    private static SoftwareRelease canonicalize(SoftwareRelease r) {
+        return new SoftwareRelease(r.repoFullName(), r.version(), r.releaseNotesExcerpt(),
+                UrlCanonicalizer.canonicalize(r.url()), r.releasedAt());
     }
 
     private boolean isFromAuthority(Tweet tweet, Set<String> authorities) {

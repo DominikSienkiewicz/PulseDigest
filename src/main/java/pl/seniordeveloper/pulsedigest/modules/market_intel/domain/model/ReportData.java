@@ -2,6 +2,7 @@ package pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import pl.seniordeveloper.pulsedigest.shared.util.UrlCanonicalizer;
 
 import java.util.List;
 
@@ -24,6 +25,24 @@ public record ReportData(
 
     public ReportData withTrends(List<TrendInsight> newTrends) {
         return new ReportData(emailPreview, editorial, topInsights, items, newTrends);
+    }
+
+    /**
+     * Safety-net canonicalization po syntezie LLM — strip-uje tracking params z URL-i itemów.
+     * Zwraca {@code this} jeśli nic do zmiany (zachowuje referencyjną tożsamość).
+     */
+    public ReportData withCanonicalizedUrls() {
+        if (items == null || items.isEmpty()) {
+            return this;
+        }
+        List<DigestItem> cleaned = items.stream()
+                .map(i -> new DigestItem(
+                        i.title(),
+                        UrlCanonicalizer.canonicalize(i.url()),
+                        i.source(), i.category(), i.type(),
+                        i.score(), i.engagementScore(), i.summary()))
+                .toList();
+        return new ReportData(emailPreview, editorial, topInsights, cleaned, trends);
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

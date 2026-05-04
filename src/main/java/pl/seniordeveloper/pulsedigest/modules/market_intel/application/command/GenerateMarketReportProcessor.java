@@ -60,9 +60,10 @@ public class GenerateMarketReportProcessor {
             }
 
             ReportData report = synthesisPort.synthesize(research);
+            ReportData cleaned = report.withCanonicalizedUrls();
 
-            ReportData enriched = enrichmentPort.map(p -> p.enrich(report)).orElse(report);
-            if (enriched != report) {
+            ReportData enriched = enrichmentPort.map(p -> p.enrich(cleaned)).orElse(cleaned);
+            if (enriched != cleaned) {
                 int trendCount = enriched.trends() != null ? enriched.trends().size() : 0;
                 log.info("[{}] Report enriched with {} trend cluster(s)", jobId, trendCount);
             }
