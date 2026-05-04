@@ -68,7 +68,7 @@ public class GenerateMarketReportProcessor {
             log.info("=== [{}] Report generated successfully in {}s ===",
                     jobId, Duration.between(start, Instant.now()).getSeconds());
 
-            emailPort.send(report);
+            emailPort.send(report, research);
             log.info("[{}] Email delivery triggered", jobId);
 
         } catch (Exception e) {

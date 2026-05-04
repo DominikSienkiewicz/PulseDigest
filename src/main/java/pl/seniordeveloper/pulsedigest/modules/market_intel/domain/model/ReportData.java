@@ -6,10 +6,12 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 
 /**
- * Wynik syntezy digest: top-3 insights dnia + lista ocenionych i podsumowanych itemów.
+ * Wynik syntezy digest: editorial lead, top-3 insights dnia oraz lista ocenionych i podsumowanych itemów.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record ReportData(
+        @JsonProperty("email_preview") String emailPreview,
+        String editorial,
         @JsonProperty("top_insights") List<String> topInsights,
         List<DigestItem> items
 ) {
@@ -20,7 +22,9 @@ public record ReportData(
             String url,
             String source,
             String category,
+            String type,
             int score,
+            @JsonProperty("engagement_score") Integer engagementScore,
             String summary
     ) {
     }

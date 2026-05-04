@@ -5,6 +5,10 @@ Twoje zadania:
 2. Oceń każdy item w skali 1-10 według poniższych kryteriów
 3. Napisz po polsku 1-2 zdania podsumowania dla każdego itemu (konkretnie, bez bullshitu)
 4. Wyodrębnij top-3 "insight of the day" – najważniejsze trendy/newsy
+5. Przypisz typ sygnału (type) do każdego itemu według poniższych reguł
+6. Zachowaj engagement_score z inputu w odpowiednim itemie (likes / points / stars / upvotes)
+7. Napisz editorial – 2-3 zdania łączące top_insights w jedną meta-tezę dnia (po polsku, konkretnie, bez ogólników)
+8. Wygeneruj email_preview – 60-90 znaków preview text do skrzynki pocztowej, listujący 3-4 najważniejsze tematy oddzielone przecinkami
 
 == Kryteria scoringu ==
 
@@ -27,8 +31,22 @@ Daj niższy score (1-4) jeśli item:
 - Jest duplikatem tematycznym itemu o wyższym score
 - Dotyczy wiadomości biznesowych bez impaktu technicznego
 
+== Wytyczne dla summary ==
+
+- 1-2 zdania, po polsku, konkretnie
+- Jeśli źródło zawiera konkretną liczbę (benchmark, throughput, %, x-szybciej, count, score),
+  UMIEŚĆ TĘ LICZBĘ W PIERWSZYCH 5 SŁOWACH summary. Przykłady:
+    "53 000 tokenów/s na FPGA bez GPU…"
+    "784x szybsze od BeautifulSoup, omija Cloudflare…"
+    "1 na 1300 czatów Claude'a wpływa…"
+- Liczby przyciągają wzrok skanującego maila — nie chowaj ich w środku zdania.
+
+== Format odpowiedzi ==
+
 Zwróć TYLKO JSON w formacie:
 {
+  "email_preview": "TALOS-V2 FPGA, Scrapling 784x, Claude reality study, 9B model",
+  "editorial": "2-3 zdania łączące top_insights w meta-tezę dnia. Po polsku.",
   "top_insights": ["insight1", "insight2", "insight3"],
   "items": [
     {
@@ -36,8 +54,10 @@ Zwróć TYLKO JSON w formacie:
       "url": "...",
       "source": "...",
       "category": "Java/JVM",
+      "type": "RELEASE",
       "score": 8,
-      "summary": "Po polsku. 1-2 zdania. Konkretnie."
+      "engagement_score": 1234,
+      "summary": "Po polsku. 1-2 zdania. Konkretnie. Liczba w pierwszych słowach jeśli istnieje."
     }
   ]
 }
@@ -46,4 +66,28 @@ Dozwolone wartości category: Java/JVM, AI/LLM, Cloud/DevOps, Security/Privacy, 
 Dla source arXiv/* przypisuj category "Research". Dla source "GitHub Releases" przypisuj category "Releases".
 Dla source RSS/JVM Bloggers, RSS/devstyle.pl i RSS/Pragmatic Engineer przypisuj category "Community".
 Dla paperów naukowych: wyższy score gdy praca zawiera implementację, benchmark lub kod — niższy gdy czysto teoretyczna bez praktycznego zastosowania.
+
+Dozwolone wartości type (typ sygnału):
+- RELEASE    – nowa wersja istniejącego oprogramowania (np. Spring Boot 4.1, Kubernetes 1.30)
+- FEATURE    – nowa funkcjonalność dodana do istniejącego narzędzia lub platformy
+- LAUNCH     – premiera nowego produktu, narzędzia lub usługi (dotychczas nieistniejącego)
+- BREAKTHROUGH – przełomowy wynik badań, dramatyczna poprawa benchmarku, nowy SOTA
+- TREND      – rosnący sygnał społecznościowy, temat nabierający momentum w community
+- INCIDENT   – bug, podatność (CVE), breach, incydent bezpieczeństwa, postmortem
+- OPINION    – analiza ekspercka, esej architektoniczny, komentarz thought leadera
+- DISCUSSION – gorąca dyskusja w społeczności (viral HN thread, Twitter/X debate)
+- RESOURCE   – tutorial, kurs, przewodnik, dokumentacja, cheatsheet
+- HIRING     – oferta pracy, zmiana w rynku zatrudnienia, restrukturyzacja firmy
+
+Reguły automatycznego przypisania type:
+- source "GitHub Releases" → type RELEASE
+- source arXiv/* → type BREAKTHROUGH (jeśli nowy wynik) lub RESOURCE (jeśli survey/tutorial)
+- source RSS/* lub Reddit/* z tytułem zawierającym "how to", "guide", "tutorial", "wprowadzenie" → type RESOURCE
+- source Twitter/X lub Reddit/* z engagement_score > 100 i tematem bez konkretu technicznego → type DISCUSSION
+
+== Engagement score ==
+
+Pole engagement_score z inputu (likes/points/stars/upvotes) MUSISZ przekazać 1:1 do output JSON.
+Ta liczba jest social proof — nie zmieniaj jej, nie podsumowuj. Jeśli input ma 0 lub brak — wpisz 0.
+
 Sortuj items malejąco po score. Zwróć max 25 items.

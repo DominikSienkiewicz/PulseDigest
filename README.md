@@ -1,7 +1,7 @@
 # 🚀 PulseDigest
 **Architected & Developed by [Dominik](https://www.linkedin.com/in/dominik-sienkiewicz/)** *Principal AI Engineer | Full Stack Architect*
 
-Headless batch application that collects tech news from 5 sources every morning, scores items with GPT-4o, and delivers a prioritized digest to your inbox.
+Headless batch application that collects tech news from 7 sources every morning, scores items with GPT-4o, and delivers a tier'd, prioritized digest to your inbox — with editorial lead, top picks, signals, and long-tail sections.
 
 ![Java 26](https://img.shields.io/badge/Java-26-red?style=for-the-badge&logo=openjdk&logoColor=white)
 ![Spring Boot 4.1](https://img.shields.io/badge/Spring_Boot-4.1.0--SNAPSHOT-green?style=for-the-badge&logo=springboot&logoColor=white)
@@ -9,34 +9,72 @@ Headless batch application that collects tech news from 5 sources every morning,
 ![Architecture](https://img.shields.io/badge/Architecture-Hexagonal-orange?style=for-the-badge)
 
 ## 🧠 The Vision: Signal over Noise
-In the era of AI-driven information overload, this tool is my personal solution to maintain high-level situational awareness without manual scrolling. It applies **Principal-level scoring logic** to filter out noise and focus only on high-impact architectural and AI shifts. It’s not just a scraper; it’s a cognitive filter designed for elite engineers.
+In the era of AI-driven information overload, this tool is my personal solution to maintain high-level situational awareness without manual scrolling. It applies **Principal-level scoring logic** to filter out noise and focus only on high-impact architectural and AI shifts. It's not just a scraper; it's a cognitive filter designed for elite engineers.
 
 ## How it works
 
 ```
-Twitter/X ──┐
-Hacker News ┤
-GitHub      ├──► MarketResearchService ──► GPT-4o ──► Resend email
-RSS feeds   ┤     (parallel fetch,          (score 1-10,
-Reddit      ┘      last 24 h)                category,
-                                             PL summary)
+Twitter/X       ──┐
+Hacker News       ┤
+GitHub            ┤
+RSS feeds (13)    ├──► MarketResearchService ──► GPT-4o ──► Resend email
+Reddit (8 subs)   ┤     (parallel fetch,          (score 1-10,
+arXiv             ┤      last 24 h)                category, type,
+GitHub Releases ──┘                                editorial, PL summary)
 ```
 
-1. **Fetch** — 5 sources run in parallel via Virtual Threads (`CompletableFuture`). Each source filters to the last 24
-   h.
-2. **Score** — GPT-4o deduplicates, scores each item 1–10 by relevance for a Senior/Principal Engineer + Architect
-   profile, assigns a category, and writes a 1–2 sentence Polish summary.
-3. **Deliver** — HTML email sent via Resend with a table sorted by score (green ≥ 7, orange ≥ 4, red < 4).
+1. **Fetch** — 7 sources run in parallel via Virtual Threads (`CompletableFuture`). Each source filters to the last 24h.
+2. **Score** — GPT-4o deduplicates, scores each item 1–10 by relevance for a Senior/Principal Engineer + Architect profile, assigns a **category** (topic) and a **type** (signal kind), preserves engagement metrics, and writes a 1–2 sentence Polish summary with the key number front-loaded.
+3. **Synthesize** — GPT-4o produces an editorial lead (meta-thesis of the day) + top-3 insights + email preheader text.
+4. **Deliver** — HTML email via Resend with tier'd layout: ⭐ Top picks (score ≥ 8, full table) · 🔌 Signals (5–7, one-liner list) · Long tail (< 5, link-only chips). Footer shows "selected N of M items · K sources · 24h window".
 
 ## Sources
 
-| Source      | Filter                                                                  | Notes                                       |
-|-------------|-------------------------------------------------------------------------|---------------------------------------------|
-| Twitter/X   | 84 curated accounts + 5 topic queries, last 24 h                        | Batched into groups of 8 accounts per query |
-| Hacker News | Algolia `numericFilters=created_at_i>`                                  | `min-score: 50`                             |
-| GitHub      | `pushed:>=yesterday`                                                    | Stars desc, configurable query              |
-| RSS         | 8 feeds (InfoQ, Spring Blog, Baeldung, DZone, Niebezpiecznik, Sekurak…) | `pubDate` / `updated` filter                |
-| Reddit      | `t=day` (top 24 h)                                                      | 8 subreddits, `min-score: 50`               |
+| Source          | Filter                                                                              | Notes                                       |
+|-----------------|-------------------------------------------------------------------------------------|---------------------------------------------|
+| Twitter/X       | 84 curated accounts + 5 topic queries, last 24 h                                    | Batched into groups of 8 accounts per query |
+| Hacker News     | Algolia `numericFilters=created_at_i>`                                              | `min-score: 50`                             |
+| GitHub          | `pushed:>=yesterday`                                                                | Stars desc, configurable query              |
+| RSS             | 13 feeds (InfoQ, Spring Blog, Baeldung, DZone, Niebezpiecznik, Sekurak, JVM Bloggers, devstyle.pl, TLDR Tech, Pragmatic Engineer, Quastor…) | `pubDate` / `updated` filter |
+| Reddit          | `t=day` (top 24 h)                                                                  | 8 subreddits, `min-score: 50`               |
+| arXiv           | Categories `cs.AI, cs.LG, cs.CR, cs.DC, cs.PL` + keyword filter                     | Last 24h, max 15 papers                     |
+| GitHub Releases | 17 monitored repos (Spring Boot, Quarkus, GraalVM, vLLM, llama.cpp, K8s, OTel…)      | Last 48h                                    |
+
+## Categorization (two dimensions)
+
+Each digest item is classified along **two orthogonal axes**:
+
+**Category** — *what topic area the item belongs to*
+`Java/JVM` · `AI/LLM` · `Cloud/DevOps` · `Security/Privacy` · `Architecture` · `Open Source` · `Research` · `Releases` · `Community` · `Other`
+
+**Type** — *what kind of signal the item carries*
+
+| Type           | Meaning                                                              |
+|----------------|----------------------------------------------------------------------|
+| `RELEASE`      | New version of existing software (Spring Boot 4.1, K8s 1.30)         |
+| `FEATURE`      | New capability added to existing tool/platform                       |
+| `LAUNCH`       | Premiere of a brand-new product, tool, or service                    |
+| `BREAKTHROUGH` | Breakthrough research result, dramatic benchmark improvement, SOTA   |
+| `TREND`        | Growing community signal, topic gaining momentum                     |
+| `INCIDENT`     | Bug, CVE, breach, security incident, postmortem                      |
+| `OPINION`      | Expert analysis, architectural essay, thought-leader commentary      |
+| `DISCUSSION`   | Hot community discussion (viral HN thread, Twitter/X debate)         |
+| `RESOURCE`     | Tutorial, course, guide, documentation, cheatsheet                   |
+| `HIRING`       | Job posting, hiring market shift, company restructure                |
+
+Both fields are LLM-assigned. The email renders `type` as a colored badge (semantic palette: red for INCIDENT, purple for RELEASE, green for RESOURCE, etc.).
+
+## Email anatomy
+
+The delivered HTML email is a structured digest, not just a link list:
+
+- **Hidden preheader** — 60–90 char preview text shown in inbox snippet (Gmail/Apple Mail).
+- **Editorial lead** — 2–3 sentence meta-thesis tying together the day's most important signals (italic, prominent).
+- **🔑 Top insights** — top-3 trends extracted from the day.
+- **⭐ Top picks** — score ≥ 8, full table with category, type badge, source, engagement (❤/pkt/★/↑) and color-coded score.
+- **🔌 Signals** — score 5–7, numbered one-liners with type badge and engagement.
+- **Long tail** — score < 5, link-only chips separated by `·`.
+- **Footer** — transparency block: "selected N of M items · K sources · 24h window".
 
 ## Tech stack
 
@@ -46,8 +84,7 @@ Reddit      ┘      last 24 h)                category,
 - **Gradle 9** (Kotlin DSL)
 - **Project Loom** — Virtual Threads for all I/O
 
-Architecture follows [Hexagonal (Ports & Adapters)](docs/adr/0002-hexagonal-architecture.md). No database, no messaging,
-no web layer.
+Architecture follows [Hexagonal (Ports & Adapters)](docs/adr/0002-hexagonal-architecture.md). No database, no messaging, no web layer.
 
 ## Prerequisites
 
@@ -86,16 +123,13 @@ DIGEST_TO_EMAIL=
 
 ## GitHub Actions
 
-The workflow at [`.github/workflows/digest.yml`](.github/workflows/digest.yml) runs daily at **04:00 UTC** (06:00 CEST /
-05:00 CET) and can also be triggered manually via `workflow_dispatch`.
+The workflow at [`.github/workflows/digest.yml`](.github/workflows/digest.yml) runs daily at **04:00 UTC** (06:00 CEST / 05:00 CET) and can also be triggered manually via `workflow_dispatch`.
 
-Required repository secrets: `TWITTER_BEARER_TOKEN`, `OPENAI_API_KEY`, `RESEND_API_KEY`, `DIGEST_FROM_EMAIL`,
-`DIGEST_TO_EMAIL`.
+Required repository secrets: `TWITTER_BEARER_TOKEN`, `OPENAI_API_KEY`, `RESEND_API_KEY`, `DIGEST_FROM_EMAIL`, `DIGEST_TO_EMAIL`.
 
 ## Configuration
 
-All tuneable parameters live in [`src/main/resources/application.yaml`](src/main/resources/application.yaml) under the
-`report:` prefix:
+All tuneable parameters live in [`src/main/resources/application.yaml`](src/main/resources/application.yaml) under the `report:` prefix:
 
 | Key                     | Default                  | Description              |
 |-------------------------|--------------------------|--------------------------|
@@ -108,6 +142,8 @@ All tuneable parameters live in [`src/main/resources/application.yaml`](src/main
 | `rss.limit`             | `5`                      | Max items per RSS feed   |
 | `reddit.min-score`      | `50`                     | Minimum Reddit upvotes   |
 | `reddit.limit`          | `10`                     | Max posts per subreddit  |
+| `arxiv.max-results`     | `15`                     | Max arXiv papers         |
+| `releases.lookback-hours` | `48`                   | GitHub Releases window   |
 
 ## Architecture decision records
 

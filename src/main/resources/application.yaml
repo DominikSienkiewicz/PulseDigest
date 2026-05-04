@@ -20,8 +20,6 @@ twitter:
     - "java"
     - "QuarkusIO"
     - "springcentral"
-    - "grailsframework"
-    - "ApacheGroovy"
     - "micronautfw"
     - "gradle"
     - "adoptium"
@@ -84,9 +82,7 @@ twitter:
     - "ProtonPrivacy"
     - "mullvadnet"
     - "SimpleLogin"
-    - "DuckDuckGo"
     - "signalapp"
-    - "brave"
     # Databases / infra
     - "PostgreSQL"
     - "AMD"

@@ -8,6 +8,7 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportData;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ResearchResult;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.EmailDeliveryPort;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportProperties;
 
@@ -37,7 +38,7 @@ public class ResendEmailAdapter implements EmailDeliveryPort {
     }
 
     @Override
-    public void send(ReportData report) {
+    public void send(ReportData report, ResearchResult research) {
         ReportProperties.EmailProperties cfg = reportProperties.email();
         if (isBlank(cfg.resendApiKey()) || isBlank(cfg.to())) {
             log.warn("Email not configured (RESEND_API_KEY or DIGEST_TO_EMAIL missing) — skipping");
@@ -45,7 +46,7 @@ public class ResendEmailAdapter implements EmailDeliveryPort {
         }
 
         String subject = emailBuilder.buildSubject(report);
-        String html = emailBuilder.buildHtml(report);
+        String html = emailBuilder.buildHtml(report, research);
 
         try {
             String body = objectMapper.writeValueAsString(Map.of(
