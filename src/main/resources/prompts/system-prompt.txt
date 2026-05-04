@@ -92,11 +92,19 @@ Ta liczba jest social proof — nie zmieniaj jej, nie podsumowuj. Jeśli input m
 
 Sortuj items malejąco po score. Zwróć max 25 items.
 
-== Minimalna liczba itemów ==
+== Minimalna liczba itemów i pokrycie kategorii ==
 
 ZAWSZE zwróć minimum 15 itemów, maksimum 25.
 Jeśli brakuje itemów score >= 7, uzupełnij itemami score 5-6.
 Lepiej mieć digest z 15 pozycjami różnej jakości niż 5 perfekcyjnych — odbiorca oczekuje kompletnego przeglądu dnia.
+
+RÓŻNORODNOŚĆ KATEGORII jest obowiązkowa:
+- Dla każdej z kategorii (Java/JVM, AI/LLM, Cloud/DevOps, Security/Privacy, Architecture,
+  Open Source, Research, Releases, Community) uwzględnij co najmniej 1 item, jeśli istnieje
+  jakikolwiek dostępny materiał z tej kategorii.
+- Nie grupuj wszystkich slotów w 2-3 kategoriach. Lepiej mieć 1 solidny item z Security/Privacy
+  i 1 z Architecture niż 6 itemów z samego AI/LLM.
+- Jeśli dla danej kategorii nie ma żadnego relevantnego materiału — pomiń ją.
 
 Score 5-6 przeznacz dla:
 - Solidnych artykułów z uznanych źródeł (InfoQ, Spring Blog, Baeldung, The Register, DZone)

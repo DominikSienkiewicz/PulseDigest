@@ -12,6 +12,7 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportJo
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ResearchResult;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.EmailDeliveryPort;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.LlmSynthesisPort;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.ReportEnrichmentPort;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.ReportStoragePort;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.AsyncConfig;
 
@@ -32,6 +33,7 @@ public class GenerateMarketReportProcessor {
     private final LlmSynthesisPort synthesisPort;
     private final ReportStoragePort storagePort;
     private final EmailDeliveryPort emailPort;
+    private final Optional<ReportEnrichmentPort> enrichmentPort;
 
     @Async(AsyncConfig.REPORT_EXECUTOR)
     public void process(String jobId) {
@@ -59,16 +61,22 @@ public class GenerateMarketReportProcessor {
 
             ReportData report = synthesisPort.synthesize(research);
 
+            ReportData enriched = enrichmentPort.map(p -> p.enrich(report)).orElse(report);
+            if (enriched != report) {
+                int trendCount = enriched.trends() != null ? enriched.trends().size() : 0;
+                log.info("[{}] Report enriched with {} trend cluster(s)", jobId, trendCount);
+            }
+
             storagePort.save(new PersistedReport(
-                    report, jobId, Instant.now(),
+                    enriched, jobId, Instant.now(),
                     research.tweets().size(), research.hackerNewsPosts().size(), research.githubRepos().size()
             ));
 
-            jobTracker.track(job.done(report));
+            jobTracker.track(job.done(enriched));
             log.info("=== [{}] Report generated successfully in {}s ===",
                     jobId, Duration.between(start, Instant.now()).getSeconds());
 
-            emailPort.send(report, research);
+            emailPort.send(enriched, research);
             log.info("[{}] Email delivery triggered", jobId);
 
         } catch (Exception e) {

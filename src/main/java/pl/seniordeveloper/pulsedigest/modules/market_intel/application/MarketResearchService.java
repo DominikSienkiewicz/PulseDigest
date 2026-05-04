@@ -129,8 +129,16 @@ public class MarketResearchService {
         int daysBack = reportProperties.research().daysBack();
         ZonedDateTime cutoff = ZonedDateTime.now(ZoneOffset.UTC).minusDays(daysBack);
 
+        // Authority accounts get relaxed relevance check — their signal-to-noise is high by definition
         List<Tweet> filteredAuthority = Stream.concat(rawInfluencer.stream(), rawAnthropic.stream())
                 .filter(t -> isFromAuthority(t, authorityUsernames))
+                .filter(t -> t.likeCount() >= minLikes)
+                .filter(t -> isRecent(t.createdAt(), cutoff))
+                .toList();
+
+        // All other tracked accounts — apply relevance keyword filter
+        List<Tweet> filteredTracked = Stream.concat(rawInfluencer.stream(), rawAnthropic.stream())
+                .filter(t -> !isFromAuthority(t, authorityUsernames))
                 .filter(t -> t.likeCount() >= minLikes)
                 .filter(t -> isRecent(t.createdAt(), cutoff))
                 .filter(this::isRelevant)
@@ -141,7 +149,9 @@ public class MarketResearchService {
                 .filter(t -> isRecent(t.createdAt(), cutoff))
                 .toList();
 
-        List<Tweet> finalTweets = Stream.concat(filteredAuthority.stream(), filteredTopic.stream())
+        List<Tweet> finalTweets = Stream.concat(
+                        Stream.concat(filteredAuthority.stream(), filteredTracked.stream()),
+                        filteredTopic.stream())
                 .distinct()
                 .limit(25)
                 .toList();

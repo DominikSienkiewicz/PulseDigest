@@ -3,6 +3,7 @@ package pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapt
 import org.springframework.stereotype.Component;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportData;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ResearchResult;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TrendInsight;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -29,6 +30,7 @@ public class ReportEmailBuilder {
                 : "Twój daily digest tech news z ostatnich 24h";
         List<String> insights = report.topInsights() != null ? report.topInsights() : List.of();
         List<ReportData.DigestItem> items = report.items() != null ? report.items() : List.of();
+        List<TrendInsight> trends = report.trends() != null ? report.trends() : List.of();
         String editorial = report.editorial();
 
         return "<!DOCTYPE html>"
@@ -43,6 +45,7 @@ public class ReportEmailBuilder {
                 + buildHeader(today)
                 + buildEditorialSection(editorial)
                 + buildInsightsSection(insights)
+                + buildTrendsSection(trends)
                 + buildItemsSection(items)
                 + buildFooter(items.size(), research)
                 + "</div></body></html>";
@@ -91,6 +94,42 @@ public class ReportEmailBuilder {
         for (String insight : insights) {
             sb.append("<li style=\"margin-bottom:6px\">").append(escapeHtml(insight))
                     .append("</li>");
+        }
+        sb.append("</ul></div>");
+        return sb.toString();
+    }
+
+    private String buildTrendsSection(List<TrendInsight> trends) {
+        if (trends == null || trends.isEmpty()) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder();
+        sb.append("<div style=\"padding:20px 28px;background:#f5f3ff;"
+                + "border-bottom:1px solid #ede9fe\">");
+        sb.append("<h2 style=\"color:#5b21b6;font-size:15px;margin:0 0 10px\">")
+                .append("&#128260; W tym tygodniu wraca</h2>");
+        sb.append("<ul style=\"margin:0;padding-left:20px;color:#4c1d95;"
+                + "font-size:14px;line-height:1.7;list-style:none\">");
+        for (TrendInsight t : trends) {
+            String narrative = t.narrative() != null && !t.narrative().isBlank()
+                    ? " &mdash; " + escapeHtml(t.narrative()) : "";
+            sb.append("<li style=\"margin-bottom:8px\">")
+                    .append("<strong>").append(escapeHtml(t.category())).append("</strong>")
+                    .append(" <span style=\"color:#7c3aed;font-weight:600\">&times;")
+                    .append(t.occurrences()).append("</span>")
+                    .append(narrative);
+            if (t.exampleTitles() != null && !t.exampleTitles().isEmpty()) {
+                sb.append("<div style=\"color:#6b21a8;font-size:12px;margin-top:2px;"
+                        + "opacity:.85\">np. ");
+                for (int i = 0; i < t.exampleTitles().size() && i < 2; i++) {
+                    if (i > 0) {
+                        sb.append(" &middot; ");
+                    }
+                    sb.append(escapeHtml(t.exampleTitles().get(i)));
+                }
+                sb.append("</div>");
+            }
+            sb.append("</li>");
         }
         sb.append("</ul></div>");
         return sb.toString();
@@ -145,16 +184,21 @@ public class ReportEmailBuilder {
             return "";
         }
         StringBuilder sb = new StringBuilder();
-        sb.append("<div style=\"padding:20px 28px;background:#fafafa;"
-                + "border-top:1px solid #f0f0f0\">");
-        sb.append("<h2 style=\"color:#111827;font-size:15px;margin:0 0 12px\">")
+        sb.append("<div style=\"padding:20px 28px;background:#fafafa;border-top:1px solid #f0f0f0\">");
+        sb.append("<h2 style=\"color:#374151;font-size:15px;margin:0 0 12px\">")
                 .append("&#128268; Signals (").append(items.size()).append(")</h2>");
-        sb.append("<ol style=\"margin:0;padding-left:24px;color:#374151;"
-                + "font-size:13px;line-height:1.75\">");
+        sb.append("<table style=\"width:100%;border-collapse:collapse;font-size:13px\">");
+        sb.append("<thead><tr style=\"background:#f3f4f6\">");
+        sb.append(th("Artykuł"));
+        sb.append(th("Kategoria"));
+        sb.append(th("Typ"));
+        sb.append(th("&#377;ródło"));
+        sb.append(th("Score"));
+        sb.append("</tr></thead><tbody>");
         for (ReportData.DigestItem item : items) {
-            sb.append(buildSignalRow(item));
+            sb.append(buildTieredRow(item, "#fafafa"));
         }
-        sb.append("</ol></div>");
+        sb.append("</tbody></table></div>");
         return sb.toString();
     }
 
@@ -163,22 +207,21 @@ public class ReportEmailBuilder {
             return "";
         }
         StringBuilder sb = new StringBuilder();
-        sb.append("<div style=\"padding:16px 28px;border-top:1px solid #f0f0f0\">");
-        sb.append("<h2 style=\"color:#6b7280;font-size:13px;margin:0 0 8px;"
-                + "font-weight:600\">")
+        sb.append("<div style=\"padding:20px 28px;background:#f9fafb;border-top:1px solid #f0f0f0\">");
+        sb.append("<h2 style=\"color:#9ca3af;font-size:14px;margin:0 0 12px\">")
                 .append("Long tail (").append(items.size()).append(")</h2>");
-        sb.append("<div style=\"color:#9ca3af;font-size:12px;line-height:1.7\">");
-        for (int i = 0; i < items.size(); i++) {
-            ReportData.DigestItem item = items.get(i);
-            sb.append("<a href=\"").append(escapeHtml(item.url())).append("\" "
-                    + "style=\"color:#6b7280;text-decoration:none\">")
-                    .append(escapeHtml(item.title()))
-                    .append("</a>");
-            if (i < items.size() - 1) {
-                sb.append(" &middot; ");
-            }
+        sb.append("<table style=\"width:100%;border-collapse:collapse;font-size:12px\">");
+        sb.append("<thead><tr style=\"background:#f3f4f6\">");
+        sb.append(th("Artykuł"));
+        sb.append(th("Kategoria"));
+        sb.append(th("Typ"));
+        sb.append(th("&#377;ródło"));
+        sb.append(th("Score"));
+        sb.append("</tr></thead><tbody>");
+        for (ReportData.DigestItem item : items) {
+            sb.append(buildTieredRow(item, "#f9fafb"));
         }
-        sb.append("</div></div>");
+        sb.append("</tbody></table></div>");
         return sb.toString();
     }
 
@@ -219,22 +262,41 @@ public class ReportEmailBuilder {
                 + "</tr>";
     }
 
-    private String buildSignalRow(ReportData.DigestItem item) {
+    private String buildTieredRow(ReportData.DigestItem item, String rowBg) {
+        String scoreColor = item.score() >= 7 ? "#16a34a"
+                : item.score() >= 4 ? "#ca8a04"
+                  : "#dc2626";
         String safeUrl = escapeHtml(item.url());
         String safeTitle = escapeHtml(item.title());
+        String safeSummary = escapeHtml(item.summary());
         String safeSource = escapeHtml(item.source());
+        String safeCategory = escapeHtml(item.category() != null ? item.category() : "Other");
         String typeLabel = item.type() != null ? item.type() : "OTHER";
         String engagementBadge = formatEngagement(item.engagementScore(), item.source());
 
-        return "<li style=\"margin-bottom:6px\">"
-                + "<a href=\"" + safeUrl + "\" style=\"color:#1d4ed8;"
-                + "text-decoration:none;font-weight:500\">" + safeTitle + "</a>"
-                + " " + buildTypeBadge(typeLabel)
-                + " <span style=\"color:#9ca3af;font-size:12px\">&middot; "
+        return "<tr style=\"background:" + rowBg + "\">"
+                + "<td style=\"padding:10px 12px;border-bottom:1px solid #f0f0f0\">"
+                + "<a href=\"" + safeUrl + "\" style=\"color:#1d4ed8;font-weight:600;"
+                + "text-decoration:none\">" + safeTitle + "</a>"
+                + "<div style=\"color:#6b7280;font-size:13px;margin-top:4px\">"
+                + safeSummary + "</div></td>"
+                + "<td style=\"padding:10px 12px;border-bottom:1px solid #f0f0f0;"
+                + "white-space:nowrap;font-size:12px\">"
+                + "<span style=\"background:#f1f5f9;color:#475569;padding:2px 6px;"
+                + "border-radius:4px\">" + safeCategory + "</span></td>"
+                + "<td style=\"padding:10px 12px;border-bottom:1px solid #f0f0f0;"
+                + "white-space:nowrap;font-size:12px\">"
+                + buildTypeBadge(typeLabel) + "</td>"
+                + "<td style=\"padding:10px 12px;border-bottom:1px solid #f0f0f0;"
+                + "white-space:nowrap;color:#6b7280;font-size:12px\">"
                 + safeSource
-                + (engagementBadge.isEmpty() ? "" : " &middot; " + engagementBadge)
-                + " &middot; " + item.score() + "/10</span>"
-                + "</li>";
+                + (engagementBadge.isEmpty() ? "" : "<div style=\"color:#9ca3af;"
+                        + "font-size:11px;margin-top:2px\">" + engagementBadge + "</div>")
+                + "</td>"
+                + "<td style=\"padding:10px 12px;border-bottom:1px solid #f0f0f0;"
+                + "text-align:center\"><span style=\"color:" + scoreColor
+                + ";font-weight:700;font-size:14px\">" + item.score() + "/10</span></td>"
+                + "</tr>";
     }
 
     private String buildFooter(int selectedCount, ResearchResult research) {

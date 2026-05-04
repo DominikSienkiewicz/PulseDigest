@@ -26,19 +26,19 @@ GitHub Releases ──┘                                editorial, PL summary)
 1. **Fetch** — 7 sources run in parallel via Virtual Threads (`CompletableFuture`). Each source filters to the last 24h.
 2. **Score** — GPT-4o deduplicates, scores each item 1–10 by relevance for a Senior/Principal Engineer + Architect profile, assigns a **category** (topic) and a **type** (signal kind), preserves engagement metrics, and writes a 1–2 sentence Polish summary with the key number front-loaded.
 3. **Synthesize** — GPT-4o produces an editorial lead (meta-thesis of the day) + top-3 insights + email preheader text.
-4. **Deliver** — HTML email via Resend with tier'd layout: ⭐ Top picks (score ≥ 8, full table) · 🔌 Signals (5–7, one-liner list) · Long tail (< 5, link-only chips). Footer shows "selected N of M items · K sources · 24h window".
+4. **Deliver** — HTML email via Resend with tier'd layout: ⭐ Top picks (score ≥ 8) · 🔌 Signals (5–7) · Long tail (< 5). All three tiers render the same full table — title, summary, category, type badge, source, engagement, score — differentiated only by header style and row background. Footer shows "selected N of M items · K sources · 24h window".
 
 ## Sources
 
 | Source          | Filter                                                                              | Notes                                       |
 |-----------------|-------------------------------------------------------------------------------------|---------------------------------------------|
-| Twitter/X       | 84 curated accounts + 5 topic queries, last 24 h                                    | Batched into groups of 8 accounts per query |
-| Hacker News     | Algolia `numericFilters=created_at_i>`                                              | `min-score: 50`                             |
-| GitHub          | `pushed:>=yesterday`                                                                | Stars desc, configurable query              |
-| RSS             | 13 feeds (InfoQ, Spring Blog, Baeldung, DZone, Niebezpiecznik, Sekurak, JVM Bloggers, devstyle.pl, TLDR Tech, Pragmatic Engineer, Quastor…) | `pubDate` / `updated` filter |
-| Reddit          | `t=day` (top 24 h)                                                                  | 8 subreddits, `min-score: 50`               |
-| arXiv           | Categories `cs.AI, cs.LG, cs.CR, cs.DC, cs.PL` + keyword filter                     | Last 24h, max 15 papers                     |
-| GitHub Releases | 17 monitored repos (Spring Boot, Quarkus, GraalVM, vLLM, llama.cpp, K8s, OTel…)      | Last 48h                                    |
+| Twitter/X       | ~84 curated accounts + 5 topic queries, last 24 h                                   | Authority accounts bypass keyword filter; others require relevance match |
+| Hacker News     | Algolia `numericFilters=created_at_i>`, keyword query                               | `min-score: 25`, max 15 items               |
+| GitHub          | `pushed:>=yesterday`                                                                | Stars desc, configurable query, max 5 repos |
+| RSS             | 13 feeds (InfoQ, Spring Blog, Baeldung, DZone ×2, Niebezpiecznik, Sekurak, JVM Bloggers, devstyle.pl, TLDR Tech, Pragmatic Engineer, Quastor) | `pubDate` / `updated` filter, max 10 per feed |
+| Reddit          | `t=day` (top 24 h)                                                                  | 8 subreddits, `min-score: 20`, max 15 per sub |
+| arXiv           | Categories `cs.AI, cs.LG, cs.CR, cs.DC, cs.PL` + keyword filter                     | Last 48 h, max 20 papers                    |
+| GitHub Releases | 17 monitored repos (Spring Boot, Spring AI, Quarkus, GraalVM, vLLM, llama.cpp, K8s, OTel…) | Last 72 h, latest release per repo only |
 
 ## Categorization (two dimensions)
 
@@ -71,9 +71,11 @@ The delivered HTML email is a structured digest, not just a link list:
 - **Hidden preheader** — 60–90 char preview text shown in inbox snippet (Gmail/Apple Mail).
 - **Editorial lead** — 2–3 sentence meta-thesis tying together the day's most important signals (italic, prominent).
 - **🔑 Top insights** — top-3 trends extracted from the day.
-- **⭐ Top picks** — score ≥ 8, full table with category, type badge, source, engagement (❤/pkt/★/↑) and color-coded score.
-- **🔌 Signals** — score 5–7, numbered one-liners with type badge and engagement.
-- **Long tail** — score < 5, link-only chips separated by `·`.
+- **⭐ Top picks** — score ≥ 8, white background.
+- **🔌 Signals** — score 5–7, muted `#fafafa` background.
+- **Long tail** — score < 5, lightest `#f9fafb` background.
+
+All three tiers render an identical full table: **article link + 1–2 sentence Polish summary · category badge · type badge · source + engagement (❤/pkt/★/↑) · color-coded score**. The background shade is the only visual distinction — every tier gives enough context to decide whether to click.
 - **Footer** — transparency block: "selected N of M items · K sources · 24h window".
 
 ## Tech stack
@@ -131,19 +133,20 @@ Required repository secrets: `TWITTER_BEARER_TOKEN`, `OPENAI_API_KEY`, `RESEND_A
 
 All tuneable parameters live in [`src/main/resources/application.yaml`](src/main/resources/application.yaml) under the `report:` prefix:
 
-| Key                     | Default                  | Description              |
-|-------------------------|--------------------------|--------------------------|
-| `research.days-back`    | `1`                      | Tweet age window (days)  |
-| `research.min-likes`    | `3`                      | Minimum likes for tweets |
-| `hacker-news.min-score` | `50`                     | Minimum HN points        |
-| `hacker-news.limit`     | `10`                     | Max HN items             |
-| `github.query`          | `topic:ai language:java` | GitHub search query      |
-| `github.limit`          | `5`                      | Max GitHub repos         |
-| `rss.limit`             | `5`                      | Max items per RSS feed   |
-| `reddit.min-score`      | `50`                     | Minimum Reddit upvotes   |
-| `reddit.limit`          | `10`                     | Max posts per subreddit  |
-| `arxiv.max-results`     | `15`                     | Max arXiv papers         |
-| `releases.lookback-hours` | `48`                   | GitHub Releases window   |
+| Key                            | Default                  | Description                                        |
+|--------------------------------|--------------------------|----------------------------------------------------|
+| `research.days-back`           | `1`                      | Tweet age window (days)                            |
+| `research.min-likes`           | `3`                      | Minimum likes for tweets                           |
+| `hacker-news.min-score`        | `25`                     | Minimum HN points                                  |
+| `hacker-news.limit`            | `15`                     | Max HN items                                       |
+| `github.query`                 | `topic:ai language:java` | GitHub search query                                |
+| `github.limit`                 | `5`                      | Max GitHub repos                                   |
+| `rss.limit`                    | `10`                     | Max items per RSS feed                             |
+| `reddit.min-score`             | `20`                     | Minimum Reddit upvotes                             |
+| `reddit.limit`                 | `15`                     | Max posts per subreddit                            |
+| `arxiv.max-results`            | `20`                     | Max arXiv papers                                   |
+| `arxiv.lookback-hours`         | `48`                     | arXiv paper age window                             |
+| `github-releases.lookback-hours` | `72`                   | GitHub Releases age window                         |
 
 ## Architecture decision records
 

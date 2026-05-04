@@ -18,7 +18,8 @@ public record ReportProperties(
         RssProperties rss,
         RedditProperties reddit,
         ArxivProperties arxiv,
-        GithubReleasesProperties githubReleases
+        GithubReleasesProperties githubReleases,
+        TrendProperties trend
 ) {
 
     public record EmailProperties(
@@ -80,6 +81,17 @@ public record ReportProperties(
     public record GithubReleasesProperties(
             List<String> repositories,
             int lookbackHours
+    ) {
+    }
+
+    /**
+     * Configuration for trend detection across historical reports.
+     */
+    public record TrendProperties(
+            boolean enabled,
+            int lookbackDays,
+            int minOccurrences,
+            int maxClusters
     ) {
     }
 }

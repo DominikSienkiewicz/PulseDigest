@@ -168,13 +168,21 @@ public class ReportPromptBuilder {
 
         for (var item : all) {
             String src = (String) item.get("source");
-            if (src.startsWith("Twitter"))          twitter.add(item);
-            else if (src.startsWith("Hacker News")) hn.add(item);
-            else if (src.equals("GitHub"))          github.add(item);
-            else if (src.startsWith("RSS"))         rss.add(item);
-            else if (src.startsWith("Reddit"))      reddit.add(item);
-            else if (src.startsWith("arXiv"))       arxiv.add(item);
-            else if (src.equals("GitHub Releases")) releases.add(item);
+            if (src.startsWith("Twitter")) {
+                twitter.add(item);
+            } else if (src.startsWith("Hacker News")) {
+                hn.add(item);
+            } else if (src.equals("GitHub")) {
+                github.add(item);
+            } else if (src.startsWith("RSS")) {
+                rss.add(item);
+            } else if (src.startsWith("Reddit")) {
+                reddit.add(item);
+            } else if (src.startsWith("arXiv")) {
+                arxiv.add(item);
+            } else if (src.equals("GitHub Releases")) {
+                releases.add(item);
+            }
         }
 
         Comparator<Map<String, Object>> byEngagement =

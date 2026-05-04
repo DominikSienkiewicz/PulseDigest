@@ -60,7 +60,7 @@ public class GithubReleasesAdapter {
         String[] parts = repoFullName.split("/", 2);
         try {
             String json = restClient.get()
-                    .uri("/repos/{owner}/{repo}/releases?per_page=5", parts[0], parts[1])
+                    .uri("/repos/{owner}/{repo}/releases?per_page=1", parts[0], parts[1])
                     .retrieve()
                     .body(String.class);
             if (json == null || json.isBlank()) {

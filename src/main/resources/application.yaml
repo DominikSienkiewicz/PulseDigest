@@ -6,6 +6,18 @@ spring:
   ai:
     openai:
       api-key: "${OPENAI_API_KEY:}"
+  datasource:
+    url: "${SUPABASE_DB_URL:}"
+    username: "${SUPABASE_DB_USERNAME:}"
+    password: "${SUPABASE_DB_PASSWORD:}"
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 4
+      connection-timeout: 30000
+  sql:
+    init:
+      mode: always
+      continue-on-error: false
 
 twitter:
   bearer-token: "${TWITTER_BEARER_TOKEN:}"
@@ -183,6 +195,12 @@ report:
     keywords: "agent,llm,rag,inference,jvm,virtual thread,security,vulnerability"
     max-results: 20
     lookback-hours: 48
+
+  trend:
+    enabled: true
+    lookback-days: 7
+    min-occurrences: 2
+    max-clusters: 5
 
   github-releases:
     lookback-hours: 72
