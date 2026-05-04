@@ -14,6 +14,7 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Research
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
@@ -21,6 +22,16 @@ import java.util.Map;
 @RequiredArgsConstructor
 @Component
 public class ReportPromptBuilder {
+
+    // Per-source caps applied before sending to LLM to reduce noise while keeping diversity
+    private static final int CAP_RSS       = 30;
+    private static final int CAP_TWITTER   = 20;
+    private static final int CAP_REDDIT    = 15;
+    private static final int CAP_HN        = 10;
+    private static final int CAP_GITHUB    = 10;
+    private static final int CAP_ARXIV     = 8;
+    private static final int CAP_RELEASES  = 10;
+    private static final int TOTAL_CAP     = 80;
 
     private final ObjectMapper objectMapper;
 
@@ -40,14 +51,14 @@ public class ReportPromptBuilder {
     }
 
     public String buildUserPrompt(ResearchResult research) {
-        List<Map<String, Object>> payload = new ArrayList<>();
+        List<Map<String, Object>> all = new ArrayList<>();
 
         for (var tweet : research.tweets()) {
             String url = "https://x.com/" + tweet.authorUsername() + "/status/" + tweet.id();
             String title = tweet.text().length() > 120
                     ? tweet.text().substring(0, 120).replace("\n", " ")
                     : tweet.text().replace("\n", " ");
-            payload.add(Map.of(
+            all.add(Map.of(
                     "source", "Twitter/X",
                     "title", title,
                     "url", url,
@@ -57,7 +68,7 @@ public class ReportPromptBuilder {
         }
 
         for (var hn : research.hackerNewsPosts()) {
-            payload.add(Map.of(
+            all.add(Map.of(
                     "source", "Hacker News",
                     "title", hn.title(),
                     "url", hn.url(),
@@ -68,7 +79,7 @@ public class ReportPromptBuilder {
 
         for (var repo : research.githubRepos()) {
             String desc = repo.description() != null ? repo.description() : "";
-            payload.add(Map.of(
+            all.add(Map.of(
                     "source", "GitHub",
                     "title", repo.name(),
                     "url", repo.url(),
@@ -79,7 +90,7 @@ public class ReportPromptBuilder {
 
         for (var rss : research.rssItems()) {
             String preview = rss.description() != null ? rss.description() : "";
-            payload.add(Map.of(
+            all.add(Map.of(
                     "source", "RSS/" + rss.feedName(),
                     "title", rss.title(),
                     "url", rss.url(),
@@ -89,7 +100,7 @@ public class ReportPromptBuilder {
         }
 
         for (var reddit : research.redditPosts()) {
-            payload.add(Map.of(
+            all.add(Map.of(
                     "source", "Reddit/r/" + reddit.subreddit(),
                     "title", reddit.title(),
                     "url", reddit.url(),
@@ -101,7 +112,7 @@ public class ReportPromptBuilder {
         for (var paper : research.papers()) {
             String authorsStr = paper.authors().isEmpty() ? "Unknown"
                     : String.join(", ", paper.authors().subList(0, Math.min(3, paper.authors().size())));
-            payload.add(Map.of(
+            all.add(Map.of(
                     "source", "arXiv/" + paper.primaryCategory(),
                     "title", paper.title(),
                     "url", paper.url(),
@@ -113,7 +124,7 @@ public class ReportPromptBuilder {
 
         for (var release : research.releases()) {
             String releaseExcerpt = release.releaseNotesExcerpt() != null ? release.releaseNotesExcerpt() : "";
-            payload.add(Map.of(
+            all.add(Map.of(
                     "source", "GitHub Releases",
                     "title", release.repoFullName() + " " + release.version(),
                     "url", release.url(),
@@ -122,10 +133,12 @@ public class ReportPromptBuilder {
             ));
         }
 
+        List<Map<String, Object>> payload = selectTopItems(all);
+
         try {
             String json = objectMapper.writeValueAsString(payload);
-            log.info("Prompt payload: {} itemów (tweets={}, hn={}, gh={}, rss={}, reddit={}, papers={}, releases={})",
-                    payload.size(),
+            log.info("Prompt payload: {} itemów wybranych z {} (tweets={}, hn={}, gh={}, rss={}, reddit={}, papers={}, releases={})",
+                    payload.size(), all.size(),
                     research.tweets().size(),
                     research.hackerNewsPosts().size(),
                     research.githubRepos().size(),
@@ -138,5 +151,59 @@ public class ReportPromptBuilder {
             log.error("Błąd serializacji payloadu: {}", e.getMessage());
             return "Oto posty z ostatnich 24 godzin:\n\n[]";
         }
+    }
+
+    /**
+     * Selects the best items per source (by engagement desc), then caps the total at TOTAL_CAP.
+     * Prevents a single noisy source (e.g. 130 RSS items) from flooding the LLM prompt.
+     */
+    private List<Map<String, Object>> selectTopItems(List<Map<String, Object>> all) {
+        List<Map<String, Object>> twitter   = new ArrayList<>();
+        List<Map<String, Object>> hn        = new ArrayList<>();
+        List<Map<String, Object>> github    = new ArrayList<>();
+        List<Map<String, Object>> rss       = new ArrayList<>();
+        List<Map<String, Object>> reddit    = new ArrayList<>();
+        List<Map<String, Object>> arxiv     = new ArrayList<>();
+        List<Map<String, Object>> releases  = new ArrayList<>();
+
+        for (var item : all) {
+            String src = (String) item.get("source");
+            if (src.startsWith("Twitter"))          twitter.add(item);
+            else if (src.startsWith("Hacker News")) hn.add(item);
+            else if (src.equals("GitHub"))          github.add(item);
+            else if (src.startsWith("RSS"))         rss.add(item);
+            else if (src.startsWith("Reddit"))      reddit.add(item);
+            else if (src.startsWith("arXiv"))       arxiv.add(item);
+            else if (src.equals("GitHub Releases")) releases.add(item);
+        }
+
+        Comparator<Map<String, Object>> byEngagement =
+                Comparator.comparingInt(m -> -((Number) m.get("engagement_score")).intValue());
+
+        List<Map<String, Object>> selected = new ArrayList<>();
+        selected.addAll(topN(twitter,  CAP_TWITTER,  byEngagement));
+        selected.addAll(topN(hn,       CAP_HN,       byEngagement));
+        selected.addAll(topN(github,   CAP_GITHUB,   byEngagement));
+        selected.addAll(topN(rss,      CAP_RSS,      byEngagement));
+        selected.addAll(topN(reddit,   CAP_REDDIT,   byEngagement));
+        selected.addAll(topN(arxiv,    CAP_ARXIV,    byEngagement));
+        selected.addAll(topN(releases, CAP_RELEASES, byEngagement));
+
+        if (selected.size() > TOTAL_CAP) {
+            selected.sort(byEngagement);
+            selected = selected.subList(0, TOTAL_CAP);
+        }
+
+        return selected;
+    }
+
+    private List<Map<String, Object>> topN(
+            List<Map<String, Object>> items,
+            int n,
+            Comparator<Map<String, Object>> comparator) {
+        return items.stream()
+                .sorted(comparator)
+                .limit(n)
+                .toList();
     }
 }

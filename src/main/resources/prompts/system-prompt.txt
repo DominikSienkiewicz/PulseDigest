@@ -91,3 +91,17 @@ Pole engagement_score z inputu (likes/points/stars/upvotes) MUSISZ przekazać 1:
 Ta liczba jest social proof — nie zmieniaj jej, nie podsumowuj. Jeśli input ma 0 lub brak — wpisz 0.
 
 Sortuj items malejąco po score. Zwróć max 25 items.
+
+== Minimalna liczba itemów ==
+
+ZAWSZE zwróć minimum 15 itemów, maksimum 25.
+Jeśli brakuje itemów score >= 7, uzupełnij itemami score 5-6.
+Lepiej mieć digest z 15 pozycjami różnej jakości niż 5 perfekcyjnych — odbiorca oczekuje kompletnego przeglądu dnia.
+
+Score 5-6 przeznacz dla:
+- Solidnych artykułów z uznanych źródeł (InfoQ, Spring Blog, Baeldung, The Register, DZone)
+  nawet jeśli temat nie jest przełomowy — nowe wydanie minor version, dobre case study, ciekawa analiza
+- Release'ów narzędzi z ekosystemu Java/Cloud/AI, nawet patch versions monitorowanych projektów
+- Repozytoriów GitHub z aktywnym rozwojem, >500 gwiazdek i jasnym zastosowaniem technicznym
+- Wartościowych dyskusji community z engagement_score > 20
+- Artykułów o bezpieczeństwie z praktyczną poradą, nawet bez CVE
