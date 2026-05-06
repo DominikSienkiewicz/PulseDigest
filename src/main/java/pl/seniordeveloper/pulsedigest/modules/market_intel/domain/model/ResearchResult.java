@@ -14,6 +14,16 @@ public record ResearchResult(
         List<RedditPost> redditPosts,
         List<ResearchPaper> papers,
         List<SoftwareRelease> releases,
+        List<HuggingFaceModel> huggingFaceModels,
+        List<ProductHuntPost> productHuntPosts,
+        List<SecurityAdvisory> securityAdvisories,
+        List<NvdVulnerability> nvdVulnerabilities,
+        List<PackageTrend> packageTrends,
+        List<JepUpdate> jepUpdates,
+        List<CncfProjectUpdate> cncfProjectUpdates,
+        List<RadarEntry> radarEntries,
+        List<ConferenceTalk> conferenceTalks,
+        List<DbEngineRanking> dbEngineRankings,
         LocalDateTime collectedAt,
         int rawTweetsCount,
         int rawHackerNewsCount,
@@ -25,12 +35,21 @@ public record ResearchResult(
     public boolean isEmpty() {
         return tweets.isEmpty() && hackerNewsPosts.isEmpty() && githubRepos.isEmpty()
                 && rssItems.isEmpty() && redditPosts.isEmpty()
-                && papers.isEmpty() && releases.isEmpty();
+                && papers.isEmpty() && releases.isEmpty()
+                && huggingFaceModels.isEmpty() && productHuntPosts.isEmpty()
+                && securityAdvisories.isEmpty() && nvdVulnerabilities.isEmpty()
+                && packageTrends.isEmpty() && jepUpdates.isEmpty()
+                && cncfProjectUpdates.isEmpty() && radarEntries.isEmpty()
+                && conferenceTalks.isEmpty() && dbEngineRankings.isEmpty();
     }
 
     public int rawTotalCount() {
         return rawTweetsCount + rawHackerNewsCount + rawGithubCount
-                + rawRssCount + rawRedditCount + papers.size() + releases.size();
+                + rawRssCount + rawRedditCount + papers.size() + releases.size()
+                + huggingFaceModels.size() + productHuntPosts.size() + securityAdvisories.size()
+                + nvdVulnerabilities.size() + packageTrends.size() + jepUpdates.size()
+                + cncfProjectUpdates.size() + radarEntries.size() + conferenceTalks.size()
+                + dbEngineRankings.size();
     }
 
     public int activeSourceCount() {
@@ -56,15 +75,51 @@ public record ResearchResult(
         if (!releases.isEmpty()) {
             n++;
         }
+        if (!huggingFaceModels.isEmpty()) {
+            n++;
+        }
+        if (!productHuntPosts.isEmpty()) {
+            n++;
+        }
+        if (!securityAdvisories.isEmpty()) {
+            n++;
+        }
+        if (!nvdVulnerabilities.isEmpty()) {
+            n++;
+        }
+        if (!packageTrends.isEmpty()) {
+            n++;
+        }
+        if (!jepUpdates.isEmpty()) {
+            n++;
+        }
+        if (!cncfProjectUpdates.isEmpty()) {
+            n++;
+        }
+        if (!radarEntries.isEmpty()) {
+            n++;
+        }
+        if (!conferenceTalks.isEmpty()) {
+            n++;
+        }
+        if (!dbEngineRankings.isEmpty()) {
+            n++;
+        }
         return n;
     }
 
     public String summary() {
-        return "Zebrano: %d tweetów, %d HN, %d GH, %d RSS, %d Reddit, %d papers, %d releases — łącznie %d itemów, o %s"
+        return ("Zebrano: %d tweetów, %d HN, %d GH, %d RSS, %d Reddit, %d papers, %d releases,"
+                + " %d HF models, %d ProductHunt, %d security advisories,"
+                + " %d NVD, %d Libraries.io, %d JEP, %d CNCF, %d Radar, %d Talks, %d DB-Engines"
+                + " — łącznie %d itemów, o %s")
                 .formatted(rawTweetsCount, rawHackerNewsCount, rawGithubCount,
                         rawRssCount, rawRedditCount, papers.size(), releases.size(),
-                        rawTweetsCount + rawHackerNewsCount + rawGithubCount
-                                + rawRssCount + rawRedditCount + papers.size() + releases.size(),
+                        huggingFaceModels.size(), productHuntPosts.size(), securityAdvisories.size(),
+                        nvdVulnerabilities.size(), packageTrends.size(), jepUpdates.size(),
+                        cncfProjectUpdates.size(), radarEntries.size(), conferenceTalks.size(),
+                        dbEngineRankings.size(),
+                        rawTotalCount(),
                         collectedAt);
     }
 }

@@ -1,7 +1,7 @@
 # 🚀 PulseDigest
 **Architected & Developed by [Dominik](https://www.linkedin.com/in/dominik-sienkiewicz/)** *Principal AI Engineer | Full Stack Architect*
 
-Headless batch application that collects tech news from 7 sources every morning, scores items with GPT-4o, **detects recurring trends across the last 7 days** (Supabase-backed history), and delivers a tier'd, prioritized digest to your inbox — with editorial lead, top picks, signals, weekly trend section, and long-tail sections.
+Headless batch application that collects tech news from 17 sources every morning, scores items with GPT-4o, **detects recurring trends across the last 7 days** (Supabase-backed history), and delivers a tier'd, prioritized digest to your inbox — with editorial lead, top picks, signals, weekly trend section, and long-tail sections.
 
 ![Java 26](https://img.shields.io/badge/Java-26-red?style=for-the-badge&logo=openjdk&logoColor=white)
 ![Spring Boot 4.1](https://img.shields.io/badge/Spring_Boot-4.1.0--SNAPSHOT-green?style=for-the-badge&logo=springboot&logoColor=white)
@@ -15,16 +15,26 @@ In the era of AI-driven information overload, this tool is my personal solution 
 ## How it works
 
 ```
-Twitter/X       ──┐
-Hacker News       ┤                                            ┌─► trend_analytics ─┐
-GitHub            ┤                                            │  (last 7 days from │
-RSS feeds (13)    ├─► MarketResearchService ─► GPT-4o synth ──┤   Supabase + LLM   ├─► Supabase save
-Reddit (8 subs)   ┤   (parallel fetch,         (score 1-10,    │   narratives)      │   ↓
-arXiv             ┤    URL canonicalization,    category, type,└────────────────────┘   Resend email
-GitHub Releases ──┘    last 24 h)               editorial, PL)
+Twitter/X             ──┐
+Hacker News             ┤
+GitHub                  ┤
+RSS feeds (30)          ┤
+Reddit (8 subs)         ┤
+arXiv                   ┤
+GitHub Releases         ┤                                            ┌─► trend_analytics ─┐
+Hugging Face Hub        ┤                                            │   (last 7 days from │
+Product Hunt            ├─► MarketResearchService ─► GPT-4o synth ──┤   Supabase + LLM   ├─► Supabase save
+GitHub Advisories       ┤   (parallel fetch,         (score 1-10,    │   narratives)      │   ↓
+NVD/CVE                 ┤    URL canonicalization,    category, type,│                    │   Resend email
+Libraries.io            ┤    last 24 h)               editorial, PL) └────────────────────┘
+OpenJDK JEP             ┤
+CNCF Landscape          ┤
+Tech Radar              ┤
+YouTube Conferences     ┤
+DB-Engines Ranking      ┘
 ```
 
-1. **Fetch** — 7 sources run in parallel via Virtual Threads (`CompletableFuture`). Each source filters to the last 24h.
+1. **Fetch** — 17 sources run in parallel via Virtual Threads (`CompletableFuture`). Each source filters to the last 24-72h depending on cadence.
 2. **Canonicalize URLs** — strip tracking params (`utm_*`, `fbclid`, `gclid`, etc.) right after fetch, before LLM sees anything. Prevents duplicate items from same article via different campaigns and avoids leaking our UTMs to advertisers when readers click.
 3. **Score** — GPT-4o deduplicates, scores each item 1–10 by relevance for a Senior/Principal Engineer + Architect profile, assigns a **category** (topic) and a **type** (signal kind), preserves engagement metrics, and writes a 1–2 sentence Polish summary with the key number front-loaded.
 4. **Synthesize** — GPT-4o produces an editorial lead (meta-thesis of the day) + top-3 insights + email preheader text.
@@ -34,15 +44,25 @@ GitHub Releases ──┘    last 24 h)               editorial, PL)
 
 ## Sources
 
-| Source          | Filter                                                                              | Notes                                       |
-|-----------------|-------------------------------------------------------------------------------------|---------------------------------------------|
-| Twitter/X       | ~84 curated accounts + 5 topic queries, last 24 h                                   | Authority accounts bypass keyword filter; others require relevance match |
-| Hacker News     | Algolia `numericFilters=created_at_i>`, keyword query                               | `min-score: 25`, max 15 items               |
-| GitHub          | `pushed:>=yesterday`                                                                | Stars desc, configurable query, max 5 repos |
-| RSS             | 13 feeds (InfoQ, Spring Blog, Baeldung, DZone ×2, Niebezpiecznik, Sekurak, JVM Bloggers, devstyle.pl, TLDR Tech, Pragmatic Engineer, Quastor) | `pubDate` / `updated` filter, max 10 per feed |
-| Reddit          | `t=day` (top 24 h)                                                                  | 8 subreddits, `min-score: 20`, max 15 per sub |
-| arXiv           | Categories `cs.AI, cs.LG, cs.CR, cs.DC, cs.PL` + keyword filter                     | Last 48 h, max 20 papers                    |
-| GitHub Releases | 17 monitored repos (Spring Boot, Spring AI, Quarkus, GraalVM, vLLM, llama.cpp, K8s, OTel…) | Last 72 h, latest release per repo only |
+| Source              | Filter                                                                              | Notes                                       |
+|---------------------|-------------------------------------------------------------------------------------|---------------------------------------------|
+| Twitter/X           | ~84 curated accounts + 5 topic queries, last 24 h                                   | Authority accounts bypass keyword filter; others require relevance match |
+| Hacker News         | Algolia `numericFilters=created_at_i>`, keyword query                               | `min-score: 25`, max 15 items               |
+| GitHub              | `pushed:>=yesterday`                                                                | Stars desc, configurable query, max 5 repos |
+| RSS                 | 30 feeds — core dev (InfoQ, Spring Blog, Baeldung, DZone ×2, JVM Bloggers, devstyle.pl, TLDR Tech, Pragmatic Engineer, Quastor), security (Niebezpiecznik, Sekurak), official changelogs (OpenAI, Google Blog, JetBrains), AI newsletters (Import AI, Simon Willison, Latent Space, Sebastian Raschka, Andrej Karpathy), community (Lobsters, dev.to AI/Java), PL ecosystem (JVM Advent), cloud (AWS, GCP, Azure), JVM (Inside.java), cloud-native (CNCF Blog) | `pubDate` / `updated` filter, max 10 per feed |
+| Reddit              | `t=day` (top 24 h)                                                                  | 8 subreddits, `min-score: 20`, max 15 per sub |
+| arXiv               | Categories `cs.AI, cs.LG, cs.CR, cs.DC, cs.PL` + keyword filter                     | Last 48 h, max 20 papers                    |
+| GitHub Releases     | 17 monitored repos (Spring Boot, Spring AI, Quarkus, GraalVM, vLLM, llama.cpp, K8s, OTel…) | Last 72 h, latest release per repo only |
+| Hugging Face Hub    | Public `/api/models?sort=trendingScore`; pipeline filter (text-generation, text-to-image, text-to-speech, image-to-text, ASR, feature-extraction, text-to-video) | `min-likes: 10` OR `min-downloads: 1000`, max 30 trending models |
+| Product Hunt        | GraphQL `posts(order: VOTES)`, topics: AI, Developer Tools, Productivity, Open Source, Tech | `min-votes: 100`, lookback 36 h. Bez tokenu adapter zwraca pustą listę bez crashu |
+| GitHub Advisories   | Public `/advisories?sort=published`, severity HIGH+CRITICAL, ecosystems: maven, npm, pip, actions, go, docker, composer, rubygems | Last 72 h, max 50. Karmi badge `INCIDENT` |
+| NVD/CVE             | Public NVD API 2.0, `cvssV3Severity=CRITICAL&cvssV3Severity=HIGH`                                             | Last 48 h, max 20 CVEs. Complements GHSA with non-GitHub ecosystems |
+| Libraries.io        | Public API `?sort=rank`, platforms: maven, npm, pypi                                                       | API key optional; graceful degradation. Last 90 days trending |
+| OpenJDK JEP         | GitHub Commits API on `openjdk/jdk`, parsing JEP IDs + status changes (Candidate, Proposed to Target, Integrated, Delivered) | Last 7 days. Deduplicated by JEP number |
+| CNCF Landscape      | GitHub Commits API on `cncf/landscape`, filtering commits touching `landscape.yml` (sandbox, incubating, graduated, archived) | Last 7 days. Status-change detection |
+| Tech Radar          | Thoughtworks Technology Radar (quarterly). Rings: Adopt, Trial, Assess, Hold.                                | Quarterly cadence, all entries included |
+| YouTube Conferences | YouTube Data API v3 `search`, 6 tech channels (SpringDeveloper, CNCF, Devoxx, Google Cloud Tech, InfoQ, GOTO Conferences) | API key optional. Last 7 days, sorted by recency |
+| DB-Engines          | DB-Engines.com ranking table, detecting score changes ≥ 5 points                                           | Monthly cadence; significant movers only |
 
 ## Categorization (two dimensions)
 
@@ -104,6 +124,7 @@ Architecture follows [Hexagonal (Ports & Adapters)](docs/adr/0002-hexagonal-arch
 - Resend account + API key
 - Supabase project (free tier — Postgres for report history)
 - Docker Desktop (for Testcontainers when running `./gradlew test`)
+- *(Optional)* Product Hunt developer token, Libraries.io API key, YouTube Data API key — without them the respective adapters degrade gracefully (return empty list, log warn, pipeline keeps running)
 
 ## Local setup
 
@@ -121,6 +142,11 @@ OPENAI_API_KEY=
 RESEND_API_KEY=
 DIGEST_FROM_EMAIL=
 DIGEST_TO_EMAIL=
+
+# Optional — pomijalne, adaptery degradują się gracefully gdy nieustawione
+PRODUCTHUNT_DEVELOPER_TOKEN=
+LIBRARIES_IO_API_KEY=
+YOUTUBE_API_KEY=
 
 # Supabase Session Pooler (NIE Direct connection — direct is IPv6-only on free tier)
 # Format: jdbc:postgresql://aws-0-<region>.pooler.supabase.com:5432/postgres?sslmode=require
@@ -147,7 +173,7 @@ The `reports` table is created automatically on first run via `spring.sql.init.m
 
 The workflow at [`.github/workflows/digest.yml`](.github/workflows/digest.yml) runs daily at **04:00 UTC** (06:00 CEST / 05:00 CET) and can also be triggered manually via `workflow_dispatch`.
 
-Required repository secrets: `TWITTER_BEARER_TOKEN`, `OPENAI_API_KEY`, `RESEND_API_KEY`, `DIGEST_FROM_EMAIL`, `DIGEST_TO_EMAIL`, `SUPABASE_DB_URL`, `SUPABASE_DB_USERNAME`, `SUPABASE_DB_PASSWORD`.
+Required repository secrets: `TWITTER_BEARER_TOKEN`, `OPENAI_API_KEY`, `RESEND_API_KEY`, `DIGEST_FROM_EMAIL`, `DIGEST_TO_EMAIL`, `SUPABASE_DB_URL`, `SUPABASE_DB_USERNAME`, `SUPABASE_DB_PASSWORD`. Optional: `PRODUCTHUNT_DEVELOPER_TOKEN`, `LIBRARIES_IO_API_KEY`, `YOUTUBE_API_KEY` (workflow injects them; adapters no-op gracefully when absent).
 
 ## Configuration
 
@@ -155,11 +181,12 @@ All tuneable parameters live in [`src/main/resources/application.yaml`](src/main
 
 | Key                            | Default                  | Description                                        |
 |--------------------------------|--------------------------|----------------------------------------------------|
-| `research.days-back`           | `1`                      | Tweet age window (days)                            |
+| `research.days-back`           | `2`                      | Tweet age window (days)                            |
 | `research.min-likes`           | `3`                      | Minimum likes for tweets                           |
+| `hacker-news.keywords`         | `[ai, llm, java, ...]`   | HN search keywords (parallel single-term queries)  |
 | `hacker-news.min-score`        | `25`                     | Minimum HN points                                  |
 | `hacker-news.limit`            | `15`                     | Max HN items                                       |
-| `github.query`                 | `topic:ai language:java` | GitHub search query                                |
+| `github.query`                 | `(topic:ai OR topic:machine-learning OR topic:llm)` | GitHub search query                              |
 | `github.limit`                 | `5`                      | Max GitHub repos                                   |
 | `rss.limit`                    | `10`                     | Max items per RSS feed                             |
 | `reddit.min-score`             | `20`                     | Minimum Reddit upvotes                             |
@@ -167,10 +194,27 @@ All tuneable parameters live in [`src/main/resources/application.yaml`](src/main
 | `arxiv.max-results`            | `20`                     | Max arXiv papers                                   |
 | `arxiv.lookback-hours`         | `48`                     | arXiv paper age window                             |
 | `github-releases.lookback-hours` | `72`                   | GitHub Releases age window                         |
+| `hugging-face.limit`           | `30`                     | Max HF trending models per fetch                   |
+| `hugging-face.min-likes`       | `3`                      | Min HF likes (OR `min-downloads` to qualify)       |
+| `hugging-face.min-downloads`   | `50`                     | Min HF downloads (OR `min-likes` to qualify)       |
+| `product-hunt.min-votes`       | `100`                    | Min Product Hunt upvotes                           |
+| `product-hunt.lookback-hours`  | `36`                     | Product Hunt launch age window                     |
+| `security-advisories.lookback-hours` | `72`               | Security Advisory age window                       |
+| `security-advisories.limit`    | `50`                     | Max advisories fetched per run                     |
 | `trend.enabled`                | `true`                   | Toggle trend section in email                      |
 | `trend.lookback-days`          | `7`                      | History window for trend detection                 |
 | `trend.min-occurrences`        | `2`                      | Minimum category occurrences to qualify as a trend |
 | `trend.max-clusters`           | `5`                      | Max trend clusters shown in email                  |
+| `nvd.lookback-hours`           | `48`                     | NVD CVE age window                                |
+| `nvd.results-per-page`         | `20`                     | Max NVD CVEs per fetch                            |
+| `libraries-io.lookback-days`   | `90`                     | Package trend age window                          |
+| `libraries-io.limit`           | `20`                     | Max Libraries.io items                            |
+| `open-jdk.lookback-days`       | `7`                      | OpenJDK JEP age window                            |
+| `cncf-landscape.lookback-days` | `7`                      | CNCF landscape change window                      |
+| `technology-radar.lookback-months` | `6`                   | Tech Radar edition age window                     |
+| `conference-talks.lookback-days`   | `7`                  | YouTube talks age window                          |
+| `conference-talks.max-results` | `10`                     | Max items per channel                             |
+| `db-engines.min-score-change`  | `5`                      | Min score change to qualify as significant mover  |
 
 ## Architecture decision records
 

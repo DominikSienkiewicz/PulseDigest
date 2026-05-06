@@ -3,7 +3,6 @@ package pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapt
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -15,23 +14,29 @@ import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportPropert
 
 import java.net.URI;
 import java.time.Instant;
+import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.concurrent.CompletableFuture;
 
 /**
- * Pobiera innowacyjne dyskusje (early trends) z API HackerNews (Algolia).
+ * Fetches trending discussions from Hacker News via Algolia search API.
+ * Runs single-keyword queries in parallel to work around Algolia v1's
+ * TF-IDF ranking behavior, where multi-term OR queries become too restrictive.
  */
 @Slf4j
-@RequiredArgsConstructor
 @Service
 public class HackerNewsSearchAdapter {
-
-    private static final String API_URL = "https://hn.algolia.com/api/v1/search";
 
     private final ObjectMapper objectMapper;
     private final ReportProperties reportProperties;
     private RestClient restClient;
     private ReportProperties.HackerNewsProperties props;
+
+    public HackerNewsSearchAdapter(ObjectMapper objectMapper, ReportProperties reportProperties) {
+        this.objectMapper = objectMapper;
+        this.reportProperties = reportProperties;
+    }
 
     @PostConstruct
     void init() {
@@ -42,17 +47,59 @@ public class HackerNewsSearchAdapter {
     }
 
     public List<HackerNewsPost> fetchTopDiscussions() {
-        if (props == null || props.query() == null || props.query().isBlank()) {
-            log.warn("Brak konfiguracji hacker-news.query w application.yaml. Pomijam HN.");
+        if (props == null || props.baseUrl() == null || props.keywords() == null
+                || props.keywords().isEmpty()) {
+            log.warn("Brak konfiguracji hacker-news w application.yaml. Pomijam HN.");
             return List.of();
         }
 
-        log.info("Rozpoczynam przeszukiwanie Hacker News dla: {}", props.query());
+        log.info("Rozpoczynam przeszukiwanie Hacker News dla {} keywords", props.keywords().size());
 
         try {
             long since = Instant.now().minusSeconds(86_400).getEpochSecond();
-            URI uri = UriComponentsBuilder.fromUriString(API_URL)
-                    .queryParam("query", props.query())
+
+            List<CompletableFuture<List<HnHit>>> futures = props.keywords().stream()
+                    .map(kw -> CompletableFuture.supplyAsync(() -> fetchKeyword(kw, since)))
+                    .toList();
+
+            CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new)).join();
+
+            List<HnHit> allHits = futures.stream()
+                    .map(CompletableFuture::join)
+                    .flatMap(Collection::stream)
+                    .toList();
+
+            LinkedHashSet<String> seenUrls = new LinkedHashSet<>();
+            List<HnHit> deduped = allHits.stream()
+                    .filter(hit -> seenUrls.add(dedupeKey(hit)))
+                    .toList();
+
+            int minScore = props.minScore() > 0 ? props.minScore() : 25;
+            int limit = props.limit() > 0 ? props.limit() : 15;
+
+            List<HackerNewsPost> posts = deduped.stream()
+                    .filter(hit -> hit.points() != null && hit.points() >= minScore)
+                    .limit(limit)
+                    .map(hit -> new HackerNewsPost(
+                            hit.title() != null ? hit.title() : "(Brak tytułu)",
+                            hit.url() != null ? hit.url() : "https://news.ycombinator.com/item?id=" + hit.objectID(),
+                            hit.points() != null ? hit.points() : 0
+                    ))
+                    .toList();
+
+            log.info("Znaleziono {} postów na Hacker News (score >= {}).", posts.size(), minScore);
+            return posts;
+
+        } catch (Exception e) {
+            log.error("Błąd podczas pobierania danych z Hacker News algolia API: {}", e.getMessage());
+            return List.of();
+        }
+    }
+
+    private List<HnHit> fetchKeyword(String keyword, long since) {
+        try {
+            URI uri = UriComponentsBuilder.fromUriString(props.baseUrl())
+                    .queryParam("query", keyword)
                     .queryParam("tags", "story")
                     .queryParam("hitsPerPage", 50)
                     .queryParam("numericFilters", "created_at_i>" + since)
@@ -64,37 +111,33 @@ public class HackerNewsSearchAdapter {
                     .retrieve()
                     .body(String.class);
 
-            HnResponse response = objectMapper.readValue(rawJson, HnResponse.class);
-
-            if (response.hits() == null || response.hits().isEmpty()) {
-                log.info("Brak pasujących wyników Hacker News.");
-                return List.of();
-            }
-
-            int minScore = props.minScore() > 0 ? props.minScore() : 50;
-            int limit = props.limit() > 0 ? props.limit() : 10;
-
-            List<HackerNewsPost> posts = response.hits().stream()
-                    .filter(hit -> hit.points() != null && hit.points() >= minScore)
-                    .limit(limit)
-                    .map(hit -> new HackerNewsPost(
-                            hit.title() != null ? hit.title() : "(Brak tytułu)",
-                            hit.url() != null ? hit.url() : "https://news.ycombinator.com/item?id=" + hit.objectID(),
-                            hit.points() != null ? hit.points() : 0
-                    ))
-                    .collect(Collectors.toList());
-
-            log.info("Znaleziono {} postów na Hacker News (score >= {}).", posts.size(), minScore);
-            return posts;
-
+            return parseResponse(rawJson);
         } catch (Exception e) {
-            log.error("Błąd podczas pobierania danych z Hacker News algolia API: {}", e.getMessage());
+            log.warn("HN keyword '{}' fetch failed: {}", keyword, e.getMessage());
             return List.of();
         }
     }
 
+    List<HnHit> parseResponse(String rawJson) {
+        try {
+            HnResponse response = objectMapper.readValue(rawJson, HnResponse.class);
+
+            if (response.hits() == null) {
+                return List.of();
+            }
+            return response.hits();
+        } catch (Exception e) {
+            log.warn("HN parse failed: {}", e.getMessage());
+            return List.of();
+        }
+    }
+
+    private String dedupeKey(HnHit hit) {
+        return hit.url() != null ? hit.url() : "hn://" + hit.objectID();
+    }
+
     // -------------------------------------------------------------------------
-    // Struktura algolii
+    // Algolia response structures
     // -------------------------------------------------------------------------
 
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -102,7 +145,7 @@ public class HackerNewsSearchAdapter {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    private record HnHit(
+    record HnHit(
             String title,
             String url,
             Integer points,

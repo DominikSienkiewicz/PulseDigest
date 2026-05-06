@@ -29,6 +29,10 @@ Daj niższy score (1-4) jeśli item:
 - Jest marketingowym hype'm bez konkretów
 - Dotyczy technologii dojrzałych, bez nowych informacji (CRUD, REST 101, SQL basics)
 - Jest duplikatem tematycznym itemu o wyższym score
+    UWAGA: "duplikat" = ta sama historia/podmiot/event opublikowana w kilku źródłach.
+    RÓŻNE ogłoszenia tej samej firmy (np. nowy produkt + partnerstwo + badania)
+    NIE SĄ duplikatami — każda zasługuje na osobny item.
+    Nie pomijaj istotnych newsów tylko dlatego, że pochodzą z tego samego konta/domeny.
 - Dotyczy wiadomości biznesowych bez impaktu technicznego
 
 == Wytyczne dla summary ==
@@ -84,17 +88,60 @@ Reguły automatycznego przypisania type:
 - source arXiv/* → type BREAKTHROUGH (jeśli nowy wynik) lub RESOURCE (jeśli survey/tutorial)
 - source RSS/* lub Reddit/* z tytułem zawierającym "how to", "guide", "tutorial", "wprowadzenie" → type RESOURCE
 - source Twitter/X lub Reddit/* z engagement_score > 100 i tematem bez konkretu technicznego → type DISCUSSION
+- source "Hugging Face" → type RELEASE (świeży/nowy model) lub LAUNCH (model z nowej organizacji bez prior history)
+  · category zawsze "AI/LLM"
+  · scoring: wyższy gdy model w pipeline text-generation/text-to-image z >1k downloads, niższy gdy egzotyczny pipeline
+- source "Product Hunt" → type LAUNCH
+  · category: "AI/LLM" jeśli topic zawiera "Artificial Intelligence", w innym wypadku "Open Source" lub "Other"
+  · scoring: wyższy gdy votesCount > 200 i topic AI/Developer Tools
+- source "Security Advisories" → type INCIDENT
+  · category zawsze "Security/Privacy"
+  · scoring: CRITICAL → 9-10, HIGH → 7-8, MEDIUM → 5-6, LOW → 3-4
+  · summary: zawsze rozpocznij od ID GHSA i severity, np. "GHSA-xxx CRITICAL: ..."
+- source "NVD/CVE" → type INCIDENT
+  · category zawsze "Security/Privacy"
+  · scoring: CVSS >= 9.0 → 9-10, CVSS 8.0-8.9 → 7-8, CVSS 7.0-7.9 → 6-7
+  · summary: rozpocznij od CVE ID i severity, np. "CVE-2026-xxxxx CRITICAL (CVSS 9.8): ..."
+- source "Libraries.io" → type TREND
+  · category: "Open Source"
+  · scoring: wyższy gdy stars > 5000 lub dependents > 1000, niższy dla świeżych bez adopcji
+- source "OpenJDK JEP" → type RELEASE (Integrated/Delivered) lub FEATURE (Candidate/Proposed to Target)
+  · category zawsze "Java/JVM"
+  · scoring: Integrated/Delivered → 8-10, Proposed to Target → 6-8, Candidate → 4-6
+  · summary: rozpocznij od JEP ID i statusu, np. "JEP-456 Integrated: ..."
+- source "CNCF Landscape" → type RELEASE (graduated/incubating) lub LAUNCH (new sandbox)
+  · category: "Cloud/DevOps" lub "Open Source"
+  · scoring: graduated → 8-9, incubating → 6-7, new sandbox → 4-5
+- source "Tech Radar" → type OPINION lub TREND (jeśli zmiana ring względem poprzedniej edycji)
+  · category: na podstawie quadrant:
+    "Techniques" → "Architecture", "Tools" → "Cloud/DevOps",
+    "Platforms" → "Cloud/DevOps", "Languages & Frameworks" → "Java/JVM" / "AI/LLM"
+  · scoring: Adopt → 9-10, Trial → 7-8, Assess → 4-6, Hold → 1-3
+  · summary: rozpocznij od ring i nazwy, np. "Adopt: WebAssembly...”
+- source YouTube/* → type RESOURCE
+  · category: na podstawie conferenceName:
+    "Spring I/O" / "Devoxx" → "Java/JVM",
+    "KubeCon" / "Google Cloud Next" → "Cloud/DevOps",
+    "QCon" / "GOTO" → "Architecture"
+  · scoring: wyższy dla talks od znanych speakerów / popularnych channeli
+- source "DB-Engines" → type TREND
+  · category: "Other" (chyba że dbName zawiera znane kategorie: PostgreSQL/MySQL → "Open Source")
+  · scoring: scoreChange >= 10 → 7-8, scoreChange >= 5 → 5-6, else 4-5
+  · summary: rozpocznij od nazwy DB i zmiany score, np. "PostgreSQL +12.3 pkt: ..."
+- source RSS/AWS Blog, RSS/Google Cloud Blog, RSS/Azure Updates → category "Cloud/DevOps"
+- source RSS/Inside.java → category "Java/JVM"
+- source RSS/CNCF Blog → category "Cloud/DevOps"
 
 == Engagement score ==
 
 Pole engagement_score z inputu (likes/points/stars/upvotes) MUSISZ przekazać 1:1 do output JSON.
 Ta liczba jest social proof — nie zmieniaj jej, nie podsumowuj. Jeśli input ma 0 lub brak — wpisz 0.
 
-Sortuj items malejąco po score. Zwróć max 25 items.
+Sortuj items malejąco po score. Zwróć max 30 items.
 
 == Minimalna liczba itemów i pokrycie kategorii ==
 
-ZAWSZE zwróć minimum 15 itemów, maksimum 25.
+ZAWSZE zwróć minimum 15 itemów, maksimum 30.
 Jeśli brakuje itemów score >= 7, uzupełnij itemami score 5-6.
 Lepiej mieć digest z 15 pozycjami różnej jakości niż 5 perfekcyjnych — odbiorca oczekuje kompletnego przeglądu dnia.
 

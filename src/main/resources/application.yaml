@@ -56,6 +56,7 @@ twitter:
     - "ElevenLabsDevs"
     - "grok"
     - "sama"
+    - "xai"
     # Cloud / DevOps
     - "kubernetesio"
     - "Docker"
@@ -124,7 +125,7 @@ report:
 
   research:
     min-likes: 3
-    days-back: 1
+    days-back: 2
     authority-usernames:
       - karpathy
       - swyx
@@ -140,12 +141,21 @@ report:
       - claudeai
 
   hacker-news:
-    query: "ai OR agentic OR java OR spring OR kubernetes OR llm OR security OR rust"
+    base-url: https://hn.algolia.com/api/v1/search
+    keywords:
+      - ai
+      - llm
+      - java
+      - security
+      - kubernetes
+      - rust
+      - devops
+      - open source
     limit: 15
     min-score: 25
 
   github:
-    query: "topic:ai language:java"
+    query: "(topic:ai OR topic:machine-learning OR topic:llm)"
     limit: 5
 
   rss:
@@ -177,6 +187,50 @@ report:
         url: "https://newsletter.pragmaticengineer.com/feed"
       - name: "Quastor"
         url: "https://blog.quastor.org/feed"
+      # ── Oficjalne changelogi (Tier 1) ─────────────────────────────────────
+      - name: "OpenAI News"
+        url: "https://openai.com/news/rss.xml"
+      # Anthropic intentionally does not publish RSS; coverage comes via Twitter
+      # authority accounts @AnthropicAI / @claudeai (see twitter.accounts above).
+      - name: "Google Blog"
+        url: "https://blog.google/rss/"
+      - name: "JetBrains Blog"
+        url: "https://blog.jetbrains.com/feed/"
+      # ── Newslettery AI (Tier 2 rozszerzony) ───────────────────────────────
+      - name: "Import AI"
+        url: "https://importai.substack.com/feed"
+      - name: "Simon Willison"
+        url: "https://simonwillison.net/atom/everything/"
+      - name: "Latent Space"
+        url: "https://www.latent.space/feed"
+      - name: "Sebastian Raschka"
+        url: "https://magazine.sebastianraschka.com/feed"
+      - name: "Andrej Karpathy"
+        url: "https://karpathy.github.io/feed.xml"
+      # ── Lobsters (Tier 1) ────────────────────────────────────────────────
+      - name: "Lobsters"
+        url: "https://lobste.rs/rss"
+      # ── Tier 3 (dev.to) ──────────────────────────────────────────────────
+      - name: "dev.to AI"
+        url: "https://dev.to/feed/tag/ai"
+      - name: "dev.to Java"
+        url: "https://dev.to/feed/tag/java"
+      # ── Tier 4 PL ────────────────────────────────────────────────────────
+      - name: "JVM Advent"
+        url: "https://www.javaadvent.com/feed"
+      # ── Cloud Providers ─────────────────────────────────────────────────
+      - name: "AWS Blog"
+        url: "https://aws.amazon.com/blogs/aws/feed/"
+      - name: "Google Cloud Blog"
+        url: "https://docs.cloud.google.com/feeds/gcp-release-notes.xml"
+      - name: "Azure Updates"
+        url: "https://azure.microsoft.com/en-us/updates/feed/"
+      # ── JVM Ecosystem ────────────────────────────────────────────────────
+      - name: "Inside.java"
+        url: "https://inside.java/feed.xml"
+      # ── Cloud Native ────────────────────────────────────────────────────
+      - name: "CNCF Blog"
+        url: "https://www.cncf.io/blog/feed/"
 
   reddit:
     limit: 15
@@ -192,7 +246,7 @@ report:
       - "artificial"
   arxiv:
     categories: "cs.AI,cs.LG,cs.CR,cs.DC,cs.PL"
-    keywords: "agent,llm,rag,inference,jvm,virtual thread,security,vulnerability"
+    keywords: "agent,llm,rag,inference,jvm,virtual thread,security,vulnerability,training,alignment,safety,fine-tuning,speculative,decoding"
     max-results: 20
     lookback-hours: 48
 
@@ -222,3 +276,117 @@ report:
       - "testcontainers/testcontainers-java"
       - "open-telemetry/opentelemetry-java"
       - "grafana/grafana"
+
+  hugging-face:
+    base-url: https://huggingface.co/api/models
+    limit: 30
+    min-likes: 3
+    min-downloads: 50
+    relevant-pipelines:
+      - text-generation
+      - text-to-image
+      - text-to-speech
+      - image-to-text
+      - automatic-speech-recognition
+      - feature-extraction
+      - text-to-video
+
+  product-hunt:
+    base-url: https://api.producthunt.com/v2/api/graphql
+    developer-token: "${PRODUCTHUNT_DEVELOPER_TOKEN:}"
+    min-votes: 100
+    lookback-hours: 36
+    relevant-topics:
+      - "Artificial Intelligence"
+      - "Developer Tools"
+      - "Productivity"
+      - "Open Source"
+      - "Tech"
+
+  security-advisories:
+    base-url: https://api.github.com/advisories
+    limit: 50
+    lookback-hours: 72
+    min-severities:
+      - HIGH
+      - CRITICAL
+    relevant-ecosystems:
+      - maven
+      - npm
+      - pip
+      - actions
+      - go
+      - docker
+      - composer
+      - rubygems
+
+  nvd:
+    base-url: https://services.nvd.nist.gov/rest/json/cves/2.0
+    results-per-page: 20
+    lookback-hours: 48
+    min-severities:
+      - CRITICAL
+      - HIGH
+
+  libraries-io:
+    base-url: https://libraries.io/api/search
+    api-key: "${LIBRARIES_IO_API_KEY:}"
+    limit: 20
+    platforms:
+      - maven
+      - npm
+      - pypi
+    lookback-days: 90
+
+  open-jdk:
+    base-url: https://api.github.com/repos/openjdk/jdk/commits
+    lookback-days: 7
+    relevant-statuses:
+      - Candidate
+      - Proposed to Target
+      - Integrated
+      - Delivered
+
+  cncf-landscape:
+    base-url: https://api.github.com/repos/cncf/landscape/commits
+    lookback-days: 7
+    relevant-statuses:
+      - sandbox
+      - incubating
+      - graduated
+      - archived
+
+  technology-radar:
+    base-url: https://raw.githubusercontent.com
+    data-path: /setchy/thoughtworks-tech-radar-volumes/main/volumes/json/Thoughtworks%20Technology%20Radar%20Volume%2034%20(Apr%202026).json
+    lookback-months: 6
+
+  conference-talks:
+    base-url: https://www.googleapis.com/youtube/v3/search
+    api-key: "${YOUTUBE_API_KEY:}"
+    lookback-days: 7
+    max-results: 10
+    channels:
+      - channel-name: "SpringDeveloper"
+        conference-name: "Spring I/O"
+        channel-id: "UCvT2j2iACv7QUaFpB4fJjGw"
+      - channel-name: "CNCF"
+        conference-name: "KubeCon"
+        channel-id: "UCvqbFHwN-nwalWPjPUKpvTA"
+      - channel-name: "Devoxx"
+        conference-name: "Devoxx"
+        channel-id: "UCJyEBMU1-Kb1pGjWvFz5X3g"
+      - channel-name: "Google Cloud Tech"
+        conference-name: "Google Cloud Next"
+        channel-id: "UCJSBzeANgUXDr5XyOQBnLVA"
+      - channel-name: "InfoQ"
+        conference-name: "QCon"
+        channel-id: "UCsYVgBx0Kx0MGFj0qQ2qLtA"
+      - channel-name: "GOTO Conferences"
+        conference-name: "GOTO"
+        channel-id: "UCs_tLP3AiwYKwdUHpltJPuA"
+
+  db-engines:
+    base-url: https://db-engines.com/en/ranking
+    lookback-days: 7
+    min-score-change: 5

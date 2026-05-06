@@ -1,0 +1,90 @@
+package pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapter.out.dataset;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.tomakehurst.wiremock.WireMockServer;
+import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.web.client.RestClient;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ConferenceTalk;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportProperties;
+
+import java.lang.reflect.Field;
+import java.util.List;
+
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
+import static org.assertj.core.api.Assertions.assertThat;
+
+class ConferenceTalksAdapterIT {
+
+    private static final String SEARCH_RESPONSE = """
+            {"items":[{"id":{"videoId":"abc123"},
+                       "snippet":{"title":"Virtual Threads Deep Dive",
+                       "publishedAt":"2099-05-06T10:00:00.000Z"}}]}
+            """;
+
+    private WireMockServer wireMock;
+    private ConferenceTalksAdapter adapter;
+
+    @BeforeEach
+    void setUp() throws Exception {
+        wireMock = new WireMockServer(WireMockConfiguration.wireMockConfig().dynamicPort());
+        wireMock.start();
+
+        ReportProperties.ConferenceTalksProperties props =
+                new ReportProperties.ConferenceTalksProperties(
+                        "http://localhost:" + wireMock.port(),
+                        "test-api-key",
+                        7,
+                        10,
+                        List.of(new ReportProperties.ConferenceTalksProperties.ChannelConfig(
+                                "SpringDeveloper", "Spring I/O", "UC_test")));
+        adapter = new ConferenceTalksAdapter(props, new ObjectMapper());
+
+        RestClient testClient = RestClient.builder()
+                .baseUrl("http://localhost:" + wireMock.port())
+                .defaultHeader("Accept", "application/json")
+                .defaultHeader("User-Agent", "PulseDigest/1.0")
+                .build();
+
+        Field restClientField = ConferenceTalksAdapter.class.getDeclaredField("restClient");
+        restClientField.setAccessible(true);
+        restClientField.set(adapter, testClient);
+    }
+
+    @AfterEach
+    void tearDown() {
+        if (wireMock != null) {
+            wireMock.stop();
+        }
+    }
+
+    @Test
+    void fetchesAndParsesConferenceTalks() {
+        wireMock.stubFor(get(urlPathEqualTo("/"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(SEARCH_RESPONSE)));
+
+        List<ConferenceTalk> talks = adapter.fetchConferenceTalks();
+
+        assertThat(talks).hasSize(1);
+        assertThat(talks.get(0).title()).isEqualTo("Virtual Threads Deep Dive");
+        assertThat(wireMock.findAll(getRequestedFor(urlPathEqualTo("/")))).hasSize(1);
+    }
+
+    @Test
+    void returnsEmptyListWhenApiReturns503() {
+        wireMock.stubFor(get(urlPathEqualTo("/"))
+                .willReturn(aResponse().withStatus(503)));
+
+        List<ConferenceTalk> talks = adapter.fetchConferenceTalks();
+
+        assertThat(talks).isEmpty();
+    }
+}

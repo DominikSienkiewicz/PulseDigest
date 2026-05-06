@@ -5,12 +5,22 @@ import lombok.RequiredArgsConstructor;
 
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.CncfProjectUpdate;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ConferenceTalk;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.DbEngineRanking;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.GithubRepo;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.HackerNewsPost;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.HuggingFaceModel;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.JepUpdate;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.NvdVulnerability;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.PackageTrend;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ProductHuntPost;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RadarEntry;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RedditPost;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ResearchPaper;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ResearchResult;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RssItem;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SecurityAdvisory;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SoftwareRelease;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Tweet;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.MarketIntelligencePort;
@@ -112,8 +122,80 @@ public class MarketResearchService {
                     return List.of();
                 });
 
+        CompletableFuture<List<HuggingFaceModel>> futureHf = CompletableFuture
+                .supplyAsync(intelligencePort::fetchTrendingModels, taskExecutor)
+                .exceptionally(ex -> {
+                    log.warn("fetchTrendingModels failed: {}", ex.getMessage());
+                    return List.of();
+                });
+
+        CompletableFuture<List<ProductHuntPost>> futurePh = CompletableFuture
+                .supplyAsync(intelligencePort::fetchProductLaunches, taskExecutor)
+                .exceptionally(ex -> {
+                    log.warn("fetchProductLaunches failed: {}", ex.getMessage());
+                    return List.of();
+                });
+
+        CompletableFuture<List<SecurityAdvisory>> futureAdvisories = CompletableFuture
+                .supplyAsync(intelligencePort::fetchSecurityAdvisories, taskExecutor)
+                .exceptionally(ex -> {
+                    log.warn("fetchSecurityAdvisories failed: {}", ex.getMessage());
+                    return List.of();
+                });
+
+        CompletableFuture<List<NvdVulnerability>> futureNvd = CompletableFuture
+                .supplyAsync(intelligencePort::fetchNvdVulnerabilities, taskExecutor)
+                .exceptionally(ex -> {
+                    log.warn("fetchNvdVulnerabilities failed: {}", ex.getMessage());
+                    return List.of();
+                });
+
+        CompletableFuture<List<PackageTrend>> futurePackages = CompletableFuture
+                .supplyAsync(intelligencePort::fetchPackageTrends, taskExecutor)
+                .exceptionally(ex -> {
+                    log.warn("fetchPackageTrends failed: {}", ex.getMessage());
+                    return List.of();
+                });
+
+        CompletableFuture<List<JepUpdate>> futureJep = CompletableFuture
+                .supplyAsync(intelligencePort::fetchJepUpdates, taskExecutor)
+                .exceptionally(ex -> {
+                    log.warn("fetchJepUpdates failed: {}", ex.getMessage());
+                    return List.of();
+                });
+
+        CompletableFuture<List<CncfProjectUpdate>> futureCncf = CompletableFuture
+                .supplyAsync(intelligencePort::fetchCncfLandscapeChanges, taskExecutor)
+                .exceptionally(ex -> {
+                    log.warn("fetchCncfLandscapeChanges failed: {}", ex.getMessage());
+                    return List.of();
+                });
+
+        CompletableFuture<List<RadarEntry>> futureRadar = CompletableFuture
+                .supplyAsync(intelligencePort::fetchTechRadarEntries, taskExecutor)
+                .exceptionally(ex -> {
+                    log.warn("fetchTechRadarEntries failed: {}", ex.getMessage());
+                    return List.of();
+                });
+
+        CompletableFuture<List<ConferenceTalk>> futureTalks = CompletableFuture
+                .supplyAsync(intelligencePort::fetchConferenceTalks, taskExecutor)
+                .exceptionally(ex -> {
+                    log.warn("fetchConferenceTalks failed: {}", ex.getMessage());
+                    return List.of();
+                });
+
+        CompletableFuture<List<DbEngineRanking>> futureDb = CompletableFuture
+                .supplyAsync(intelligencePort::fetchDbEngineRankings, taskExecutor)
+                .exceptionally(ex -> {
+                    log.warn("fetchDbEngineRankings failed: {}", ex.getMessage());
+                    return List.of();
+                });
+
         CompletableFuture.allOf(futureInfluencer, futureTopic, futureAnthropic, futureHn, futureGh,
-                futureRss, futureReddit, futurePapers, futureReleases).join();
+                futureRss, futureReddit, futurePapers, futureReleases,
+                futureHf, futurePh, futureAdvisories, futureNvd, futurePackages,
+                futureJep, futureCncf, futureRadar, futureTalks, futureDb).join();
 
         List<Tweet> rawInfluencer = futureInfluencer.join();
         List<Tweet> rawTopic = futureTopic.join();
@@ -124,6 +206,16 @@ public class MarketResearchService {
         List<RedditPost> rawReddit = futureReddit.join();
         List<ResearchPaper> rawPapers = futurePapers.join();
         List<SoftwareRelease> rawReleases = futureReleases.join();
+        List<HuggingFaceModel> rawHf = futureHf.join();
+        List<ProductHuntPost> rawPh = futurePh.join();
+        List<SecurityAdvisory> rawAdvisories = futureAdvisories.join();
+        List<NvdVulnerability> rawNvd = futureNvd.join();
+        List<PackageTrend> rawPackages = futurePackages.join();
+        List<JepUpdate> rawJep = futureJep.join();
+        List<CncfProjectUpdate> rawCncf = futureCncf.join();
+        List<RadarEntry> rawRadar = futureRadar.join();
+        List<ConferenceTalk> rawTalks = futureTalks.join();
+        List<DbEngineRanking> rawDb = futureDb.join();
 
         Set<String> authorityUsernames = Set.copyOf(reportProperties.research().authorityUsernames());
         int minLikes = reportProperties.research().minLikes();
@@ -154,7 +246,8 @@ public class MarketResearchService {
                         Stream.concat(filteredAuthority.stream(), filteredTracked.stream()),
                         filteredTopic.stream())
                 .distinct()
-                .limit(25)
+                .sorted((a, b) -> Integer.compare(b.likeCount(), a.likeCount()))
+                .limit(40)
                 .toList();
 
         return new ResearchResult(
@@ -165,6 +258,16 @@ public class MarketResearchService {
                 rawReddit.stream().map(MarketResearchService::canonicalize).toList(),
                 rawPapers.stream().map(MarketResearchService::canonicalize).toList(),
                 rawReleases.stream().map(MarketResearchService::canonicalize).toList(),
+                rawHf.stream().map(MarketResearchService::canonicalize).toList(),
+                rawPh.stream().map(MarketResearchService::canonicalize).toList(),
+                rawAdvisories.stream().map(MarketResearchService::canonicalize).toList(),
+                rawNvd.stream().map(MarketResearchService::canonicalize).toList(),
+                rawPackages.stream().map(MarketResearchService::canonicalize).toList(),
+                rawJep.stream().map(MarketResearchService::canonicalize).toList(),
+                rawCncf.stream().map(MarketResearchService::canonicalize).toList(),
+                rawRadar.stream().map(MarketResearchService::canonicalize).toList(),
+                rawTalks.stream().map(MarketResearchService::canonicalize).toList(),
+                rawDb.stream().map(MarketResearchService::canonicalize).toList(),
                 LocalDateTime.now(),
                 rawInfluencer.size() + rawTopic.size() + rawAnthropic.size(),
                 rawHn.size(), rawGh.size(), rawRss.size(), rawReddit.size()
@@ -199,6 +302,56 @@ public class MarketResearchService {
     private static SoftwareRelease canonicalize(SoftwareRelease r) {
         return new SoftwareRelease(r.repoFullName(), r.version(), r.releaseNotesExcerpt(),
                 UrlCanonicalizer.canonicalize(r.url()), r.releasedAt());
+    }
+
+    private static HuggingFaceModel canonicalize(HuggingFaceModel m) {
+        return new HuggingFaceModel(m.id(), m.author(), m.downloads(), m.likes(),
+                m.lastModified(), m.pipelineTag(), UrlCanonicalizer.canonicalize(m.url()));
+    }
+
+    private static ProductHuntPost canonicalize(ProductHuntPost p) {
+        return new ProductHuntPost(p.name(), p.tagline(), UrlCanonicalizer.canonicalize(p.url()),
+                p.votesCount(), p.topics(), p.createdAt());
+    }
+
+    private static SecurityAdvisory canonicalize(SecurityAdvisory a) {
+        return new SecurityAdvisory(a.ghsaId(), a.summary(), a.severity(), a.publishedAt(),
+                a.affectedEcosystems(), UrlCanonicalizer.canonicalize(a.url()));
+    }
+
+    private static NvdVulnerability canonicalize(NvdVulnerability v) {
+        return new NvdVulnerability(v.cveId(), v.description(), v.cvssScore(), v.severity(),
+                v.publishedAt(), v.affectedProducts(), UrlCanonicalizer.canonicalize(v.url()));
+    }
+
+    private static PackageTrend canonicalize(PackageTrend t) {
+        return new PackageTrend(t.name(), t.platform(), t.description(), t.stars(),
+                t.dependentProjects(), UrlCanonicalizer.canonicalize(t.url()), t.latestReleaseAt());
+    }
+
+    private static JepUpdate canonicalize(JepUpdate j) {
+        return new JepUpdate(j.jepId(), j.title(), j.status(), j.updatedAt(),
+                UrlCanonicalizer.canonicalize(j.url()));
+    }
+
+    private static CncfProjectUpdate canonicalize(CncfProjectUpdate c) {
+        return new CncfProjectUpdate(c.projectName(), c.category(), c.status(), c.description(),
+                UrlCanonicalizer.canonicalize(c.url()), c.updatedAt());
+    }
+
+    private static RadarEntry canonicalize(RadarEntry r) {
+        return new RadarEntry(r.name(), r.ring(), r.quadrant(), r.description(),
+                UrlCanonicalizer.canonicalize(r.url()), r.publishedAt());
+    }
+
+    private static ConferenceTalk canonicalize(ConferenceTalk t) {
+        return new ConferenceTalk(t.title(), t.channelName(), t.conferenceName(),
+                UrlCanonicalizer.canonicalize(t.url()), t.publishedAt(), t.viewCount());
+    }
+
+    private static DbEngineRanking canonicalize(DbEngineRanking d) {
+        return new DbEngineRanking(d.dbName(), d.rank(), d.rankChange(), d.score(), d.scoreChange(),
+                UrlCanonicalizer.canonicalize(d.url()), d.updatedAt());
     }
 
     private boolean isFromAuthority(Tweet tweet, Set<String> authorities) {

@@ -67,13 +67,15 @@ class TrendBasedReportEnrichmentAdapterTest {
     private static ReportProperties propertiesWithTrend(int days, int min, int max) {
         return new ReportProperties(
                 60, 30, null, null, null, null, null, null, null, null,
-                new ReportProperties.TrendProperties(true, days, min, max)
+                new ReportProperties.TrendProperties(true, days, min, max),
+                null, null, null, null, null, null, null, null, null, null
         );
     }
 
     private static ReportProperties propertiesWithoutTrend() {
         return new ReportProperties(
-                60, 30, null, null, null, null, null, null, null, null, null
+                60, 30, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null
         );
     }
 
