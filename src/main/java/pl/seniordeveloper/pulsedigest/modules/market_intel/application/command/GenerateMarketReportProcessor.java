@@ -6,7 +6,9 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.MarketIntelJobTracker;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.MarketResearchService;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.application.SignalScoringService;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.PersistedReport;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Signal;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportData;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportJob;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ResearchResult;
@@ -18,6 +20,7 @@ import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.AsyncConfig;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -34,6 +37,7 @@ public class GenerateMarketReportProcessor {
     private final ReportStoragePort storagePort;
     private final EmailDeliveryPort emailPort;
     private final Optional<ReportEnrichmentPort> enrichmentPort;
+    private final SignalScoringService signalScoringService;
 
     @Async(AsyncConfig.REPORT_EXECUTOR)
     public void process(String jobId) {
@@ -68,16 +72,21 @@ public class GenerateMarketReportProcessor {
                 log.info("[{}] Report enriched with {} trend cluster(s)", jobId, trendCount);
             }
 
+            List<Signal> signals = signalScoringService.score(enriched.items() != null ? enriched.items() : List.of());
+            ReportData finalReport = enriched.withSignals(signals);
+            long criticalCount = signals.stream().filter(Signal::isCriticalTrend).count();
+            log.info("[{}] Signal scoring: {} signals ({} CRITICAL)", jobId, signals.size(), criticalCount);
+
             storagePort.save(new PersistedReport(
-                    enriched, jobId, Instant.now(),
+                    finalReport, jobId, Instant.now(),
                     research.tweets().size(), research.hackerNewsPosts().size(), research.githubRepos().size()
             ));
 
-            jobTracker.track(job.done(enriched));
+            jobTracker.track(job.done(finalReport));
             log.info("=== [{}] Report generated successfully in {}s ===",
                     jobId, Duration.between(start, Instant.now()).getSeconds());
 
-            emailPort.send(enriched, research);
+            emailPort.send(finalReport, research);
             log.info("[{}] Email delivery triggered", jobId);
 
         } catch (Exception e) {

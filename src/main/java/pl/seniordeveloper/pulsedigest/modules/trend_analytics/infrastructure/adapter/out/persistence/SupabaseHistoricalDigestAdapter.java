@@ -12,10 +12,13 @@ import pl.seniordeveloper.pulsedigest.modules.trend_analytics.domain.port.out.Hi
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * Czyta historyczne raporty z Supabase (Postgres) dla analizy trendów.
@@ -50,8 +53,19 @@ public class SupabaseHistoricalDigestAdapter implements HistoricalDigestPort {
                 .stream()
                 .flatMap(Optional::stream)
                 .toList();
-        log.debug("Loaded {} historical digests within last {} days", digests.size(), lookbackDays);
-        return digests;
+        List<HistoricalDigest> deduplicated = deduplicateByDay(digests);
+        log.debug("Loaded {} historical digests within last {} days ({} after deduplication per day)",
+                digests.size(), lookbackDays, deduplicated.size());
+        return deduplicated;
+    }
+
+    private static List<HistoricalDigest> deduplicateByDay(List<HistoricalDigest> digests) {
+        Map<LocalDate, HistoricalDigest> latestPerDay = digests.stream()
+                .collect(Collectors.toMap(
+                        d -> d.generatedAt().atOffset(ZoneOffset.UTC).toLocalDate(),
+                        d -> d,
+                        (a, b) -> a.generatedAt().isAfter(b.generatedAt()) ? a : b));
+        return List.copyOf(latestPerDay.values());
     }
 
     private Optional<HistoricalDigest> mapPayload(Instant generatedAt, String json) {

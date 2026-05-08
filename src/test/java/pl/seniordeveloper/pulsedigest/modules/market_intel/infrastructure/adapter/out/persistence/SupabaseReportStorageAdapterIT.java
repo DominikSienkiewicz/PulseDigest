@@ -12,6 +12,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.DigestItem;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.PersistedReport;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportData;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TrendInsight;
@@ -103,7 +104,7 @@ class SupabaseReportStorageAdapterIT {
     void roundTripsTrendsInsidePayload() {
         ReportData reportData = new ReportData(
                 "preview", "editorial", List.of("insight"),
-                List.of(new ReportData.DigestItem("t", "u", "src", "Cat", "RELEASE", 9, 100, "sum")),
+                List.of(new DigestItem("t", "u", "src", "Cat", "RELEASE", 9, 100, "sum")),
                 List.of(new TrendInsight("Security/Privacy", 3, "narr", List.of("a", "b")))
         );
         adapter.save(new PersistedReport(reportData, "job-trends",
@@ -117,7 +118,7 @@ class SupabaseReportStorageAdapterIT {
     private static PersistedReport sampleReport(String jobId, Instant generatedAt) {
         ReportData data = new ReportData(
                 "preview", "editorial", List.of("i1"),
-                List.of(new ReportData.DigestItem("title", "https://x", "Twitter",
+                List.of(new DigestItem("title", "https://x", "Twitter",
                         "AI/LLM", "RELEASE", 8, 50, "sum")),
                 List.of()
         );

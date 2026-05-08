@@ -1,14 +1,19 @@
 package pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapter.out.email;
 
 import org.springframework.stereotype.Component;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.DigestItem;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportData;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ResearchResult;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Signal;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SignalRank;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TrendInsight;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Component
 public class ReportEmailBuilder {
@@ -29,9 +34,14 @@ public class ReportEmailBuilder {
                 ? report.emailPreview()
                 : "Twój daily digest tech news z ostatnich 24h";
         List<String> insights = report.topInsights() != null ? report.topInsights() : List.of();
-        List<ReportData.DigestItem> items = report.items() != null ? report.items() : List.of();
+        List<DigestItem> items = report.items() != null ? report.items() : List.of();
         List<TrendInsight> trends = report.trends() != null ? report.trends() : List.of();
+        List<Signal> signals = report.signals() != null ? report.signals() : List.of();
         String editorial = report.editorial();
+
+        List<Signal> criticals = signals.stream().filter(Signal::isCriticalTrend).toList();
+        Map<String, SignalRank> rankByUrl = signals.stream()
+                .collect(Collectors.toMap(s -> s.item().url(), Signal::rank, (a, b) -> a));
 
         return "<!DOCTYPE html>"
                 + "<html lang=\"pl\"><head><meta charset=\"utf-8\">"
@@ -45,13 +55,14 @@ public class ReportEmailBuilder {
                 + buildHeader(today)
                 + buildEditorialSection(editorial)
                 + buildInsightsSection(insights)
+                + buildCriticalTrendsSection(criticals)
                 + buildTrendsSection(trends)
-                + buildItemsSection(items)
+                + buildItemsSection(items, rankByUrl)
                 + buildFooter(items.size(), research)
                 + "</div></body></html>";
     }
 
-    // ── Sections ──────────────────────────────────────────────────────────────
+    // Sections
 
     private String buildPreheader(String preview) {
         return "<div style=\"display:none!important;max-height:0;overflow:hidden;"
@@ -135,28 +146,63 @@ public class ReportEmailBuilder {
         return sb.toString();
     }
 
-    private String buildItemsSection(List<ReportData.DigestItem> items) {
+    private String buildCriticalTrendsSection(List<Signal> criticals) {
+        if (criticals.isEmpty()) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder();
+        sb.append("<div style=\"padding:20px 28px;background:#fff1f2;"
+                + "border-bottom:1px solid #fecdd3;border-left:4px solid #dc2626\">");
+        sb.append("<h2 style=\"color:#b91c1c;font-size:15px;margin:0 0 10px\">")
+                .append("&#128308; Krytyczne trendy &mdash; potwierdzenie w 3+ typach &#378;r&oacute;de&#322;</h2>");
+        sb.append("<ul style=\"margin:0;padding:0;list-style:none\">");
+        for (Signal signal : criticals) {
+            DigestItem it = signal.item();
+            String domainLabel = signal.sourceDomains().isEmpty() ? ""
+                    : " <span style=\"color:#9f1239;font-size:11px;font-weight:600\">"
+                    + "[" + signal.sourceDomains().stream()
+                            .map(d -> escapeHtml(d.name()))
+                            .collect(Collectors.joining(" &middot; "))
+                    + "]</span>";
+            String summaryPart = (it.summary() != null && !it.summary().isBlank())
+                    ? "<div style=\"color:#991b1b;font-size:12px;margin-top:3px\">"
+                    + escapeHtml(it.summary()) + " &mdash; " + escapeHtml(it.source()) + "</div>"
+                    : "<div style=\"color:#991b1b;font-size:12px;margin-top:3px\">"
+                    + escapeHtml(it.source()) + "</div>";
+            sb.append("<li style=\"margin-bottom:10px\">")
+                    .append("<a href=\"").append(escapeHtml(it.url()))
+                    .append("\" style=\"color:#b91c1c;font-weight:600;text-decoration:none;font-size:14px\">")
+                    .append(escapeHtml(it.title())).append("</a>")
+                    .append(domainLabel)
+                    .append(summaryPart)
+                    .append("</li>");
+        }
+        sb.append("</ul></div>");
+        return sb.toString();
+    }
+
+    private String buildItemsSection(List<DigestItem> items, Map<String, SignalRank> rankByUrl) {
         if (items.isEmpty()) {
             return "";
         }
-        List<ReportData.DigestItem> topPicks = items.stream()
+        List<DigestItem> topPicks = items.stream()
                 .filter(i -> i.score() >= TOP_PICK_THRESHOLD)
                 .toList();
-        List<ReportData.DigestItem> signals = items.stream()
+        List<DigestItem> midTier = items.stream()
                 .filter(i -> i.score() >= SIGNAL_THRESHOLD && i.score() < TOP_PICK_THRESHOLD)
                 .toList();
-        List<ReportData.DigestItem> longTail = items.stream()
+        List<DigestItem> longTail = items.stream()
                 .filter(i -> i.score() < SIGNAL_THRESHOLD)
                 .toList();
 
         StringBuilder sb = new StringBuilder();
-        sb.append(buildTopPicksSection(topPicks));
-        sb.append(buildSignalsSection(signals));
-        sb.append(buildLongTailSection(longTail));
+        sb.append(buildTopPicksSection(topPicks, rankByUrl));
+        sb.append(buildMidTierSection(midTier, rankByUrl));
+        sb.append(buildLongTailSection(longTail, rankByUrl));
         return sb.toString();
     }
 
-    private String buildTopPicksSection(List<ReportData.DigestItem> items) {
+    private String buildTopPicksSection(List<DigestItem> items, Map<String, SignalRank> rankByUrl) {
         if (items.isEmpty()) {
             return "";
         }
@@ -166,20 +212,21 @@ public class ReportEmailBuilder {
                 .append("&#11088; Top picks (").append(items.size()).append(")</h2>");
         sb.append("<table style=\"width:100%;border-collapse:collapse;font-size:14px\">");
         sb.append("<thead><tr style=\"background:#f9fafb\">");
-        sb.append(th("Artykuł"));
+        sb.append(th("Artyku&#322;"));
         sb.append(th("Kategoria"));
         sb.append(th("Typ"));
-        sb.append(th("&#377;ródło"));
+        sb.append(th("&#377;r&oacute;d&#322;o"));
         sb.append(th("Score"));
         sb.append("</tr></thead><tbody>");
-        for (ReportData.DigestItem item : items) {
-            sb.append(buildTopPickRow(item));
+        for (DigestItem item : items) {
+            sb.append(buildTopPickRow(item, rankByUrl.get(item.url())));
         }
         sb.append("</tbody></table></div>");
         return sb.toString();
     }
 
-    private String buildSignalsSection(List<ReportData.DigestItem> items) {
+    // Renders the "Signals" email section (LLM score 5–8); named mid-tier to avoid collision with the Signal domain type.
+    private String buildMidTierSection(List<DigestItem> items, Map<String, SignalRank> rankByUrl) {
         if (items.isEmpty()) {
             return "";
         }
@@ -189,20 +236,20 @@ public class ReportEmailBuilder {
                 .append("&#128268; Signals (").append(items.size()).append(")</h2>");
         sb.append("<table style=\"width:100%;border-collapse:collapse;font-size:13px\">");
         sb.append("<thead><tr style=\"background:#f3f4f6\">");
-        sb.append(th("Artykuł"));
+        sb.append(th("Artyku&#322;"));
         sb.append(th("Kategoria"));
         sb.append(th("Typ"));
-        sb.append(th("&#377;ródło"));
+        sb.append(th("&#377;r&oacute;d&#322;o"));
         sb.append(th("Score"));
         sb.append("</tr></thead><tbody>");
-        for (ReportData.DigestItem item : items) {
-            sb.append(buildTieredRow(item, "#fafafa"));
+        for (DigestItem item : items) {
+            sb.append(buildTieredRow(item, "#fafafa", rankByUrl.get(item.url())));
         }
         sb.append("</tbody></table></div>");
         return sb.toString();
     }
 
-    private String buildLongTailSection(List<ReportData.DigestItem> items) {
+    private String buildLongTailSection(List<DigestItem> items, Map<String, SignalRank> rankByUrl) {
         if (items.isEmpty()) {
             return "";
         }
@@ -212,25 +259,26 @@ public class ReportEmailBuilder {
                 .append("Long tail (").append(items.size()).append(")</h2>");
         sb.append("<table style=\"width:100%;border-collapse:collapse;font-size:12px\">");
         sb.append("<thead><tr style=\"background:#f3f4f6\">");
-        sb.append(th("Artykuł"));
+        sb.append(th("Artyku&#322;"));
         sb.append(th("Kategoria"));
         sb.append(th("Typ"));
-        sb.append(th("&#377;ródło"));
+        sb.append(th("&#377;r&oacute;d&#322;o"));
         sb.append(th("Score"));
         sb.append("</tr></thead><tbody>");
-        for (ReportData.DigestItem item : items) {
-            sb.append(buildTieredRow(item, "#f9fafb"));
+        for (DigestItem item : items) {
+            sb.append(buildTieredRow(item, "#f9fafb", rankByUrl.get(item.url())));
         }
         sb.append("</tbody></table></div>");
         return sb.toString();
     }
 
-    private String buildTopPickRow(ReportData.DigestItem item) {
+    private String buildTopPickRow(DigestItem item, SignalRank rank) {
         String scoreColor = item.score() >= 7 ? "#16a34a"
                 : item.score() >= 4 ? "#ca8a04"
                   : "#dc2626";
         String safeUrl = escapeHtml(item.url());
-        String safeTitle = escapeHtml(item.title());
+        String rankPrefix = rank != null ? rankEmoji(rank) : "";
+        String safeTitle = rankPrefix + escapeHtml(item.title());
         String safeSummary = escapeHtml(item.summary());
         String safeSource = escapeHtml(item.source());
         String safeCategory = escapeHtml(item.category() != null ? item.category() : "Other");
@@ -262,12 +310,13 @@ public class ReportEmailBuilder {
                 + "</tr>";
     }
 
-    private String buildTieredRow(ReportData.DigestItem item, String rowBg) {
+    private String buildTieredRow(DigestItem item, String rowBg, SignalRank rank) {
         String scoreColor = item.score() >= 7 ? "#16a34a"
                 : item.score() >= 4 ? "#ca8a04"
                   : "#dc2626";
         String safeUrl = escapeHtml(item.url());
-        String safeTitle = escapeHtml(item.title());
+        String rankPrefix = rank != null ? rankEmoji(rank) : "";
+        String safeTitle = rankPrefix + escapeHtml(item.title());
         String safeSummary = escapeHtml(item.summary());
         String safeSource = escapeHtml(item.source());
         String safeCategory = escapeHtml(item.category() != null ? item.category() : "Other");
@@ -317,6 +366,15 @@ public class ReportEmailBuilder {
         String label = escapeHtml(type);
         return "<span style=\"background:" + bg + ";color:" + fg + ";padding:2px 6px;"
                 + "border-radius:4px;font-size:11px;font-weight:600\">" + label + "</span>";
+    }
+
+    private static String rankEmoji(SignalRank rank) {
+        return switch (rank) {
+            case CRITICAL -> "&#128308; ";
+            case STRONG   -> "&#129000; ";
+            case MODERATE -> "&#128993; ";
+            case WEAK     -> "&#9711; ";
+        };
     }
 
     private String[] typeBadgeColors(String type) {

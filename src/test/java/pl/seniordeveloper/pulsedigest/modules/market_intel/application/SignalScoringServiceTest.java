@@ -1,0 +1,139 @@
+package pl.seniordeveloper.pulsedigest.modules.market_intel.application;
+
+import org.junit.jupiter.api.Test;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.DigestItem;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Signal;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SignalRank;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceDomain;
+
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+class SignalScoringServiceTest {
+
+    private final SignalScoringService service = new SignalScoringService();
+
+    private static DigestItem item(String source, String category, int engagement) {
+        return new DigestItem(
+                "title", "http://example.com/" + Math.abs(source.hashCode()),
+                source, category, "TYPE", 5, engagement, "summary");
+    }
+
+    @Test
+    void arxivWithoutCrossSourceScoresStrong() {
+        // arXiv weight=1.00 → base=100, engagement bonus=0, crossSource=0 → 100 → STRONG
+        List<Signal> result = service.score(List.of(item("arXiv/cs.AI", "AI", 0)));
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).rank()).isEqualTo(SignalRank.STRONG);
+        assertThat(result.get(0).signalScore()).isEqualTo(100);
+    }
+
+    @Test
+    void githubReleasesWithoutCrossSourceScoresModerate() {
+        // GitHub Releases weight=0.95 → round(0.95*100)=95, engagement=0, crossSource=0 → 95 → MODERATE
+        List<Signal> result = service.score(List.of(item("GitHub Releases", "Spring", 0)));
+        assertThat(result.get(0).rank()).isEqualTo(SignalRank.MODERATE);
+        assertThat(result.get(0).signalScore()).isEqualTo(95);
+    }
+
+    @Test
+    void threeDistinctDomainsPromoteAllItemsToCritical() {
+        // "llm" category → SCIENCE(arXiv), CODE(GitHub), BUSINESS(HN) → 3 domains → +50 bonus
+        // arXiv:  100 + 0 + 50 = 150 → CRITICAL
+        // GitHub:  85 + 0 + 50 = 135 → CRITICAL
+        // HN:      80 + 0 + 50 = 130 → CRITICAL
+        DigestItem paper = item("arXiv/cs.AI",  "llm", 0);
+        DigestItem repo  = item("GitHub",       "llm", 0);
+        DigestItem hn    = item("Hacker News",  "llm", 0);
+        List<Signal> result = service.score(List.of(paper, repo, hn));
+        assertThat(result).allMatch(s -> s.rank() == SignalRank.CRITICAL);
+        assertThat(result.get(0).sourceDomains())
+                .containsExactlyInAnyOrder(SourceDomain.BUSINESS, SourceDomain.CODE, SourceDomain.SCIENCE);
+    }
+
+    @Test
+    void twoDistinctDomainsDoNotTriggerCrossSourceBonus() {
+        // Only SCIENCE + CODE — need 3 distinct
+        DigestItem paper = item("arXiv/cs.AI", "Quantum", 0);
+        DigestItem repo  = item("GitHub",      "quantum", 0);  // category normalized case-insensitive
+        List<Signal> result = service.score(List.of(paper, repo));
+        assertThat(result).noneMatch(s -> s.rank() == SignalRank.CRITICAL);
+    }
+
+    @Test
+    void categoryMatchingIsCaseInsensitive() {
+        // "LLM" and "llm" must group into the same category
+        DigestItem paper   = item("arXiv/cs.AI", "LLM",  0);
+        DigestItem repo    = item("GitHub",      "llm",  0);
+        DigestItem product = item("Product Hunt", "LLM", 0);
+        List<Signal> result = service.score(List.of(paper, repo, product));
+        // SCIENCE + CODE + BUSINESS → 3 domains → CRITICAL
+        assertThat(result).allMatch(s -> s.rank() == SignalRank.CRITICAL);
+    }
+
+    @Test
+    void twitterWithLowEngagementScoresWeak() {
+        // Twitter/X weight=0.40 → base=40, engagement(500/1000=0), crossSource=0 → 40 → WEAK
+        List<Signal> result = service.score(List.of(item("Twitter/X", "misc", 500)));
+        assertThat(result.get(0).rank()).isEqualTo(SignalRank.WEAK);
+        assertThat(result.get(0).signalScore()).isEqualTo(40);
+    }
+
+    @Test
+    void engagementBonusCappedAt50Points() {
+        // arXiv weight=1.00 → base=100 + min(50, 999_999/1000)=50 = 150 → CRITICAL
+        List<Signal> result = service.score(List.of(item("arXiv/cs.AI", "AI", 999_999)));
+        assertThat(result.get(0).signalScore()).isEqualTo(150);
+        assertThat(result.get(0).rank()).isEqualTo(SignalRank.CRITICAL);
+    }
+
+    @Test
+    void engagementBonusUsesIntegerDivision() {
+        // HN weight=0.80 → base=80, engagement=999/1000=0 (int division) → 80 → MODERATE
+        List<Signal> result = service.score(List.of(item("Hacker News", "Java", 999)));
+        assertThat(result.get(0).signalScore()).isEqualTo(80);
+        assertThat(result.get(0).rank()).isEqualTo(SignalRank.MODERATE);
+    }
+
+    @Test
+    void nullEngagementScoreTreatedAsZero() {
+        DigestItem itemWithNull = new DigestItem(
+                "title", "http://example.com", "Hacker News", "AI", "TYPE", 5, null, "summary");
+        List<Signal> result = service.score(List.of(itemWithNull));
+        assertThat(result.get(0).signalScore()).isEqualTo(80);
+        assertThat(result.get(0).rank()).isEqualTo(SignalRank.MODERATE);
+    }
+
+    @Test
+    void outputSortedByRankThenSignalScoreDescending() {
+        // arXiv:  100 → STRONG
+        // Reddit:  60 → MODERATE  (0.60 * 100 = 60)
+        // HN:      80 → MODERATE  (0.80 * 100 = 80)
+        // Twitter: 40 → WEAK
+        DigestItem arxiv   = item("arXiv/cs.AI",    "A", 0);
+        DigestItem reddit  = item("Reddit/r/java",  "B", 0);
+        DigestItem hn      = item("Hacker News",    "C", 0);
+        DigestItem twitter = item("Twitter/X",      "D", 0);
+        List<Signal> result = service.score(List.of(twitter, reddit, arxiv, hn));
+        assertThat(result.get(0).rank()).isEqualTo(SignalRank.STRONG);   // arXiv 100
+        assertThat(result.get(1).rank()).isEqualTo(SignalRank.MODERATE); // HN 80
+        assertThat(result.get(2).rank()).isEqualTo(SignalRank.MODERATE); // Reddit 60
+        assertThat(result.get(3).rank()).isEqualTo(SignalRank.WEAK);     // Twitter 40
+    }
+
+    @Test
+    void emptyItemsReturnsEmptyList() {
+        assertThat(service.score(List.of())).isEmpty();
+    }
+
+    @Test
+    void itemWithNullCategoryIsScoredWithoutCrossSourceBonus() {
+        DigestItem noCategory = new DigestItem(
+                "title", "http://example.com", "arXiv/cs.AI", null, "TYPE", 5, 0, "summary");
+        List<Signal> result = service.score(List.of(noCategory));
+        // arXiv base=100, no cross-source bonus because category is null
+        assertThat(result.get(0).signalScore()).isEqualTo(100);
+        assertThat(result.get(0).sourceDomains()).isEmpty();
+    }
+}

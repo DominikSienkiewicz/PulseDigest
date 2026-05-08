@@ -164,7 +164,7 @@ report:
       - name: "InfoQ"
         url: "https://feed.infoq.com"
       - name: "The Register"
-        url: "https://www.theregister.com/software/developer/headlines.atom"
+        url: "https://www.theregister.com/headlines.atom"
       - name: "Baeldung"
         url: "https://www.baeldung.com/feed"
       - name: "Spring Blog"

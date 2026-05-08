@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ResearchResult;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceWeights;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -380,10 +381,7 @@ public class ReportPromptBuilder {
         selected.addAll(topN(talks,       CAP_TALKS,       byEngagement));
         selected.addAll(topN(databases,   CAP_DBENGINES,   byEngagement));
 
-        if (selected.size() > TOTAL_CAP) {
-            selected.sort(byEngagement);
-            selected = selected.subList(0, TOTAL_CAP);
-        }
+        selected = applyTotalCap(selected, TOTAL_CAP);
 
         return selected;
     }
@@ -395,6 +393,33 @@ public class ReportPromptBuilder {
         return items.stream()
                 .sorted(comparator)
                 .limit(n)
+                .toList();
+    }
+
+    /**
+     * Pre-score for overflow trimming: base weight (30–100) + engagement bonus
+     * (0–50 via integer division by 1_000). Cross-source bonus is intentionally
+     * excluded — category context is not available at pre-LLM selection time.
+     */
+    static int preScore(String source, int engagement) {
+        return (int) Math.round(SourceWeights.of(source) * 100)
+                + Math.min(50, engagement / 1_000);
+    }
+
+    /**
+     * Keeps the top {@code cap} items ranked by pre-score descending; returns
+     * {@code selected} unchanged if already at or under cap.
+     */
+    static List<Map<String, Object>> applyTotalCap(List<Map<String, Object>> selected, int cap) {
+        if (selected.size() <= cap) {
+            return selected;
+        }
+        return selected.stream()
+                .sorted(Comparator.comparingInt(
+                        (Map<String, Object> m) -> -preScore(
+                                (String) m.get("source"),
+                                ((Number) m.get("engagement_score")).intValue())))
+                .limit(cap)
                 .toList();
     }
 
