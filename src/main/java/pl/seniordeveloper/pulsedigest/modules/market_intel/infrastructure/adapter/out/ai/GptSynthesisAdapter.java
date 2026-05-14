@@ -14,6 +14,7 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportDa
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ResearchResult;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.LlmSynthesisPort;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 
@@ -28,6 +29,7 @@ public class GptSynthesisAdapter implements LlmSynthesisPort {
     private static final String MODEL = "gpt-4o";
     private static final double TEMPERATURE = 0.25;
     private static final int MAX_TOKENS = 10000;
+    private static final Duration LLM_READ_TIMEOUT = Duration.ofSeconds(180);
 
     @Value("${spring.ai.openai.api-key:}")
     private String openAiApiKey;
@@ -37,7 +39,7 @@ public class GptSynthesisAdapter implements LlmSynthesisPort {
 
     @PostConstruct
     void init() {
-        this.openAiClient = ExternalRestClients.builder()
+        this.openAiClient = ExternalRestClients.builder(LLM_READ_TIMEOUT)
                 .baseUrl(OPENAI_BASE_URL)
                 .defaultHeader("Authorization", "Bearer " + openAiApiKey)
                 .defaultHeader("Content-Type", MediaType.APPLICATION_JSON_VALUE)

@@ -27,18 +27,22 @@ public final class ExternalRestClients {
     }
 
     public static RestClient.Builder builder() {
+        return builder(READ_TIMEOUT);
+    }
+
+    public static RestClient.Builder builder(Duration readTimeout) {
         return RestClient.builder()
-                .requestFactory(requestFactory())
+                .requestFactory(requestFactory(readTimeout))
                 .requestInterceptor(ExternalRestClients::retry);
     }
 
-    private static JdkClientHttpRequestFactory requestFactory() {
+    private static JdkClientHttpRequestFactory requestFactory(Duration readTimeout) {
         HttpClient client = HttpClient.newBuilder()
                 .connectTimeout(CONNECT_TIMEOUT)
                 .followRedirects(HttpClient.Redirect.NORMAL)
                 .build();
         JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(client);
-        factory.setReadTimeout(READ_TIMEOUT);
+        factory.setReadTimeout(readTimeout);
         return factory;
     }
 
