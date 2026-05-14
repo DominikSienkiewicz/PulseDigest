@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.http.ExternalRestClients;
 import org.springframework.web.util.UriComponentsBuilder;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.GithubRepo;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportProperties;
@@ -36,7 +37,7 @@ public class GithubSearchAdapter {
     @PostConstruct
     void init() {
         this.props = reportProperties.github();
-        this.restClient = RestClient.builder()
+        this.restClient = ExternalRestClients.builder()
                 .defaultHeader(HttpHeaders.ACCEPT, "application/vnd.github.v3+json")
                 .defaultHeader(HttpHeaders.USER_AGENT, "IT-Market-Report-App")
                 .build();

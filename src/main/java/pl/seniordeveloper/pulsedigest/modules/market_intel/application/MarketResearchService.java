@@ -21,6 +21,7 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Research
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ResearchResult;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RssItem;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SecurityAdvisory;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceFetchReport;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SoftwareRelease;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Tweet;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.MarketIntelligencePort;
@@ -28,6 +29,8 @@ import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportPropert
 import pl.seniordeveloper.pulsedigest.shared.util.UrlCanonicalizer;
 
 import java.time.LocalDateTime;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -35,6 +38,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 @Slf4j
@@ -51,6 +56,8 @@ public class MarketResearchService {
             "azure", "aws", "cloud", "product", "saas", "inference", "benchmark",
             "2026", "intelligence", "reasoning", "context", "token", "rag", "vector"
     );
+    private static final Duration SOURCE_TIMEOUT = Duration.ofSeconds(90);
+
     private final MarketIntelligencePort intelligencePort;
     private final ReportProperties reportProperties;
     @Qualifier("dataFetchExecutor")
@@ -59,163 +66,95 @@ public class MarketResearchService {
     public ResearchResult fetchAndFilter() {
         log.info("Starting market research data gathering...");
 
-        CompletableFuture<List<Tweet>> futureInfluencer = CompletableFuture
-                .supplyAsync(intelligencePort::fetchInfluencerTweets, taskExecutor)
-                .exceptionally(ex -> {
-                    log.warn("fetchInfluencerTweets failed: {}", ex.getMessage());
-                    return List.of();
-                });
-
-        CompletableFuture<List<Tweet>> futureTopic = CompletableFuture
-                .supplyAsync(intelligencePort::fetchTopicTweets, taskExecutor)
-                .exceptionally(ex -> {
-                    log.warn("fetchTopicTweets failed: {}", ex.getMessage());
-                    return List.of();
-                });
-
-        CompletableFuture<List<Tweet>> futureAnthropic = CompletableFuture
-                .supplyAsync(intelligencePort::fetchAnthropicTweets, taskExecutor)
-                .exceptionally(ex -> {
-                    log.warn("fetchAnthropicTweets failed: {}", ex.getMessage());
-                    return List.of();
-                });
-
-        CompletableFuture<List<HackerNewsPost>> futureHn = CompletableFuture
-                .supplyAsync(intelligencePort::fetchTopDiscussions, taskExecutor)
-                .exceptionally(ex -> {
-                    log.warn("fetchTopDiscussions failed: {}", ex.getMessage());
-                    return List.of();
-                });
-
-        CompletableFuture<List<GithubRepo>> futureGh = CompletableFuture
-                .supplyAsync(intelligencePort::fetchTrendingRepos, taskExecutor)
-                .exceptionally(ex -> {
-                    log.warn("fetchTrendingRepos failed: {}", ex.getMessage());
-                    return List.of();
-                });
-
-        CompletableFuture<List<RssItem>> futureRss = CompletableFuture
-                .supplyAsync(intelligencePort::fetchRssItems, taskExecutor)
-                .exceptionally(ex -> {
-                    log.warn("fetchRssItems failed: {}", ex.getMessage());
-                    return List.of();
-                });
-
-        CompletableFuture<List<RedditPost>> futureReddit = CompletableFuture
-                .supplyAsync(intelligencePort::fetchRedditPosts, taskExecutor)
-                .exceptionally(ex -> {
-                    log.warn("fetchRedditPosts failed: {}", ex.getMessage());
-                    return List.of();
-                });
-
-        CompletableFuture<List<ResearchPaper>> futurePapers = CompletableFuture
-                .supplyAsync(intelligencePort::fetchLatestPapers, taskExecutor)
-                .exceptionally(ex -> {
-                    log.warn("fetchLatestPapers failed: {}", ex.getMessage());
-                    return List.of();
-                });
-
-        CompletableFuture<List<SoftwareRelease>> futureReleases = CompletableFuture
-                .supplyAsync(intelligencePort::fetchLatestReleases, taskExecutor)
-                .exceptionally(ex -> {
-                    log.warn("fetchLatestReleases failed: {}", ex.getMessage());
-                    return List.of();
-                });
-
-        CompletableFuture<List<HuggingFaceModel>> futureHf = CompletableFuture
-                .supplyAsync(intelligencePort::fetchTrendingModels, taskExecutor)
-                .exceptionally(ex -> {
-                    log.warn("fetchTrendingModels failed: {}", ex.getMessage());
-                    return List.of();
-                });
-
-        CompletableFuture<List<ProductHuntPost>> futurePh = CompletableFuture
-                .supplyAsync(intelligencePort::fetchProductLaunches, taskExecutor)
-                .exceptionally(ex -> {
-                    log.warn("fetchProductLaunches failed: {}", ex.getMessage());
-                    return List.of();
-                });
-
-        CompletableFuture<List<SecurityAdvisory>> futureAdvisories = CompletableFuture
-                .supplyAsync(intelligencePort::fetchSecurityAdvisories, taskExecutor)
-                .exceptionally(ex -> {
-                    log.warn("fetchSecurityAdvisories failed: {}", ex.getMessage());
-                    return List.of();
-                });
-
-        CompletableFuture<List<NvdVulnerability>> futureNvd = CompletableFuture
-                .supplyAsync(intelligencePort::fetchNvdVulnerabilities, taskExecutor)
-                .exceptionally(ex -> {
-                    log.warn("fetchNvdVulnerabilities failed: {}", ex.getMessage());
-                    return List.of();
-                });
-
-        CompletableFuture<List<PackageTrend>> futurePackages = CompletableFuture
-                .supplyAsync(intelligencePort::fetchPackageTrends, taskExecutor)
-                .exceptionally(ex -> {
-                    log.warn("fetchPackageTrends failed: {}", ex.getMessage());
-                    return List.of();
-                });
-
-        CompletableFuture<List<JepUpdate>> futureJep = CompletableFuture
-                .supplyAsync(intelligencePort::fetchJepUpdates, taskExecutor)
-                .exceptionally(ex -> {
-                    log.warn("fetchJepUpdates failed: {}", ex.getMessage());
-                    return List.of();
-                });
-
-        CompletableFuture<List<CncfProjectUpdate>> futureCncf = CompletableFuture
-                .supplyAsync(intelligencePort::fetchCncfLandscapeChanges, taskExecutor)
-                .exceptionally(ex -> {
-                    log.warn("fetchCncfLandscapeChanges failed: {}", ex.getMessage());
-                    return List.of();
-                });
-
-        CompletableFuture<List<RadarEntry>> futureRadar = CompletableFuture
-                .supplyAsync(intelligencePort::fetchTechRadarEntries, taskExecutor)
-                .exceptionally(ex -> {
-                    log.warn("fetchTechRadarEntries failed: {}", ex.getMessage());
-                    return List.of();
-                });
-
-        CompletableFuture<List<ConferenceTalk>> futureTalks = CompletableFuture
-                .supplyAsync(intelligencePort::fetchConferenceTalks, taskExecutor)
-                .exceptionally(ex -> {
-                    log.warn("fetchConferenceTalks failed: {}", ex.getMessage());
-                    return List.of();
-                });
-
-        CompletableFuture<List<DbEngineRanking>> futureDb = CompletableFuture
-                .supplyAsync(intelligencePort::fetchDbEngineRankings, taskExecutor)
-                .exceptionally(ex -> {
-                    log.warn("fetchDbEngineRankings failed: {}", ex.getMessage());
-                    return List.of();
-                });
+        CompletableFuture<FetchOutcome<Tweet>> futureInfluencer =
+                fetchSource("Twitter/X influencer", intelligencePort::fetchInfluencerTweets);
+        CompletableFuture<FetchOutcome<Tweet>> futureTopic =
+                fetchSource("Twitter/X topic", intelligencePort::fetchTopicTweets);
+        CompletableFuture<FetchOutcome<Tweet>> futureAnthropic =
+                fetchSource("Twitter/X Anthropic", intelligencePort::fetchAnthropicTweets);
+        CompletableFuture<FetchOutcome<HackerNewsPost>> futureHn =
+                fetchSource("Hacker News", intelligencePort::fetchTopDiscussions);
+        CompletableFuture<FetchOutcome<GithubRepo>> futureGh =
+                fetchSource("GitHub", intelligencePort::fetchTrendingRepos);
+        CompletableFuture<FetchOutcome<RssItem>> futureRss =
+                fetchSource("RSS", intelligencePort::fetchRssItems);
+        CompletableFuture<FetchOutcome<RedditPost>> futureReddit =
+                fetchSource("Reddit", intelligencePort::fetchRedditPosts);
+        CompletableFuture<FetchOutcome<ResearchPaper>> futurePapers =
+                fetchSource("arXiv", intelligencePort::fetchLatestPapers);
+        CompletableFuture<FetchOutcome<SoftwareRelease>> futureReleases =
+                fetchSource("GitHub Releases", intelligencePort::fetchLatestReleases);
+        CompletableFuture<FetchOutcome<HuggingFaceModel>> futureHf =
+                fetchSource("Hugging Face", intelligencePort::fetchTrendingModels);
+        CompletableFuture<FetchOutcome<ProductHuntPost>> futurePh =
+                fetchSource("Product Hunt", intelligencePort::fetchProductLaunches);
+        CompletableFuture<FetchOutcome<SecurityAdvisory>> futureAdvisories =
+                fetchSource("Security Advisories", intelligencePort::fetchSecurityAdvisories);
+        CompletableFuture<FetchOutcome<NvdVulnerability>> futureNvd =
+                fetchSource("NVD/CVE", intelligencePort::fetchNvdVulnerabilities);
+        CompletableFuture<FetchOutcome<PackageTrend>> futurePackages =
+                fetchSource("Libraries.io", intelligencePort::fetchPackageTrends);
+        CompletableFuture<FetchOutcome<JepUpdate>> futureJep =
+                fetchSource("OpenJDK JEP", intelligencePort::fetchJepUpdates);
+        CompletableFuture<FetchOutcome<CncfProjectUpdate>> futureCncf =
+                fetchSource("CNCF Landscape", intelligencePort::fetchCncfLandscapeChanges);
+        CompletableFuture<FetchOutcome<RadarEntry>> futureRadar =
+                fetchSource("Tech Radar", intelligencePort::fetchTechRadarEntries);
+        CompletableFuture<FetchOutcome<ConferenceTalk>> futureTalks =
+                fetchSource("Conference Talks", intelligencePort::fetchConferenceTalks);
+        CompletableFuture<FetchOutcome<DbEngineRanking>> futureDb =
+                fetchSource("DB-Engines", intelligencePort::fetchDbEngineRankings);
 
         CompletableFuture.allOf(futureInfluencer, futureTopic, futureAnthropic, futureHn, futureGh,
                 futureRss, futureReddit, futurePapers, futureReleases,
                 futureHf, futurePh, futureAdvisories, futureNvd, futurePackages,
                 futureJep, futureCncf, futureRadar, futureTalks, futureDb).join();
 
-        List<Tweet> rawInfluencer = futureInfluencer.join();
-        List<Tweet> rawTopic = futureTopic.join();
-        List<Tweet> rawAnthropic = futureAnthropic.join();
-        List<HackerNewsPost> rawHn = futureHn.join();
-        List<GithubRepo> rawGh = futureGh.join();
-        List<RssItem> rawRss = futureRss.join();
-        List<RedditPost> rawReddit = futureReddit.join();
-        List<ResearchPaper> rawPapers = futurePapers.join();
-        List<SoftwareRelease> rawReleases = futureReleases.join();
-        List<HuggingFaceModel> rawHf = futureHf.join();
-        List<ProductHuntPost> rawPh = futurePh.join();
-        List<SecurityAdvisory> rawAdvisories = futureAdvisories.join();
-        List<NvdVulnerability> rawNvd = futureNvd.join();
-        List<PackageTrend> rawPackages = futurePackages.join();
-        List<JepUpdate> rawJep = futureJep.join();
-        List<CncfProjectUpdate> rawCncf = futureCncf.join();
-        List<RadarEntry> rawRadar = futureRadar.join();
-        List<ConferenceTalk> rawTalks = futureTalks.join();
-        List<DbEngineRanking> rawDb = futureDb.join();
+        FetchOutcome<Tweet> influencer = futureInfluencer.join();
+        FetchOutcome<Tweet> topic = futureTopic.join();
+        FetchOutcome<Tweet> anthropic = futureAnthropic.join();
+        FetchOutcome<HackerNewsPost> hn = futureHn.join();
+        FetchOutcome<GithubRepo> gh = futureGh.join();
+        FetchOutcome<RssItem> rss = futureRss.join();
+        FetchOutcome<RedditPost> reddit = futureReddit.join();
+        FetchOutcome<ResearchPaper> papers = futurePapers.join();
+        FetchOutcome<SoftwareRelease> releases = futureReleases.join();
+        FetchOutcome<HuggingFaceModel> hf = futureHf.join();
+        FetchOutcome<ProductHuntPost> ph = futurePh.join();
+        FetchOutcome<SecurityAdvisory> advisories = futureAdvisories.join();
+        FetchOutcome<NvdVulnerability> nvd = futureNvd.join();
+        FetchOutcome<PackageTrend> packages = futurePackages.join();
+        FetchOutcome<JepUpdate> jep = futureJep.join();
+        FetchOutcome<CncfProjectUpdate> cncf = futureCncf.join();
+        FetchOutcome<RadarEntry> radar = futureRadar.join();
+        FetchOutcome<ConferenceTalk> talks = futureTalks.join();
+        FetchOutcome<DbEngineRanking> db = futureDb.join();
+
+        List<Tweet> rawInfluencer = influencer.items();
+        List<Tweet> rawTopic = topic.items();
+        List<Tweet> rawAnthropic = anthropic.items();
+        List<HackerNewsPost> rawHn = hn.items();
+        List<GithubRepo> rawGh = gh.items();
+        List<RssItem> rawRss = rss.items();
+        List<RedditPost> rawReddit = reddit.items();
+        List<ResearchPaper> rawPapers = papers.items();
+        List<SoftwareRelease> rawReleases = releases.items();
+        List<HuggingFaceModel> rawHf = hf.items();
+        List<ProductHuntPost> rawPh = ph.items();
+        List<SecurityAdvisory> rawAdvisories = advisories.items();
+        List<NvdVulnerability> rawNvd = nvd.items();
+        List<PackageTrend> rawPackages = packages.items();
+        List<JepUpdate> rawJep = jep.items();
+        List<CncfProjectUpdate> rawCncf = cncf.items();
+        List<RadarEntry> rawRadar = radar.items();
+        List<ConferenceTalk> rawTalks = talks.items();
+        List<DbEngineRanking> rawDb = db.items();
+        List<SourceFetchReport> sourceFetchReports = Stream.of(
+                        influencer.report(), topic.report(), anthropic.report(), hn.report(), gh.report(),
+                        rss.report(), reddit.report(), papers.report(), releases.report(), hf.report(), ph.report(),
+                        advisories.report(), nvd.report(), packages.report(), jep.report(), cncf.report(),
+                        radar.report(), talks.report(), db.report())
+                .toList();
 
         Set<String> authorityUsernames = Set.copyOf(reportProperties.research().authorityUsernames());
         int minLikes = reportProperties.research().minLikes();
@@ -270,8 +209,40 @@ public class MarketResearchService {
                 rawDb.stream().map(MarketResearchService::canonicalize).toList(),
                 LocalDateTime.now(),
                 rawInfluencer.size() + rawTopic.size() + rawAnthropic.size(),
-                rawHn.size(), rawGh.size(), rawRss.size(), rawReddit.size()
+                rawHn.size(), rawGh.size(), rawRss.size(), rawReddit.size(),
+                sourceFetchReports
         );
+    }
+
+    private <T> CompletableFuture<FetchOutcome<T>> fetchSource(String sourceName, Supplier<List<T>> supplier) {
+        Instant start = Instant.now();
+        return CompletableFuture.supplyAsync(supplier, taskExecutor)
+                .orTimeout(SOURCE_TIMEOUT.toSeconds(), TimeUnit.SECONDS)
+                .handle((items, throwable) -> {
+                    long elapsed = Duration.between(start, Instant.now()).toMillis();
+                    if (throwable != null) {
+                        String message = rootMessage(throwable);
+                        log.warn("{} fetch failed after {}ms: {}", sourceName, elapsed, message);
+                        return new FetchOutcome<>(
+                                List.of(),
+                                SourceFetchReport.failed(sourceName, elapsed, message));
+                    }
+                    List<T> safeItems = items != null ? items : List.of();
+                    return new FetchOutcome<>(
+                            safeItems,
+                            SourceFetchReport.success(sourceName, safeItems.size(), elapsed));
+                });
+    }
+
+    private static String rootMessage(Throwable throwable) {
+        Throwable current = throwable;
+        while (current.getCause() != null) {
+            current = current.getCause();
+        }
+        return current.getMessage() != null ? current.getMessage() : current.getClass().getSimpleName();
+    }
+
+    private record FetchOutcome<T>(List<T> items, SourceFetchReport report) {
     }
 
     // ── URL canonicalization at the source boundary ──────────────────────────

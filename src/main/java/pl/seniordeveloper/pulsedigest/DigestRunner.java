@@ -46,11 +46,11 @@ public class DigestRunner implements ApplicationRunner {
                 continue;
             }
             switch (maybeJob.get().status()) {
-                case DONE -> {
+                case DELIVERED -> {
                     log.info("=== Digest complete — email sent ===");
                     System.exit(0);
                 }
-                case ERROR -> {
+                case EMAIL_FAILED, ERROR -> {
                     log.error("=== Digest failed: {} ===", maybeJob.get().error());
                     System.exit(1);
                 }

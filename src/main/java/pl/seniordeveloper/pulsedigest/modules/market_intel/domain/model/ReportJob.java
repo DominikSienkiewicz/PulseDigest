@@ -12,10 +12,10 @@ import java.time.Instant;
 public record ReportJob(
         String jobId,
         ReportJobStatus status,
-        ReportData report,   // null dopóki status != DONE
-        String error,        // null chyba że status == ERROR
+        ReportData report,   // null dopóki raport nie został wygenerowany
+        String error,        // null chyba że status jest błędowy
         Instant createdAt,
-        Instant completedAt  // null dopóki status != DONE/ERROR
+        Instant completedAt  // null dopóki status nie jest terminalny
 ) {
 
     /**
@@ -26,10 +26,10 @@ public record ReportJob(
     }
 
     /**
-     * Fabryka: zadanie odtworzone jako DONE (np. z dysku).
+     * Fabryka: zadanie odtworzone jako DELIVERED (np. z dysku).
      */
     public static ReportJob done(String jobId, ReportData report, Instant completedAt) {
-        return new ReportJob(jobId, ReportJobStatus.DONE, report, null, completedAt, completedAt);
+        return new ReportJob(jobId, ReportJobStatus.DELIVERED, report, null, completedAt, completedAt);
     }
 
     /**
@@ -40,10 +40,38 @@ public record ReportJob(
     }
 
     /**
-     * Kopia z wynikiem i statusem DONE.
+     * Kopia z wygenerowanym raportem.
      */
-    public ReportJob done(ReportData report) {
-        return new ReportJob(jobId, ReportJobStatus.DONE, report, null, createdAt, Instant.now());
+    public ReportJob generated(ReportData generatedReport) {
+        return new ReportJob(jobId, ReportJobStatus.GENERATED, generatedReport, null, createdAt, null);
+    }
+
+    /**
+     * Kopia po zapisie raportu w trwałym storage.
+     */
+    public ReportJob persisted() {
+        return new ReportJob(jobId, ReportJobStatus.PERSISTED, report, null, createdAt, null);
+    }
+
+    /**
+     * Kopia w trakcie dostarczania maila.
+     */
+    public ReportJob delivering() {
+        return new ReportJob(jobId, ReportJobStatus.DELIVERING, report, null, createdAt, null);
+    }
+
+    /**
+     * Kopia z wynikiem i statusem DELIVERED.
+     */
+    public ReportJob delivered() {
+        return new ReportJob(jobId, ReportJobStatus.DELIVERED, report, null, createdAt, Instant.now());
+    }
+
+    /**
+     * Kopia z raportem zapisanym, ale nieudanym dostarczeniem maila.
+     */
+    public ReportJob emailFailed(String errorMessage) {
+        return new ReportJob(jobId, ReportJobStatus.EMAIL_FAILED, report, errorMessage, createdAt, Instant.now());
     }
 
     /**

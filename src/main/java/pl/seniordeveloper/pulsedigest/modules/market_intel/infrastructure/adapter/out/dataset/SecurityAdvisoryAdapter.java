@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.http.ExternalRestClients;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SecurityAdvisory;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportProperties;
 
@@ -41,7 +42,7 @@ public class SecurityAdvisoryAdapter {
 
     @PostConstruct
     void init() {
-        this.restClient = RestClient.builder()
+        this.restClient = ExternalRestClients.builder()
                 .baseUrl(properties.baseUrl())
                 .defaultHeader("Accept", "application/vnd.github+json")
                 .defaultHeader("User-Agent", "PulseDigest/1.0")

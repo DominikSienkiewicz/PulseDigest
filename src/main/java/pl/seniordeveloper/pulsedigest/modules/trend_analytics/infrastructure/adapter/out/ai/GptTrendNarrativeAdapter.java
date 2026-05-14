@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.http.ExternalRestClients;
 import pl.seniordeveloper.pulsedigest.modules.trend_analytics.domain.model.TrendCluster;
 import pl.seniordeveloper.pulsedigest.modules.trend_analytics.domain.port.out.TrendNarrativePort;
 
@@ -36,7 +37,7 @@ public class GptTrendNarrativeAdapter implements TrendNarrativePort {
 
     @PostConstruct
     void init() {
-        this.openAiClient = RestClient.builder()
+        this.openAiClient = ExternalRestClients.builder()
                 .baseUrl(OPENAI_BASE_URL)
                 .defaultHeader("Authorization", "Bearer " + openAiApiKey)
                 .defaultHeader("Content-Type", MediaType.APPLICATION_JSON_VALUE)

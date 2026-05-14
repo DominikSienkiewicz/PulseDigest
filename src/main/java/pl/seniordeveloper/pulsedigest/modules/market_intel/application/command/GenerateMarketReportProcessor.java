@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.MarketIntelJobTracker;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.MarketResearchService;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.SignalScoringService;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.EmailDeliveryReceipt;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.PersistedReport;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Signal;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportData;
@@ -50,8 +51,8 @@ public class GenerateMarketReportProcessor {
             return;
         }
 
-        ReportJob job = maybeJob.get();
-        jobTracker.track(job.inProgress());
+        ReportJob job = maybeJob.get().inProgress();
+        jobTracker.track(job);
 
         try {
             ResearchResult research = researchService.fetchAndFilter();
@@ -77,21 +78,32 @@ public class GenerateMarketReportProcessor {
             long criticalCount = signals.stream().filter(Signal::isCriticalTrend).count();
             log.info("[{}] Signal scoring: {} signals ({} CRITICAL)", jobId, signals.size(), criticalCount);
 
+            job = job.generated(finalReport);
+            jobTracker.track(job);
+
             storagePort.save(new PersistedReport(
                     finalReport, jobId, Instant.now(),
                     research.tweets().size(), research.hackerNewsPosts().size(), research.githubRepos().size()
             ));
 
-            jobTracker.track(job.done(finalReport));
-            log.info("=== [{}] Report generated successfully in {}s ===",
+            job = job.persisted();
+            jobTracker.track(job);
+            log.info("=== [{}] Report generated and persisted in {}s ===",
                     jobId, Duration.between(start, Instant.now()).getSeconds());
 
-            emailPort.send(finalReport, research);
-            log.info("[{}] Email delivery triggered", jobId);
+            job = job.delivering();
+            jobTracker.track(job);
+            EmailDeliveryReceipt receipt = emailPort.send(finalReport, research);
+            jobTracker.track(job.delivered());
+            log.info("[{}] Email delivered via {}: {}", jobId, receipt.provider(), receipt.responseBody());
 
         } catch (Exception e) {
             log.error("[{}] Error during report generation: {}", jobId, e.getMessage(), e);
-            jobTracker.track(job.error(e.getMessage()));
+            if (job.status().name().startsWith("DELIVER")) {
+                jobTracker.track(job.emailFailed(e.getMessage()));
+            } else {
+                jobTracker.track(job.error(e.getMessage()));
+            }
         }
     }
 }

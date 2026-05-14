@@ -6,7 +6,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportJob;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportJobStatus;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -16,10 +15,10 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * In-memory job tracker for market intelligence reporting.
  * <p>
- * Completed (DONE/ERROR) jobs are evicted after 2 hours via a scheduled cleanup
+ * Completed terminal jobs are evicted after 2 hours via a scheduled cleanup
  * that runs every 30 minutes, preventing unbounded map growth.
  * <p>
- * Jobs stuck in PENDING or IN_PROGRESS for longer than JOB_TIMEOUT are
+ * Jobs stuck in a non-terminal status for longer than JOB_TIMEOUT are
  * automatically marked as ERROR to prevent blocking future report generation.
  */
 @Slf4j
@@ -49,8 +48,7 @@ public class MarketIntelJobTracker {
         Instant timeoutCutoff = Instant.now().minus(JOB_TIMEOUT);
         jobs.entrySet().forEach(entry -> {
             ReportJob job = entry.getValue();
-            if ((job.status() == ReportJobStatus.PENDING || job.status() == ReportJobStatus.IN_PROGRESS)
-                    && job.createdAt() != null && job.createdAt().isBefore(timeoutCutoff)) {
+            if (job.status().isActive() && job.createdAt() != null && job.createdAt().isBefore(timeoutCutoff)) {
                 log.warn("Job [{}] timed out (created: {}). Marking as ERROR.", job.jobId(), job.createdAt());
                 jobs.put(entry.getKey(), job.error("Job timed out after 1 hour — likely crashed during processing"));
             }
@@ -58,8 +56,7 @@ public class MarketIntelJobTracker {
 
         Instant cutoff = Instant.now().minus(TTL);
         jobs.values().removeIf(job ->
-                (job.status() == ReportJobStatus.DONE || job.status() == ReportJobStatus.ERROR)
-                        && job.completedAt() != null
+                job.status().isTerminal() && job.completedAt() != null
                         && job.completedAt().isBefore(cutoff)
         );
     }

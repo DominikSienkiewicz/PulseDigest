@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.http.ExternalRestClients;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
@@ -47,7 +48,7 @@ public class ArxivSearchAdapter {
 
     @PostConstruct
     void init() {
-        this.restClient = RestClient.builder()
+        this.restClient = ExternalRestClients.builder()
                 .baseUrl(BASE_URL)
                 .defaultHeader("User-Agent", "PulseDigest/1.0 arxiv-reader")
                 .build();

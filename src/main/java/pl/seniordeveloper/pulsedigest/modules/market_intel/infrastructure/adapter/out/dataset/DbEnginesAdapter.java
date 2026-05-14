@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.http.ExternalRestClients;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.DbEngineRanking;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportProperties;
 
@@ -50,7 +51,7 @@ public class DbEnginesAdapter {
 
     @PostConstruct
     void init() {
-        this.restClient = RestClient.builder()
+        this.restClient = ExternalRestClients.builder()
                 .baseUrl(properties.baseUrl())
                 .defaultHeader("Accept", "text/html, application/xhtml+xml")
                 .defaultHeader("User-Agent", "PulseDigest/1.0")

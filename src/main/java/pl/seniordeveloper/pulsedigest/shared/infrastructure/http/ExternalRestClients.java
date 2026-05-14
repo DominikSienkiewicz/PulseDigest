@@ -1,0 +1,85 @@
+package pl.seniordeveloper.pulsedigest.shared.infrastructure.http;
+
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpRequest;
+import org.springframework.http.HttpStatusCode;
+import org.springframework.http.client.ClientHttpRequestExecution;
+import org.springframework.http.client.ClientHttpResponse;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
+import org.springframework.web.client.RestClient;
+
+import java.io.IOException;
+import java.net.http.HttpClient;
+import java.time.Duration;
+
+/**
+ * Shared RestClient factory for outbound HTTP adapters.
+ */
+@Slf4j
+public final class ExternalRestClients {
+
+    private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(5);
+    private static final Duration READ_TIMEOUT = Duration.ofSeconds(30);
+    private static final int MAX_ATTEMPTS = 3;
+    private static final long BACKOFF_MILLIS = 250L;
+
+    private ExternalRestClients() {
+    }
+
+    public static RestClient.Builder builder() {
+        return RestClient.builder()
+                .requestFactory(requestFactory())
+                .requestInterceptor(ExternalRestClients::retry);
+    }
+
+    private static JdkClientHttpRequestFactory requestFactory() {
+        HttpClient client = HttpClient.newBuilder()
+                .connectTimeout(CONNECT_TIMEOUT)
+                .followRedirects(HttpClient.Redirect.NORMAL)
+                .build();
+        JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(client);
+        factory.setReadTimeout(READ_TIMEOUT);
+        return factory;
+    }
+
+    private static ClientHttpResponse retry(
+            HttpRequest request,
+            byte[] body,
+            ClientHttpRequestExecution execution) throws IOException {
+        IOException lastException = null;
+        for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+            try {
+                ClientHttpResponse response = execution.execute(request, body);
+                HttpStatusCode statusCode = response.getStatusCode();
+                if (!isRetryable(statusCode) || attempt == MAX_ATTEMPTS) {
+                    return response;
+                }
+                response.close();
+                log.debug("Retrying {} {} after HTTP {} (attempt {}/{})",
+                        request.getMethod(), request.getURI(), statusCode, attempt, MAX_ATTEMPTS);
+            } catch (IOException e) {
+                lastException = e;
+                if (attempt == MAX_ATTEMPTS) {
+                    throw e;
+                }
+                log.debug("Retrying {} {} after I/O error: {} (attempt {}/{})",
+                        request.getMethod(), request.getURI(), e.getMessage(), attempt, MAX_ATTEMPTS);
+            }
+            sleepBeforeNextAttempt(attempt);
+        }
+        throw lastException != null ? lastException : new IOException("HTTP request failed without response");
+    }
+
+    private static boolean isRetryable(HttpStatusCode statusCode) {
+        return statusCode.value() == 429 || statusCode.is5xxServerError();
+    }
+
+    private static void sleepBeforeNextAttempt(int attempt) throws IOException {
+        try {
+            Thread.sleep(BACKOFF_MILLIS * attempt);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IOException("Interrupted during HTTP retry backoff", e);
+        }
+    }
+}

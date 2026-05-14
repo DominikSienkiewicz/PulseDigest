@@ -103,7 +103,7 @@ class SupabaseHistoricalDigestAdapterIT {
     void skipsMalformedPayloadGracefully() {
         Instant now = Instant.now();
         insertRow("good", now, "{\"report\":{\"items\":[{\"title\":\"x\",\"category\":\"AI\",\"score\":5}]}}");
-        insertRow("broken", now, "{\"unexpected\":\"shape\"}");
+        insertRow("broken", now.minus(1, ChronoUnit.DAYS), "{\"unexpected\":\"shape\"}");
 
         List<HistoricalDigest> digests = adapter.fetchRecent(7);
 

@@ -4,12 +4,15 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.http.ExternalRestClients;
 import org.springframework.web.util.UriComponentsBuilder;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.HackerNewsPost;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.AsyncConfig;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportProperties;
 
 import java.net.URI;
@@ -18,6 +21,8 @@ import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 
 /**
  * Fetches trending discussions from Hacker News via Algolia search API.
@@ -30,18 +35,27 @@ public class HackerNewsSearchAdapter {
 
     private final ObjectMapper objectMapper;
     private final ReportProperties reportProperties;
+    private final Executor taskExecutor;
     private RestClient restClient;
     private ReportProperties.HackerNewsProperties props;
 
-    public HackerNewsSearchAdapter(ObjectMapper objectMapper, ReportProperties reportProperties) {
+    public HackerNewsSearchAdapter(
+            ObjectMapper objectMapper,
+            ReportProperties reportProperties,
+            @Qualifier(AsyncConfig.DATA_FETCH_EXECUTOR) Executor taskExecutor) {
         this.objectMapper = objectMapper;
         this.reportProperties = reportProperties;
+        this.taskExecutor = taskExecutor;
+    }
+
+    HackerNewsSearchAdapter(ObjectMapper objectMapper, ReportProperties reportProperties) {
+        this(objectMapper, reportProperties, Executors.newVirtualThreadPerTaskExecutor());
     }
 
     @PostConstruct
     void init() {
         this.props = reportProperties.hackerNews();
-        this.restClient = RestClient.builder()
+        this.restClient = ExternalRestClients.builder()
                 .defaultHeader(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
                 .build();
     }
@@ -59,7 +73,7 @@ public class HackerNewsSearchAdapter {
             long since = Instant.now().minusSeconds(86_400).getEpochSecond();
 
             List<CompletableFuture<List<HnHit>>> futures = props.keywords().stream()
-                    .map(kw -> CompletableFuture.supplyAsync(() -> fetchKeyword(kw, since)))
+                    .map(kw -> CompletableFuture.supplyAsync(() -> fetchKeyword(kw, since), taskExecutor))
                     .toList();
 
             CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new)).join();

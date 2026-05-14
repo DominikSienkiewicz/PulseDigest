@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.http.ExternalRestClients;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Tweet;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.TwitterProperties;
 
@@ -41,7 +42,7 @@ public class TwitterSearchAdapter {
 
     @PostConstruct
     void init() {
-        this.restClient = RestClient.builder()
+        this.restClient = ExternalRestClients.builder()
                 .baseUrl(BASE_URL)
                 .defaultHeader("Authorization", "Bearer " + twitterProperties.bearerToken())
                 .build();

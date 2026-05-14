@@ -8,7 +8,6 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.application.error.Mar
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.PersistedReport;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportData;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportJob;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportJobStatus;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.ReportStoragePort;
 import pl.seniordeveloper.pulsedigest.shared.result.Result;
 
@@ -24,8 +23,9 @@ public class GetLatestMarketReportService {
 
     public Result<ReportData, MarketIntelError> handle(GetLatestMarketReportQuery query) {
         return jobTracker.getAll().stream()
-                .filter(j -> j.status() == ReportJobStatus.DONE)
+                .filter(j -> j.status().hasReportAvailable())
                 .map(ReportJob::report)
+                .filter(java.util.Objects::nonNull)
                 .findFirst()
                 .or(() -> storagePort.getLatest().map(PersistedReport::report))
                 .map(Result::<ReportData, MarketIntelError>success)

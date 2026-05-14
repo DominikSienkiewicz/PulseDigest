@@ -29,8 +29,45 @@ public record ResearchResult(
         int rawHackerNewsCount,
         int rawGithubCount,
         int rawRssCount,
-        int rawRedditCount
+        int rawRedditCount,
+        List<SourceFetchReport> sourceFetchReports
 ) {
+
+    public ResearchResult {
+        sourceFetchReports = sourceFetchReports != null ? List.copyOf(sourceFetchReports) : List.of();
+    }
+
+    public ResearchResult(
+            List<Tweet> tweets,
+            List<HackerNewsPost> hackerNewsPosts,
+            List<GithubRepo> githubRepos,
+            List<RssItem> rssItems,
+            List<RedditPost> redditPosts,
+            List<ResearchPaper> papers,
+            List<SoftwareRelease> releases,
+            List<HuggingFaceModel> huggingFaceModels,
+            List<ProductHuntPost> productHuntPosts,
+            List<SecurityAdvisory> securityAdvisories,
+            List<NvdVulnerability> nvdVulnerabilities,
+            List<PackageTrend> packageTrends,
+            List<JepUpdate> jepUpdates,
+            List<CncfProjectUpdate> cncfProjectUpdates,
+            List<RadarEntry> radarEntries,
+            List<ConferenceTalk> conferenceTalks,
+            List<DbEngineRanking> dbEngineRankings,
+            LocalDateTime collectedAt,
+            int rawTweetsCount,
+            int rawHackerNewsCount,
+            int rawGithubCount,
+            int rawRssCount,
+            int rawRedditCount
+    ) {
+        this(tweets, hackerNewsPosts, githubRepos, rssItems, redditPosts,
+                papers, releases, huggingFaceModels, productHuntPosts, securityAdvisories,
+                nvdVulnerabilities, packageTrends, jepUpdates, cncfProjectUpdates,
+                radarEntries, conferenceTalks, dbEngineRankings, collectedAt,
+                rawTweetsCount, rawHackerNewsCount, rawGithubCount, rawRssCount, rawRedditCount, List.of());
+    }
 
     public boolean isEmpty() {
         return tweets.isEmpty() && hackerNewsPosts.isEmpty() && githubRepos.isEmpty()

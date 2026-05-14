@@ -6,6 +6,7 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportDa
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ResearchResult;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Signal;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SignalRank;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceFetchStatus;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TrendInsight;
 
 import java.time.LocalDate;
@@ -351,10 +352,14 @@ public class ReportEmailBuilder {
     private String buildFooter(int selectedCount, ResearchResult research) {
         int rawTotal = research != null ? research.rawTotalCount() : 0;
         int sources = research != null ? research.activeSourceCount() : 0;
+        long failedSources = research != null
+                ? research.sourceFetchReports().stream().filter(r -> r.status() == SourceFetchStatus.FAILED).count()
+                : 0;
+        String sourceHealth = failedSources > 0 ? " &middot; " + failedSources + " źródła z ostrzeżeniem" : "";
         return "<div style=\"padding:16px 28px;background:#f9fafb;text-align:center;"
                 + "color:#9ca3af;font-size:12px\">"
                 + "Wybrano " + selectedCount + " z " + rawTotal + " itemów &middot; "
-                + sources + " &#378;róde&#322; &middot; okno 24h"
+                + sources + " &#378;róde&#322;" + sourceHealth + " &middot; okno 24h"
                 + "<br>Wygenerowano przez GPT-4o &middot; PulseDigest"
                 + "</div>";
     }

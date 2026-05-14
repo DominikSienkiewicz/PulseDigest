@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.http.ExternalRestClients;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportData;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ResearchResult;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.LlmSynthesisPort;
@@ -36,7 +37,7 @@ public class GptSynthesisAdapter implements LlmSynthesisPort {
 
     @PostConstruct
     void init() {
-        this.openAiClient = RestClient.builder()
+        this.openAiClient = ExternalRestClients.builder()
                 .baseUrl(OPENAI_BASE_URL)
                 .defaultHeader("Authorization", "Bearer " + openAiApiKey)
                 .defaultHeader("Content-Type", MediaType.APPLICATION_JSON_VALUE)

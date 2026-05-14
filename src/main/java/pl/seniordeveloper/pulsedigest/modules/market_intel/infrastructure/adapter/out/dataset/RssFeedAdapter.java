@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.http.ExternalRestClients;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
@@ -38,7 +39,7 @@ public class RssFeedAdapter {
 
     @PostConstruct
     void init() {
-        this.restClient = RestClient.builder()
+        this.restClient = ExternalRestClients.builder()
                 .defaultHeader("User-Agent", "PulseDigest/1.0 rss-reader")
                 .defaultHeader("Accept", "application/rss+xml, application/atom+xml, application/xml, text/xml")
                 .build();

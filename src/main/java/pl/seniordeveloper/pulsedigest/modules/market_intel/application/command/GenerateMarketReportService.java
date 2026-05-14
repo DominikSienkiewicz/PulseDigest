@@ -7,7 +7,6 @@ import org.springframework.stereotype.Service;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.MarketIntelJobTracker;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.error.MarketIntelError;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportJob;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportJobStatus;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportProperties;
 import pl.seniordeveloper.pulsedigest.shared.result.Result;
 
@@ -43,8 +42,7 @@ public class GenerateMarketReportService {
 
     private Result<Void, MarketIntelError> enforceRateLimit() {
         boolean anyActive = jobTracker.getAll().stream()
-                .anyMatch(j -> j.status() == ReportJobStatus.PENDING
-                        || j.status() == ReportJobStatus.IN_PROGRESS);
+                .anyMatch(j -> j.status().isActive());
 
         if (anyActive) {
             return Result.failure(new MarketIntelError.GenerationInProgress());

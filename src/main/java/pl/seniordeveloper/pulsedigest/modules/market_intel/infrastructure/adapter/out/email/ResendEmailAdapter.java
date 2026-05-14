@@ -7,6 +7,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.http.ExternalRestClients;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.EmailDeliveryReceipt;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportData;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ResearchResult;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.EmailDeliveryPort;
@@ -29,7 +31,7 @@ public class ResendEmailAdapter implements EmailDeliveryPort {
 
     @PostConstruct
     void init() {
-        this.resendClient = RestClient.builder()
+        this.resendClient = ExternalRestClients.builder()
                 .baseUrl(RESEND_BASE_URL)
                 .defaultHeader("Authorization",
                         "Bearer " + reportProperties.email().resendApiKey())
@@ -38,11 +40,11 @@ public class ResendEmailAdapter implements EmailDeliveryPort {
     }
 
     @Override
-    public void send(ReportData report, ResearchResult research) {
+    public EmailDeliveryReceipt send(ReportData report, ResearchResult research) {
         ReportProperties.EmailProperties cfg = reportProperties.email();
-        if (isBlank(cfg.resendApiKey()) || isBlank(cfg.to())) {
-            log.warn("Email not configured (RESEND_API_KEY or DIGEST_TO_EMAIL missing) — skipping");
-            return;
+        if (isBlank(cfg.resendApiKey()) || isBlank(cfg.from()) || isBlank(cfg.to())) {
+            throw new IllegalStateException(
+                    "Email not configured: RESEND_API_KEY, DIGEST_FROM_EMAIL and DIGEST_TO_EMAIL are required");
         }
 
         String subject = emailBuilder.buildSubject(report);
@@ -63,9 +65,10 @@ public class ResendEmailAdapter implements EmailDeliveryPort {
                     .body(String.class);
 
             log.info("Email sent to {} — response: {}", cfg.to(), response);
+            return new EmailDeliveryReceipt("resend", response);
 
         } catch (Exception e) {
-            log.error("Failed to send email via Resend: {}", e.getMessage(), e);
+            throw new IllegalStateException("Failed to send email via Resend: " + e.getMessage(), e);
         }
     }
 

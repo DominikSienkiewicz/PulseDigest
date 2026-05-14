@@ -1,7 +1,7 @@
 # 🚀 PulseDigest
 **Architected & Developed by [Dominik](https://www.linkedin.com/in/dominik-sienkiewicz/)** *Principal AI Engineer | Full Stack Architect*
 
-Headless batch application that collects tech news from 17 sources every morning, scores items with GPT-4o, **detects cross-source signals** (the same topic surfacing in Science + Code + Business = 🔴 Critical Trend), **detects recurring trends across the last 7 days** (Supabase-backed history), and delivers a tier'd, prioritized digest to your inbox — with editorial lead, critical trends, top picks, signals, weekly trend section, and long-tail sections.
+Headless batch application that collects tech news from 17 sources every morning, scores items with GPT-4o, **detects cross-source signals** (the same topic surfacing in Science + Code + Business = 🔴 Critical Trend), **detects recurring trends across the last 7 days** (Supabase-backed history), tracks per-source health, and delivers a tier'd, prioritized digest to your inbox — with editorial lead, critical trends, top picks, signals, weekly trend section, and long-tail sections.
 
 ![Java 26](https://img.shields.io/badge/Java-26-red?style=for-the-badge&logo=openjdk&logoColor=white)
 ![Spring Boot 4.1](https://img.shields.io/badge/Spring_Boot-4.1.0--SNAPSHOT-green?style=for-the-badge&logo=springboot&logoColor=white)
@@ -34,14 +34,14 @@ YouTube Conferences     ┤
 DB-Engines Ranking      ┘
 ```
 
-1. **Fetch** — 17 sources run in parallel via Virtual Threads (`CompletableFuture`). Each source filters to the last 24-72h depending on cadence.
+1. **Fetch** — 17 sources run in parallel via Virtual Threads (`CompletableFuture`) with per-source deadlines, shared HTTP connect/read timeouts, and automatic retry for 429/5xx responses. Each source filters to the last 24-72h depending on cadence and records a source-health entry.
 2. **Canonicalize URLs** — strip tracking params (`utm_*`, `fbclid`, `gclid`, etc.) right after fetch, before LLM sees anything. Prevents duplicate items from same article via different campaigns and avoids leaking our UTMs to advertisers when readers click.
 3. **Score** — `ReportPromptBuilder` first selects up to 100 items using per-source caps and a **weighted pre-score** (`round(sourceWeight×100) + min(50, engagement/1000)`) to resolve overflow: a low-engagement arXiv paper (pre-score=100) survives over a viral tweet (max pre-score=90). GPT-4o then deduplicates, scores each surviving item 1–10 for a Senior/Principal Engineer + Architect profile, assigns a **category** (topic) and **type** (signal kind), and writes a 1–2 sentence Polish summary with the key number front-loaded.
 4. **Synthesize** — GPT-4o produces an editorial lead (meta-thesis of the day) + top-3 insights + email preheader text.
 5. **Trend enrichment** — `trend_analytics` module reads the last 7 days of reports from Supabase (JSONB query), counts recurring categories with frequency analysis, runs **one batched GPT-4o-mini call** to generate 1-sentence narratives ("trzeci dzień z rzędu CVE w popularnych narzędziach"), and adds them to the report. Graceful — if history is empty or LLM fails, mail still ships without the trend section.
 6. **Signal scoring** — `SignalScoringService` groups items by LLM-assigned category, resolves each source to a domain type (`SCIENCE` / `CODE` / `BUSINESS` / `SOCIAL` / `SECURITY`), and computes a deterministic score: `round(sourceWeight × 100) + min(50, engagement / 1000)`. Categories that surface across **3+ distinct source domains** in the same digest receive a +50 cross-source bonus and are promoted to 🔴 **CRITICAL**. Every item is wrapped in a `Signal` with rank `CRITICAL → STRONG → MODERATE → WEAK`. Output: `List<Signal>` sorted by rank then score descending.
-7. **Persist** — full enriched `PersistedReport` saved to Supabase (`reports` table, JSONB payload) for tomorrow's trend analysis to read.
-8. **Deliver** — HTML email via Resend with tier'd layout: 🔴 Critical Trends · 🔄 Weekly trends · ⭐ Top picks (score ≥ 8) · 🔌 Signals (5–7) · Long tail (< 5). All three item tiers render the same full table — title, summary, category, type badge, source, engagement, score — differentiated only by header style and row background. Footer shows "selected N of M items · K sources · 24h window".
+7. **Persist** — full enriched `PersistedReport` saved to Supabase (`reports` table, JSONB payload) for tomorrow's trend analysis to read. Job status moves through `GENERATED → PERSISTED`.
+8. **Deliver** — HTML email via Resend with tier'd layout: 🔴 Critical Trends · 🔄 Weekly trends · ⭐ Top picks (score ≥ 8) · 🔌 Signals (5–7) · Long tail (< 5). All three item tiers render the same full table — title, summary, category, type badge, source, engagement, score — differentiated only by header style and row background. The process exits successfully only after Resend confirms delivery (`DELIVERED`); email failure becomes `EMAIL_FAILED`.
 
 ## Sources
 
@@ -103,7 +103,7 @@ The delivered HTML email is a structured digest, not just a link list:
 - **Long tail** — score < 5, lightest `#f9fafb` background.
 
 All three item tiers render an identical full table: **article link + 1–2 sentence Polish summary · category badge · type badge · source + engagement (❤/pkt/★/↑) · color-coded score**. The background shade is the only visual distinction — every tier gives enough context to decide whether to click.
-- **Footer** — transparency block: "selected N of M items · K sources · 24h window".
+- **Footer** — transparency block: "selected N of M items · K sources · source warnings · 24h window".
 
 ## Tech stack
 
@@ -113,6 +113,8 @@ All three item tiers render an identical full table: **article link + 1–2 sent
 - **Supabase (Postgres) via JDBC** — `JdbcClient` + `JSONB` payloads, schema bootstrapped from `schema.sql` on startup
 - **spring-dotenv** — auto-loads `.env` locally (parity with GitHub Actions secrets)
 - **Testcontainers** — Postgres container for integration tests (isolated, never touches prod Supabase)
+- **Bean Validation** — startup validation for required report/Twitter configuration
+- **ArchUnit + JaCoCo** — architecture boundaries and minimum coverage gate
 - **Gradle 9** (Kotlin DSL)
 - **Project Loom** — Virtual Threads for all I/O
 
@@ -164,7 +166,8 @@ The `reports` table is created automatically on first run via `spring.sql.init.m
 ## Build commands
 
 ```bash
-./gradlew clean build      # full build (Checkstyle + tests + JaCoCo)
+./gradlew clean build      # full build
+./gradlew check            # Checkstyle + tests + ArchUnit + JaCoCo coverage gate
 ./gradlew compileJava      # compile only
 ./gradlew bootJar          # production JAR → build/libs/
 ./gradlew test             # unit + integration tests
@@ -173,7 +176,7 @@ The `reports` table is created automatically on first run via `spring.sql.init.m
 
 ## GitHub Actions
 
-The workflow at [`.github/workflows/digest.yml`](.github/workflows/digest.yml) runs daily at **04:00 UTC** (06:00 CEST / 05:00 CET) and can also be triggered manually via `workflow_dispatch`.
+The workflow at [`.github/workflows/digest.yml`](.github/workflows/digest.yml) runs `./gradlew check` on `push`/`pull_request`. The digest job runs daily at **04:00 UTC** (06:00 CEST / 05:00 CET) and can also be triggered manually via `workflow_dispatch`.
 
 Required repository secrets: `TWITTER_BEARER_TOKEN`, `OPENAI_API_KEY`, `RESEND_API_KEY`, `DIGEST_FROM_EMAIL`, `DIGEST_TO_EMAIL`, `SUPABASE_DB_URL`, `SUPABASE_DB_USERNAME`, `SUPABASE_DB_PASSWORD`. Optional: `PRODUCTHUNT_DEVELOPER_TOKEN`, `LIBRARIES_IO_API_KEY`, `YOUTUBE_API_KEY` (workflow injects them; adapters no-op gracefully when absent).
 

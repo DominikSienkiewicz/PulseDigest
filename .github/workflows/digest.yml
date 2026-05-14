@@ -1,13 +1,35 @@
 name: Daily Digest
 
 on:
+  pull_request:
+  push:
+    branches:
+      - main
   schedule:
     # 04:00 UTC = 06:00 CEST (lato) / 05:00 CET (zima)
     - cron: '0 4 * * *'
   workflow_dispatch:
 
 jobs:
+  check:
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4.2.2
+
+      - uses: actions/setup-java@v4.7.0
+        with:
+          distribution: oracle
+          java-version: '26'
+          cache: gradle
+
+      - name: Check
+        run: ./gradlew check --no-daemon
+
   digest:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
