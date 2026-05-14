@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -39,6 +40,7 @@ public class HackerNewsSearchAdapter {
     private RestClient restClient;
     private ReportProperties.HackerNewsProperties props;
 
+    @Autowired
     public HackerNewsSearchAdapter(
             ObjectMapper objectMapper,
             ReportProperties reportProperties,

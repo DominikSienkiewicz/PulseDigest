@@ -3,9 +3,17 @@ package pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapt
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.AsyncConfig;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.Executor;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -61,5 +69,52 @@ class HackerNewsSearchAdapterTest {
         List<HackerNewsSearchAdapter.HnHit> hits =
                 adapter.parseResponse("{\"hits\":null}");
         assertThat(hits).isEmpty();
+    }
+
+    @Test
+    void productionConstructorIsExplicitlyAutowired() {
+        boolean hasAutowiredProductionConstructor = Arrays.stream(HackerNewsSearchAdapter.class.getDeclaredConstructors())
+                .anyMatch(constructor ->
+                        constructor.isAnnotationPresent(Autowired.class)
+                                && constructor.getParameterCount() == 3);
+
+        assertThat(hasAutowiredProductionConstructor).isTrue();
+    }
+
+    @Test
+    void springContextCreatesAdapterWithProductionConstructor() {
+        new ApplicationContextRunner()
+                .withUserConfiguration(HackerNewsAdapterContext.class)
+                .run(context -> assertThat(context).hasSingleBean(HackerNewsSearchAdapter.class));
+    }
+
+    @Configuration
+    @Import(HackerNewsSearchAdapter.class)
+    static class HackerNewsAdapterContext {
+
+        @Bean
+        ObjectMapper objectMapper() {
+            return new ObjectMapper();
+        }
+
+        @Bean
+        ReportProperties reportProperties() {
+            ReportProperties.HackerNewsProperties props =
+                    new ReportProperties.HackerNewsProperties(
+                            "https://hn.algolia.com/api/v1/search",
+                            List.of("ai", "java"),
+                            15,
+                            25
+                    );
+            return new ReportProperties(
+                    60, 30, null, null, props, null, null, null, null, null,
+                    null, null, null, null, null, null, null, null, null, null, null
+            );
+        }
+
+        @Bean(name = AsyncConfig.DATA_FETCH_EXECUTOR)
+        Executor dataFetchExecutor() {
+            return Runnable::run;
+        }
     }
 }
