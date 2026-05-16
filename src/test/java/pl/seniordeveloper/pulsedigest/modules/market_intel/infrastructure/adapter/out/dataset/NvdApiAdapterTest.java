@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.NvdVulnerability;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.NvdProperties;
 
 import java.util.List;
 
@@ -102,8 +102,8 @@ class NvdApiAdapterTest {
 
     @BeforeEach
     void setUp() {
-        ReportProperties.NvdProperties props =
-                new ReportProperties.NvdProperties(
+        NvdProperties props =
+                new NvdProperties(
                         "https://services.nvd.nist.gov/rest/json/cves/2.0",
                         20,
                         48,

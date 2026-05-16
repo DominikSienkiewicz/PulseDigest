@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.http.ExternalRestClients;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SecurityAdvisory;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.SecurityAdvisoriesProperties;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -26,16 +26,12 @@ import java.util.Set;
 @Service
 public class SecurityAdvisoryAdapter {
 
-    private final ReportProperties.SecurityAdvisoriesProperties properties;
+    private final SecurityAdvisoriesProperties properties;
     private final ObjectMapper objectMapper;
     private RestClient restClient;
 
     @Autowired
-    public SecurityAdvisoryAdapter(ReportProperties reportProperties, ObjectMapper objectMapper) {
-        this(reportProperties.securityAdvisories(), objectMapper);
-    }
-
-    SecurityAdvisoryAdapter(ReportProperties.SecurityAdvisoriesProperties properties, ObjectMapper objectMapper) {
+    public SecurityAdvisoryAdapter(SecurityAdvisoriesProperties properties, ObjectMapper objectMapper) {
         this.properties = properties;
         this.objectMapper = objectMapper;
     }

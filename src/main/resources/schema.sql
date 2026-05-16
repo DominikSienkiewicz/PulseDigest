@@ -8,3 +8,8 @@ CREATE TABLE IF NOT EXISTS reports (
 );
 
 CREATE INDEX IF NOT EXISTS idx_reports_generated_at ON reports (generated_at DESC);
+
+-- GIN index na payloadzie wspiera zapytania JSONB w trend_analytics
+-- (np. payload->'report'->'items', kategorie, tytuły). jsonb_path_ops jest mniejszy
+-- i szybszy dla operatora @> niż domyślny jsonb_ops; wystarcza do trend-detection.
+CREATE INDEX IF NOT EXISTS idx_reports_payload_gin ON reports USING GIN (payload jsonb_path_ops);

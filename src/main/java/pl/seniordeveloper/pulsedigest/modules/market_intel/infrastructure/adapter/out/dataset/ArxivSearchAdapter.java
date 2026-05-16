@@ -11,7 +11,7 @@ import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ResearchPaper;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ArxivProperties;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -34,15 +34,11 @@ public class ArxivSearchAdapter {
 
     private static final String BASE_URL = "https://export.arxiv.org";
 
-    private final ReportProperties.ArxivProperties properties;
+    private final ArxivProperties properties;
     private RestClient restClient;
 
     @Autowired
-    public ArxivSearchAdapter(ReportProperties reportProperties) {
-        this(reportProperties.arxiv());
-    }
-
-    ArxivSearchAdapter(ReportProperties.ArxivProperties properties) {
+    public ArxivSearchAdapter(ArxivProperties properties) {
         this.properties = properties;
     }
 

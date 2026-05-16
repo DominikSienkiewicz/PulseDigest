@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SecurityAdvisory;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.SecurityAdvisoriesProperties;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -18,8 +18,8 @@ class SecurityAdvisoryAdapterTest {
 
     @BeforeEach
     void setUp() {
-        ReportProperties.SecurityAdvisoriesProperties props =
-                new ReportProperties.SecurityAdvisoriesProperties(
+        SecurityAdvisoriesProperties props =
+                new SecurityAdvisoriesProperties(
                         "https://api.github.com/advisories",
                         50,
                         24 * 365 * 80,
@@ -93,8 +93,8 @@ class SecurityAdvisoryAdapterTest {
 
     @Test
     void filtersOutAdvisoriesOutsideLookbackWindow() {
-        ReportProperties.SecurityAdvisoriesProperties shortLookback =
-                new ReportProperties.SecurityAdvisoriesProperties(
+        SecurityAdvisoriesProperties shortLookback =
+                new SecurityAdvisoriesProperties(
                         "https://api.github.com/advisories",
                         50,
                         1,

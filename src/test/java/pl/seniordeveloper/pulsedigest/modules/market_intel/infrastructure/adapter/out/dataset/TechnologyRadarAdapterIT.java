@@ -8,7 +8,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.client.RestClient;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RadarEntry;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.TechnologyRadarProperties;
 
 import java.lang.reflect.Field;
 import java.util.List;
@@ -34,8 +34,8 @@ class TechnologyRadarAdapterIT {
         wireMock = new WireMockServer(WireMockConfiguration.wireMockConfig().dynamicPort());
         wireMock.start();
 
-        ReportProperties.TechnologyRadarProperties props =
-                new ReportProperties.TechnologyRadarProperties(
+        TechnologyRadarProperties props =
+                new TechnologyRadarProperties(
                         "http://localhost:" + wireMock.port(),
                         "/",
                         6);

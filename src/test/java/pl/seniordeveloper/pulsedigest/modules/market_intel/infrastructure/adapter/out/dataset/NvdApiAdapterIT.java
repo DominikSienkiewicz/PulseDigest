@@ -8,7 +8,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.client.RestClient;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.NvdVulnerability;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.NvdProperties;
 
 import java.lang.reflect.Field;
 import java.util.List;
@@ -66,8 +66,8 @@ class NvdApiAdapterIT {
         wireMock = new WireMockServer(WireMockConfiguration.wireMockConfig().dynamicPort());
         wireMock.start();
 
-        ReportProperties.NvdProperties props =
-                new ReportProperties.NvdProperties(
+        NvdProperties props =
+                new NvdProperties(
                         "http://localhost:" + wireMock.port(),
                         20,
                         48,

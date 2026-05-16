@@ -11,7 +11,7 @@ import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RssItem;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.RssProperties;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -34,7 +34,7 @@ public class RssFeedAdapter {
     private static final DateTimeFormatter RFC_822 =
             DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss z", Locale.ENGLISH);
 
-    private final ReportProperties reportProperties;
+    private final RssProperties cfg;
     private RestClient restClient;
 
     @PostConstruct
@@ -46,9 +46,8 @@ public class RssFeedAdapter {
     }
 
     public List<RssItem> fetchAll() {
-        ReportProperties.RssProperties cfg = reportProperties.rss();
         List<RssItem> result = new ArrayList<>();
-        for (ReportProperties.RssProperties.FeedConfig feed : cfg.feeds()) {
+        for (RssProperties.FeedConfig feed : cfg.feeds()) {
             result.addAll(fetchFeed(feed.url(), feed.name(), cfg.limit()));
         }
         log.info("RSS łącznie: {} itemów z {} feedów", result.size(), cfg.feeds().size());

@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RadarEntry;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.TechnologyRadarProperties;
 
 import java.util.List;
 
@@ -42,8 +42,8 @@ class TechnologyRadarAdapterTest {
 
     @BeforeEach
     void setUp() {
-        ReportProperties.TechnologyRadarProperties props =
-                new ReportProperties.TechnologyRadarProperties(
+        TechnologyRadarProperties props =
+                new TechnologyRadarProperties(
                         "https://raw.githubusercontent.com",
                         "/setchy/thoughtworks-tech-radar-volumes/main/volumes/json/"
                                 + "Thoughtworks%20Technology%20Radar%20Volume%2034%20(Apr%202026).json",

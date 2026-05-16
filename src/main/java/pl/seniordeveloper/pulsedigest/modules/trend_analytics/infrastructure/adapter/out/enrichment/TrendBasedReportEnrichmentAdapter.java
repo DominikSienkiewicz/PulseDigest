@@ -10,7 +10,7 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.Repor
 import pl.seniordeveloper.pulsedigest.modules.trend_analytics.application.query.AnalyzeTrendsQuery;
 import pl.seniordeveloper.pulsedigest.modules.trend_analytics.application.query.AnalyzeTrendsService;
 import pl.seniordeveloper.pulsedigest.modules.trend_analytics.domain.model.TrendCluster;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.TrendProperties;
 
 import java.util.List;
 
@@ -33,15 +33,10 @@ import java.util.List;
 public class TrendBasedReportEnrichmentAdapter implements ReportEnrichmentPort {
 
     private final AnalyzeTrendsService trendsService;
-    private final ReportProperties reportProperties;
+    private final TrendProperties props;
 
     @Override
     public ReportData enrich(ReportData report) {
-        ReportProperties.TrendProperties props = reportProperties.trend();
-        if (props == null) {
-            log.debug("Trend properties not configured — skipping enrichment");
-            return report;
-        }
         AnalyzeTrendsQuery query = new AnalyzeTrendsQuery(
                 props.lookbackDays(), props.minOccurrences(), props.maxClusters());
 

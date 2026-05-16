@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.http.ExternalRestClients;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.JepUpdate;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.OpenJdkProperties;
 
 import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
@@ -34,16 +34,12 @@ public class OpenJdkJepAdapter {
             "\\b(Candidate|Proposed to Target|Integrated|Delivered|Closed|Withdrawn)\\b",
             Pattern.CASE_INSENSITIVE);
 
-    private final ReportProperties.OpenJdkProperties properties;
+    private final OpenJdkProperties properties;
     private final ObjectMapper objectMapper;
     private RestClient restClient;
 
     @Autowired
-    public OpenJdkJepAdapter(ReportProperties reportProperties, ObjectMapper objectMapper) {
-        this(reportProperties.openJdk(), objectMapper);
-    }
-
-    OpenJdkJepAdapter(ReportProperties.OpenJdkProperties properties, ObjectMapper objectMapper) {
+    public OpenJdkJepAdapter(OpenJdkProperties properties, ObjectMapper objectMapper) {
         this.properties = properties;
         this.objectMapper = objectMapper;
     }

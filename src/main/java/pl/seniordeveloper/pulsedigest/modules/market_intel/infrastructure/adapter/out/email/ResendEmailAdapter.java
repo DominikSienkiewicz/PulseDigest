@@ -12,7 +12,7 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.EmailDel
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportData;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ResearchResult;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.EmailDeliveryPort;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.EmailProperties;
 
 import java.util.List;
 import java.util.Map;
@@ -26,22 +26,20 @@ public class ResendEmailAdapter implements EmailDeliveryPort {
 
     private final ObjectMapper objectMapper;
     private final ReportEmailBuilder emailBuilder;
-    private final ReportProperties reportProperties;
+    private final EmailProperties cfg;
     private RestClient resendClient;
 
     @PostConstruct
     void init() {
         this.resendClient = ExternalRestClients.builder()
                 .baseUrl(RESEND_BASE_URL)
-                .defaultHeader("Authorization",
-                        "Bearer " + reportProperties.email().resendApiKey())
+                .defaultHeader("Authorization", "Bearer " + cfg.resendApiKey())
                 .defaultHeader("Content-Type", MediaType.APPLICATION_JSON_VALUE)
                 .build();
     }
 
     @Override
     public EmailDeliveryReceipt send(ReportData report, ResearchResult research) {
-        ReportProperties.EmailProperties cfg = reportProperties.email();
         if (isBlank(cfg.resendApiKey()) || isBlank(cfg.from()) || isBlank(cfg.to())) {
             throw new IllegalStateException(
                     "Email not configured: RESEND_API_KEY, DIGEST_FROM_EMAIL and DIGEST_TO_EMAIL are required");

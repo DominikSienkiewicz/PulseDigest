@@ -16,6 +16,10 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapter.out.email.EmailFormatting.escapeHtml;
+import static pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapter.out.email.EmailFormatting.formatEngagement;
+import static pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapter.out.email.EmailFormatting.typeBadge;
+
 @Component
 public class ReportEmailBuilder {
 
@@ -277,41 +281,14 @@ public class ReportEmailBuilder {
         String scoreColor = item.score() >= 7 ? "#16a34a"
                 : item.score() >= 4 ? "#ca8a04"
                   : "#dc2626";
-        String safeUrl = escapeHtml(item.url());
-        String rankPrefix = rank != null ? rankEmoji(rank) : "";
-        String safeTitle = rankPrefix + escapeHtml(item.title());
-        String safeSummary = escapeHtml(item.summary());
-        String safeSource = escapeHtml(item.source());
-        String safeCategory = escapeHtml(item.category() != null ? item.category() : "Other");
-        String typeLabel = item.type() != null ? item.type() : "OTHER";
-        String engagementBadge = formatEngagement(item.engagementScore(), item.source());
-
-        return "<tr>"
-                + "<td style=\"padding:10px 12px;border-bottom:1px solid #f0f0f0\">"
-                + "<a href=\"" + safeUrl + "\" style=\"color:#1d4ed8;font-weight:600;"
-                + "text-decoration:none\">" + safeTitle + "</a>"
-                + "<div style=\"color:#6b7280;font-size:13px;margin-top:4px\">"
-                + safeSummary + "</div></td>"
-                + "<td style=\"padding:10px 12px;border-bottom:1px solid #f0f0f0;"
-                + "white-space:nowrap;font-size:12px\">"
-                + "<span style=\"background:#f1f5f9;color:#475569;padding:2px 6px;"
-                + "border-radius:4px\">" + safeCategory + "</span></td>"
-                + "<td style=\"padding:10px 12px;border-bottom:1px solid #f0f0f0;"
-                + "white-space:nowrap;font-size:12px\">"
-                + buildTypeBadge(typeLabel) + "</td>"
-                + "<td style=\"padding:10px 12px;border-bottom:1px solid #f0f0f0;"
-                + "white-space:nowrap;color:#6b7280;font-size:12px\">"
-                + safeSource
-                + (engagementBadge.isEmpty() ? "" : "<div style=\"color:#9ca3af;"
-                        + "font-size:11px;margin-top:2px\">" + engagementBadge + "</div>")
-                + "</td>"
-                + "<td style=\"padding:10px 12px;border-bottom:1px solid #f0f0f0;"
-                + "text-align:center\"><span style=\"color:" + scoreColor
-                + ";font-weight:700;font-size:14px\">" + item.score() + "/10</span></td>"
-                + "</tr>";
+        return buildRow(item, "", rank);
     }
 
     private String buildTieredRow(DigestItem item, String rowBg, SignalRank rank) {
+        return buildRow(item, "background:" + rowBg, rank);
+    }
+
+    private String buildRow(DigestItem item, String rowStyle, SignalRank rank) {
         String scoreColor = item.score() >= 7 ? "#16a34a"
                 : item.score() >= 4 ? "#ca8a04"
                   : "#dc2626";
@@ -323,8 +300,9 @@ public class ReportEmailBuilder {
         String safeCategory = escapeHtml(item.category() != null ? item.category() : "Other");
         String typeLabel = item.type() != null ? item.type() : "OTHER";
         String engagementBadge = formatEngagement(item.engagementScore(), item.source());
+        String rowOpen = rowStyle.isEmpty() ? "<tr>" : "<tr style=\"" + rowStyle + "\">";
 
-        return "<tr style=\"background:" + rowBg + "\">"
+        return rowOpen
                 + "<td style=\"padding:10px 12px;border-bottom:1px solid #f0f0f0\">"
                 + "<a href=\"" + safeUrl + "\" style=\"color:#1d4ed8;font-weight:600;"
                 + "text-decoration:none\">" + safeTitle + "</a>"
@@ -336,7 +314,7 @@ public class ReportEmailBuilder {
                 + "border-radius:4px\">" + safeCategory + "</span></td>"
                 + "<td style=\"padding:10px 12px;border-bottom:1px solid #f0f0f0;"
                 + "white-space:nowrap;font-size:12px\">"
-                + buildTypeBadge(typeLabel) + "</td>"
+                + typeBadge(typeLabel) + "</td>"
                 + "<td style=\"padding:10px 12px;border-bottom:1px solid #f0f0f0;"
                 + "white-space:nowrap;color:#6b7280;font-size:12px\">"
                 + safeSource
@@ -364,15 +342,6 @@ public class ReportEmailBuilder {
                 + "</div>";
     }
 
-    private String buildTypeBadge(String type) {
-        String[] colors = typeBadgeColors(type);
-        String bg = colors[0];
-        String fg = colors[1];
-        String label = escapeHtml(type);
-        return "<span style=\"background:" + bg + ";color:" + fg + ";padding:2px 6px;"
-                + "border-radius:4px;font-size:11px;font-weight:600\">" + label + "</span>";
-    }
-
     private static String rankEmoji(SignalRank rank) {
         return switch (rank) {
             case CRITICAL -> "&#128308; ";
@@ -382,67 +351,8 @@ public class ReportEmailBuilder {
         };
     }
 
-    private String[] typeBadgeColors(String type) {
-        return switch (type) {
-            case "RELEASE"     -> new String[]{"#ede9fe", "#6d28d9"};
-            case "FEATURE"     -> new String[]{"#dbeafe", "#1d4ed8"};
-            case "LAUNCH"      -> new String[]{"#ffedd5", "#c2410c"};
-            case "BREAKTHROUGH" -> new String[]{"#fce7f3", "#9d174d"};
-            case "TREND"       -> new String[]{"#ccfbf1", "#0f766e"};
-            case "INCIDENT"    -> new String[]{"#fee2e2", "#b91c1c"};
-            case "OPINION"     -> new String[]{"#f3f4f6", "#374151"};
-            case "DISCUSSION"  -> new String[]{"#fef9c3", "#854d0e"};
-            case "RESOURCE"    -> new String[]{"#dcfce7", "#15803d"};
-            case "HIRING"      -> new String[]{"#d1fae5", "#065f46"};
-            default            -> new String[]{"#f1f5f9", "#475569"};
-        };
-    }
-
-    private String formatEngagement(Integer score, String source) {
-        if (score == null || score <= 0 || source == null) {
-            return "";
-        }
-        String label = engagementLabel(source);
-        return formatNumber(score) + " " + label;
-    }
-
-    private String engagementLabel(String source) {
-        if (source.startsWith("Twitter")) {
-            return "&#10084;"; // heart
-        }
-        if (source.startsWith("Hacker News")) {
-            return "pkt";
-        }
-        if (source.startsWith("GitHub")) {
-            return "&#9733;"; // star
-        }
-        if (source.startsWith("Reddit")) {
-            return "&#8593;"; // up arrow
-        }
-        return "";
-    }
-
-    private String formatNumber(int n) {
-        if (n >= 1000) {
-            double k = n / 1000.0;
-            return String.format(Locale.US, k >= 10 ? "%.0fk" : "%.1fk", k);
-        }
-        return String.valueOf(n);
-    }
-
     private String th(String label) {
         return "<th style=\"padding:8px 12px;text-align:left;color:#6b7280;"
                 + "font-weight:500;border-bottom:2px solid #e5e7eb\">" + label + "</th>";
-    }
-
-    private String escapeHtml(String input) {
-        if (input == null) {
-            return "";
-        }
-        return input
-                .replace("&", "&amp;")
-                .replace("<", "&lt;")
-                .replace(">", "&gt;")
-                .replace("\"", "&quot;");
     }
 }

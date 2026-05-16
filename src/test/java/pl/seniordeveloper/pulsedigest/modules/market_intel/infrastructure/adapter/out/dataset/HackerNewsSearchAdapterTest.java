@@ -8,8 +8,8 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportProperties;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.AsyncConfig;
+import pl.seniordeveloper.pulsedigest.shared.async.AsyncQualifiers;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.HackerNewsProperties;
 
 import java.util.Arrays;
 import java.util.List;
@@ -34,18 +34,14 @@ class HackerNewsSearchAdapterTest {
 
     @BeforeEach
     void setUp() {
-        ReportProperties.HackerNewsProperties props =
-                new ReportProperties.HackerNewsProperties(
+        HackerNewsProperties props =
+                new HackerNewsProperties(
                         "https://hn.algolia.com/api/v1/search",
                         List.of("ai", "java"),
                         15,
                         25
                 );
-        ReportProperties reportProperties = new ReportProperties(
-                60, 30, null, null, props, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null, null
-        );
-        adapter = new HackerNewsSearchAdapter(new ObjectMapper(), reportProperties);
+        adapter = new HackerNewsSearchAdapter(new ObjectMapper(), props);
         adapter.init();
     }
 
@@ -98,21 +94,16 @@ class HackerNewsSearchAdapterTest {
         }
 
         @Bean
-        ReportProperties reportProperties() {
-            ReportProperties.HackerNewsProperties props =
-                    new ReportProperties.HackerNewsProperties(
-                            "https://hn.algolia.com/api/v1/search",
-                            List.of("ai", "java"),
-                            15,
-                            25
-                    );
-            return new ReportProperties(
-                    60, 30, null, null, props, null, null, null, null, null,
-                    null, null, null, null, null, null, null, null, null, null, null
+        HackerNewsProperties hackerNewsProperties() {
+            return new HackerNewsProperties(
+                    "https://hn.algolia.com/api/v1/search",
+                    List.of("ai", "java"),
+                    15,
+                    25
             );
         }
 
-        @Bean(name = AsyncConfig.DATA_FETCH_EXECUTOR)
+        @Bean(name = AsyncQualifiers.DATA_FETCH_EXECUTOR)
         Executor dataFetchExecutor() {
             return Runnable::run;
         }

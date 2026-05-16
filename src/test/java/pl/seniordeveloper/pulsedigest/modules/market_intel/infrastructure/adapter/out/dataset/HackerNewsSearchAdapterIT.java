@@ -7,7 +7,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.HackerNewsPost;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.HackerNewsProperties;
 
 import java.util.List;
 
@@ -32,13 +32,9 @@ class HackerNewsSearchAdapterIT {
         wireMock.start();
 
         String baseUrl = "http://localhost:" + wireMock.port();
-        ReportProperties.HackerNewsProperties props =
-                new ReportProperties.HackerNewsProperties(baseUrl, List.of("java"), 15, 25);
-        ReportProperties reportProperties = new ReportProperties(
-                60, 30, null, null, props, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null, null
-        );
-        adapter = new HackerNewsSearchAdapter(new ObjectMapper(), reportProperties);
+        HackerNewsProperties props =
+                new HackerNewsProperties(baseUrl, List.of("java"), 15, 25);
+        adapter = new HackerNewsSearchAdapter(new ObjectMapper(), props);
         adapter.init();
     }
 

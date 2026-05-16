@@ -8,7 +8,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.client.RestClient;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ConferenceTalk;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ConferenceTalksProperties;
 
 import java.lang.reflect.Field;
 import java.util.List;
@@ -35,13 +35,13 @@ class ConferenceTalksAdapterIT {
         wireMock = new WireMockServer(WireMockConfiguration.wireMockConfig().dynamicPort());
         wireMock.start();
 
-        ReportProperties.ConferenceTalksProperties props =
-                new ReportProperties.ConferenceTalksProperties(
+        ConferenceTalksProperties props =
+                new ConferenceTalksProperties(
                         "http://localhost:" + wireMock.port(),
                         "test-api-key",
                         7,
                         10,
-                        List.of(new ReportProperties.ConferenceTalksProperties.ChannelConfig(
+                        List.of(new ConferenceTalksProperties.ChannelConfig(
                                 "SpringDeveloper", "Spring I/O", "UC_test")));
         adapter = new ConferenceTalksAdapter(props, new ObjectMapper());
 

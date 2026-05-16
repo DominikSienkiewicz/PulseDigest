@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.JepUpdate;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.OpenJdkProperties;
 
 import java.util.List;
 
@@ -45,8 +45,8 @@ class OpenJdkJepAdapterTest {
 
     @BeforeEach
     void setUp() {
-        ReportProperties.OpenJdkProperties props =
-                new ReportProperties.OpenJdkProperties(
+        OpenJdkProperties props =
+                new OpenJdkProperties(
                         "https://api.github.com/repos/openjdk/jdk/commits",
                         7,
                         List.of("Candidate", "Proposed to Target", "Integrated", "Delivered")

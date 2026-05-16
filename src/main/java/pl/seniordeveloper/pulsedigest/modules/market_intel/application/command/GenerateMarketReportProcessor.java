@@ -17,7 +17,7 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.Email
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.LlmSynthesisPort;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.ReportEnrichmentPort;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.ReportStoragePort;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.AsyncConfig;
+import pl.seniordeveloper.pulsedigest.shared.async.AsyncQualifiers;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -40,7 +40,7 @@ public class GenerateMarketReportProcessor {
     private final Optional<ReportEnrichmentPort> enrichmentPort;
     private final SignalScoringService signalScoringService;
 
-    @Async(AsyncConfig.REPORT_EXECUTOR)
+    @Async(AsyncQualifiers.REPORT_EXECUTOR)
     public void process(String jobId) {
         log.info("=== [{}] Starting Market Intelligence Pipeline ===", jobId);
         Instant start = Instant.now();

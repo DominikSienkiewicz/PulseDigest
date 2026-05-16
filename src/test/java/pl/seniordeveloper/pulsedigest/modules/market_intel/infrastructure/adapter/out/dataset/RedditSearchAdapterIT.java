@@ -8,7 +8,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.client.RestClient;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RedditPost;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.RedditProperties;
 
 import java.lang.reflect.Field;
 import java.util.List;
@@ -28,13 +28,9 @@ class RedditSearchAdapterIT {
         wireMock = new WireMockServer(WireMockConfiguration.wireMockConfig().dynamicPort());
         wireMock.start();
 
-        ReportProperties.RedditProperties reddit =
-                new ReportProperties.RedditProperties(List.of("java"), 5, 10);
-        ReportProperties reportProperties = new ReportProperties(
-                60, 30, null, null, null, null, null, reddit, null, null,
-                null, null, null, null, null, null, null, null, null, null, null
-        );
-        adapter = new RedditSearchAdapter(new ObjectMapper(), reportProperties);
+        RedditProperties reddit =
+                new RedditProperties(List.of("java"), 5, 10);
+        adapter = new RedditSearchAdapter(new ObjectMapper(), reddit);
         RestClient testClient = RestClient.builder()
                 .baseUrl("http://localhost:" + wireMock.port())
                 .build();

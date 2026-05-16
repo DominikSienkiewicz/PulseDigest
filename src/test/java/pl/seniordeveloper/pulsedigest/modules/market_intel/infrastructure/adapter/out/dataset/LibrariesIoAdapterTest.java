@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.PackageTrend;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.LibrariesIoProperties;
 
 import java.util.List;
 
@@ -51,8 +51,8 @@ class LibrariesIoAdapterTest {
 
     @BeforeEach
     void setUp() {
-        ReportProperties.LibrariesIoProperties props =
-                new ReportProperties.LibrariesIoProperties(
+        LibrariesIoProperties props =
+                new LibrariesIoProperties(
                         "https://libraries.io/api/search",
                         "test-api-key",
                         20,

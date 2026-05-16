@@ -7,7 +7,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.client.RestClient;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RssItem;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.RssProperties;
 
 import java.lang.reflect.Field;
 import java.time.ZoneOffset;
@@ -107,16 +107,12 @@ class RssFeedAdapterIT {
     }
 
     private RssFeedAdapter adapter(String path) throws Exception {
-        ReportProperties.RssProperties rss = new ReportProperties.RssProperties(
+        RssProperties rss = new RssProperties(
                 5,
-                List.of(new ReportProperties.RssProperties.FeedConfig(
+                List.of(new RssProperties.FeedConfig(
                         "Test Feed",
                         "http://localhost:" + wireMock.port() + path)));
-        ReportProperties reportProperties = new ReportProperties(
-                60, 30, null, null, null, null, rss, null, null, null,
-                null, null, null, null, null, null, null, null, null, null, null
-        );
-        RssFeedAdapter adapter = new RssFeedAdapter(reportProperties);
+        RssFeedAdapter adapter = new RssFeedAdapter(rss);
         Field restClientField = RssFeedAdapter.class.getDeclaredField("restClient");
         restClientField.setAccessible(true);
         restClientField.set(adapter, RestClient.builder().build());

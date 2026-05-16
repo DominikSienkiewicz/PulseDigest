@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.http.ExternalRestClients;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.PackageTrend;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.LibrariesIoProperties;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -25,16 +25,12 @@ import java.util.Locale;
 @Service
 public class LibrariesIoAdapter {
 
-    private final ReportProperties.LibrariesIoProperties properties;
+    private final LibrariesIoProperties properties;
     private final ObjectMapper objectMapper;
     private RestClient restClient;
 
     @Autowired
-    public LibrariesIoAdapter(ReportProperties reportProperties, ObjectMapper objectMapper) {
-        this(reportProperties.librariesIo(), objectMapper);
-    }
-
-    LibrariesIoAdapter(ReportProperties.LibrariesIoProperties properties, ObjectMapper objectMapper) {
+    public LibrariesIoAdapter(LibrariesIoProperties properties, ObjectMapper objectMapper) {
         this.properties = properties;
         this.objectMapper = objectMapper;
     }

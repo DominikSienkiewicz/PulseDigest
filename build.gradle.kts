@@ -56,6 +56,9 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter")
     implementation("org.springframework.boot:spring-boot-starter-jdbc")
     implementation("org.springframework.boot:spring-boot-starter-validation")
+    // Micrometer core (no Spring Boot Actuator — batch app has no HTTP server to scrape).
+    // Metrics are dumped to logs on shutdown via MetricsLogger.
+    implementation("io.micrometer:micrometer-core")
     implementation("com.fasterxml.jackson.core:jackson-databind")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
     runtimeOnly("org.postgresql:postgresql")

@@ -4,14 +4,26 @@ import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
 
 import jakarta.annotation.PostConstruct;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.MarketIntelJobTracker;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.application.policy.RateLimitPolicy;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.application.policy.ResearchPolicy;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportJob;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.ReportStoragePort;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportRuntimeProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ResearchProperties;
+
+import java.time.Duration;
 
 
 /**
  * Configuration and initialization for Market Intelligence module.
+ *
+ * <p>Translates infrastructure-bound {@code @ConfigurationProperties} into narrow,
+ * application-owned policy value objects so application services do not import infrastructure
+ * configuration types directly (see ArchUnit rule
+ * {@code APPLICATION_DOES_NOT_DEPEND_ON_INFRASTRUCTURE_CONFIG}).
  */
 @Slf4j
 @RequiredArgsConstructor
@@ -30,5 +42,16 @@ public class MarketIntelBootstrap {
             log.info("Restored latest report from storage: jobId={}, date={}",
                     persisted.jobId(), persisted.generatedAt());
         });
+    }
+
+    @Bean
+    ResearchPolicy researchPolicy(ResearchProperties research) {
+        return new ResearchPolicy(research.minLikes(), research.daysBack(), research.authorityUsernames());
+    }
+
+    @Bean
+    RateLimitPolicy reportRateLimitPolicy(ReportRuntimeProperties runtime) {
+        int cooldownMinutes = Math.max(0, runtime.minGenerationIntervalMinutes());
+        return new RateLimitPolicy(Duration.ofMinutes(cooldownMinutes));
     }
 }

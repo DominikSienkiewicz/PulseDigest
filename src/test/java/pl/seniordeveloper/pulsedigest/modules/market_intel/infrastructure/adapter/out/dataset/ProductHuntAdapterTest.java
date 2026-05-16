@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ProductHuntPost;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ProductHuntProperties;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -18,8 +18,8 @@ class ProductHuntAdapterTest {
 
     @BeforeEach
     void setUp() {
-        ReportProperties.ProductHuntProperties props =
-                new ReportProperties.ProductHuntProperties(
+        ProductHuntProperties props =
+                new ProductHuntProperties(
                         "https://api.producthunt.com/v2/api/graphql",
                         "test-token",
                         100,
@@ -97,8 +97,8 @@ class ProductHuntAdapterTest {
 
     @Test
     void filtersOutPostsOutsideLookbackWindow() {
-        ReportProperties.ProductHuntProperties shortLookback =
-                new ReportProperties.ProductHuntProperties(
+        ProductHuntProperties shortLookback =
+                new ProductHuntProperties(
                         "https://api.producthunt.com/v2/api/graphql",
                         "test-token",
                         100,
@@ -126,8 +126,8 @@ class ProductHuntAdapterTest {
 
     @Test
     void degradeWhenDeveloperTokenMissing() {
-        ReportProperties.ProductHuntProperties noToken =
-                new ReportProperties.ProductHuntProperties(
+        ProductHuntProperties noToken =
+                new ProductHuntProperties(
                         "https://api.producthunt.com/v2/api/graphql",
                         "",
                         100,

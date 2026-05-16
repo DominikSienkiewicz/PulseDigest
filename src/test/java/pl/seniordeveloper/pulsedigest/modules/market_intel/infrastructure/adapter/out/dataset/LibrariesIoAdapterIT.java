@@ -8,7 +8,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.client.RestClient;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.PackageTrend;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.LibrariesIoProperties;
 
 import java.lang.reflect.Field;
 import java.util.List;
@@ -37,8 +37,8 @@ class LibrariesIoAdapterIT {
         wireMock = new WireMockServer(WireMockConfiguration.wireMockConfig().dynamicPort());
         wireMock.start();
 
-        ReportProperties.LibrariesIoProperties props =
-                new ReportProperties.LibrariesIoProperties(
+        LibrariesIoProperties props =
+                new LibrariesIoProperties(
                         "http://localhost:" + wireMock.port(),
                         "test-api-key",
                         20,

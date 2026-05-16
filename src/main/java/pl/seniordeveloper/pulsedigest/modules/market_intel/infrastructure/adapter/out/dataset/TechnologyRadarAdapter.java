@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.http.ExternalRestClients;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RadarEntry;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.TechnologyRadarProperties;
 
 import java.net.URI;
 import java.time.LocalDateTime;
@@ -25,16 +25,12 @@ import java.util.Locale;
 @Service
 public class TechnologyRadarAdapter {
 
-    private final ReportProperties.TechnologyRadarProperties properties;
+    private final TechnologyRadarProperties properties;
     private final ObjectMapper objectMapper;
     private RestClient restClient;
 
     @Autowired
-    public TechnologyRadarAdapter(ReportProperties reportProperties, ObjectMapper objectMapper) {
-        this(reportProperties.technologyRadar(), objectMapper);
-    }
-
-    TechnologyRadarAdapter(ReportProperties.TechnologyRadarProperties properties, ObjectMapper objectMapper) {
+    public TechnologyRadarAdapter(TechnologyRadarProperties properties, ObjectMapper objectMapper) {
         this.properties = properties;
         this.objectMapper = objectMapper;
     }

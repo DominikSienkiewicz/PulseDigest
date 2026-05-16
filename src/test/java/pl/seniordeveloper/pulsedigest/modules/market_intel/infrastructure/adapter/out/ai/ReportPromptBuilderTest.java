@@ -114,20 +114,20 @@ class ReportPromptBuilderTest {
     void preScoreHighWeightSourceBeatsLowWeightHighEngagement() {
         // arXiv eng=0: round(1.00×100)+0 = 100
         // Twitter/X eng=999: round(0.40×100)+0 = 40
-        assertThat(ReportPromptBuilder.preScore("arXiv/cs.AI", 0))
-                .isGreaterThan(ReportPromptBuilder.preScore("Twitter/X", 999));
+        assertThat(PromptItemSelector.preScore("arXiv/cs.AI", 0))
+                .isGreaterThan(PromptItemSelector.preScore("Twitter/X", 999));
     }
 
     @Test
     void preScoreEngagementBonusCappedAt50() {
         // Twitter/X: round(0.40×100) + min(50, 999_999/1_000) = 40 + 50 = 90
-        assertThat(ReportPromptBuilder.preScore("Twitter/X", 999_999)).isEqualTo(90);
+        assertThat(PromptItemSelector.preScore("Twitter/X", 999_999)).isEqualTo(90);
     }
 
     @Test
     void preScoreArxivWithMaxEngagementReaches150() {
         // arXiv: 100 + 50 = 150
-        assertThat(ReportPromptBuilder.preScore("arXiv/cs.AI", 999_999)).isEqualTo(150);
+        assertThat(PromptItemSelector.preScore("arXiv/cs.AI", 999_999)).isEqualTo(150);
     }
 
     @Test
@@ -140,7 +140,7 @@ class ReportPromptBuilderTest {
         }
         items.add(Map.of("source", "arXiv/cs.AI", "engagement_score", 0));
 
-        List<Map<String, Object>> result = ReportPromptBuilder.applyTotalCap(items, 100);
+        List<Map<String, Object>> result = PromptItemSelector.applyTotalCap(items, 100);
 
         assertThat(result).hasSize(100);
         assertThat(result.stream().anyMatch(m -> "arXiv/cs.AI".equals(m.get("source"))))
@@ -157,7 +157,7 @@ class ReportPromptBuilderTest {
                 Map.of("source", "GitHub", "engagement_score", 100),
                 Map.of("source", "arXiv/cs.AI", "engagement_score", 0)
         );
-        List<Map<String, Object>> result = ReportPromptBuilder.applyTotalCap(items, 100);
+        List<Map<String, Object>> result = PromptItemSelector.applyTotalCap(items, 100);
         assertThat(result).hasSize(2);
         assertThat(result).isSameAs(items);
     }

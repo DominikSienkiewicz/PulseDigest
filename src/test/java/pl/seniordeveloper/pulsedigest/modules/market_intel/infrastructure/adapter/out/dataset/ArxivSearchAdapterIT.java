@@ -7,7 +7,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.client.RestClient;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ResearchPaper;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ArxivProperties;
 
 import java.lang.reflect.Field;
 import java.util.List;
@@ -43,8 +43,8 @@ class ArxivSearchAdapterIT {
         wireMock = new WireMockServer(WireMockConfiguration.wireMockConfig().dynamicPort());
         wireMock.start();
 
-        ReportProperties.ArxivProperties props =
-                new ReportProperties.ArxivProperties("cs.AI,cs.LG", "agent,llm,rag", 10, 24);
+        ArxivProperties props =
+                new ArxivProperties("cs.AI,cs.LG", "agent,llm,rag", 10, 24);
         adapter = new ArxivSearchAdapter(props);
 
         RestClient testClient = RestClient.builder()

@@ -8,7 +8,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.client.RestClient;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.CncfProjectUpdate;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.CncfLandscapeProperties;
 
 import java.lang.reflect.Field;
 import java.util.List;
@@ -36,8 +36,8 @@ class CncfLandscapeAdapterIT {
         wireMock = new WireMockServer(WireMockConfiguration.wireMockConfig().dynamicPort());
         wireMock.start();
 
-        ReportProperties.CncfLandscapeProperties props =
-                new ReportProperties.CncfLandscapeProperties(
+        CncfLandscapeProperties props =
+                new CncfLandscapeProperties(
                         "http://localhost:" + wireMock.port(),
                         7,
                         List.of("graduated"));

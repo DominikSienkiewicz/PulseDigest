@@ -6,8 +6,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.MarketIntelJobTracker;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.error.MarketIntelError;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.application.policy.RateLimitPolicy;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportJob;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportProperties;
 import pl.seniordeveloper.pulsedigest.shared.result.Result;
 
 import java.time.Duration;
@@ -20,7 +20,7 @@ public class GenerateMarketReportService {
 
     private final MarketIntelJobTracker jobTracker;
     private final GenerateMarketReportProcessor processor;
-    private final ReportProperties reportProperties;
+    private final RateLimitPolicy rateLimitPolicy;
 
     private Instant lastSubmittedAt = null;
 
@@ -48,10 +48,9 @@ public class GenerateMarketReportService {
             return Result.failure(new MarketIntelError.GenerationInProgress());
         }
 
-        int cooldownMinutes = reportProperties.minGenerationIntervalMinutes();
-        if (lastSubmittedAt != null && cooldownMinutes > 0) {
+        if (lastSubmittedAt != null && rateLimitPolicy.isEnabled()) {
             Duration elapsed = Duration.between(lastSubmittedAt, Instant.now());
-            Duration cooldown = Duration.ofMinutes(cooldownMinutes);
+            Duration cooldown = rateLimitPolicy.cooldown();
             if (elapsed.compareTo(cooldown) < 0) {
                 long remainSec = cooldown.minus(elapsed).getSeconds() + 1;
                 return Result.failure(new MarketIntelError.RateLimitExceeded(remainSec));

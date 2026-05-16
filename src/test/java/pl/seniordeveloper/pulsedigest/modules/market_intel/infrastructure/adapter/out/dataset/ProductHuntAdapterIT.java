@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ProductHuntPost;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ProductHuntProperties;
 
 import java.lang.reflect.Field;
 import java.time.LocalDateTime;
@@ -33,8 +33,8 @@ class ProductHuntAdapterIT {
         wireMock = new WireMockServer(WireMockConfiguration.wireMockConfig().dynamicPort());
         wireMock.start();
 
-        ReportProperties.ProductHuntProperties props =
-                new ReportProperties.ProductHuntProperties(
+        ProductHuntProperties props =
+                new ProductHuntProperties(
                         "http://localhost:" + wireMock.port() + "/",
                         "test-token",
                         100,

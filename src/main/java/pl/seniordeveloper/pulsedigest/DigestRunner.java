@@ -45,13 +45,14 @@ public class DigestRunner implements ApplicationRunner {
             if (maybeJob.isEmpty()) {
                 continue;
             }
-            switch (maybeJob.get().status()) {
+            var job = maybeJob.get();
+            switch (job.status()) {
                 case DELIVERED -> {
                     log.info("=== Digest complete — email sent ===");
                     System.exit(0);
                 }
                 case EMAIL_FAILED, ERROR -> {
-                    log.error("=== Digest failed: {} ===", maybeJob.get().error());
+                    log.error("=== Digest failed: {} ===", job.error());
                     System.exit(1);
                 }
                 default -> { /* still in progress */ }

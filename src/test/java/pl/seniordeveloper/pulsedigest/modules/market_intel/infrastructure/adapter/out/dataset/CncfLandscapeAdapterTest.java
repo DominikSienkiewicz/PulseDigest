@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.CncfProjectUpdate;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.CncfLandscapeProperties;
 
 import java.util.List;
 
@@ -39,8 +39,8 @@ class CncfLandscapeAdapterTest {
 
     @BeforeEach
     void setUp() {
-        ReportProperties.CncfLandscapeProperties props =
-                new ReportProperties.CncfLandscapeProperties(
+        CncfLandscapeProperties props =
+                new CncfLandscapeProperties(
                         "https://api.github.com/repos/cncf/landscape/commits",
                         7,
                         List.of("sandbox", "incubating", "graduated", "archived")

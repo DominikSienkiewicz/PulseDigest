@@ -24,8 +24,9 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Security
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceFetchReport;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SoftwareRelease;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Tweet;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.application.policy.ResearchPolicy;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.MarketIntelligencePort;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportProperties;
+import pl.seniordeveloper.pulsedigest.shared.async.AsyncQualifiers;
 import pl.seniordeveloper.pulsedigest.shared.util.UrlCanonicalizer;
 
 import java.time.LocalDateTime;
@@ -59,8 +60,8 @@ public class MarketResearchService {
     private static final Duration SOURCE_TIMEOUT = Duration.ofSeconds(90);
 
     private final MarketIntelligencePort intelligencePort;
-    private final ReportProperties reportProperties;
-    @Qualifier("dataFetchExecutor")
+    private final ResearchPolicy researchPolicy;
+    @Qualifier(AsyncQualifiers.DATA_FETCH_EXECUTOR)
     private final Executor taskExecutor;
 
     public ResearchResult fetchAndFilter() {
@@ -156,9 +157,9 @@ public class MarketResearchService {
                         radar.report(), talks.report(), db.report())
                 .toList();
 
-        Set<String> authorityUsernames = Set.copyOf(reportProperties.research().authorityUsernames());
-        int minLikes = reportProperties.research().minLikes();
-        int daysBack = reportProperties.research().daysBack();
+        Set<String> authorityUsernames = Set.copyOf(researchPolicy.authorityUsernames());
+        int minLikes = researchPolicy.minLikes();
+        int daysBack = researchPolicy.daysBack();
         ZonedDateTime cutoff = ZonedDateTime.now(ZoneOffset.UTC).minusDays(daysBack);
 
         // Authority accounts get relaxed relevance check — their signal-to-noise is high by definition

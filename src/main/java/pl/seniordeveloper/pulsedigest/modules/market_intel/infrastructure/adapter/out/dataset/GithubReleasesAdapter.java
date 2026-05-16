@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.http.ExternalRestClients;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SoftwareRelease;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.GithubReleasesProperties;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -25,16 +25,12 @@ public class GithubReleasesAdapter {
 
     private static final String BASE_URL = "https://api.github.com";
 
-    private final ReportProperties.GithubReleasesProperties properties;
+    private final GithubReleasesProperties properties;
     private final ObjectMapper objectMapper;
     private RestClient restClient;
 
     @Autowired
-    public GithubReleasesAdapter(ReportProperties reportProperties, ObjectMapper objectMapper) {
-        this(reportProperties.githubReleases(), objectMapper);
-    }
-
-    GithubReleasesAdapter(ReportProperties.GithubReleasesProperties properties, ObjectMapper objectMapper) {
+    public GithubReleasesAdapter(GithubReleasesProperties properties, ObjectMapper objectMapper) {
         this.properties = properties;
         this.objectMapper = objectMapper;
     }

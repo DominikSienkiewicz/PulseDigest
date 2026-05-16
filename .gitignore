@@ -32,3 +32,5 @@ replay_pid*
 /build/
 .worktrees/
 /CLAUDE.md
+/.claude/
+/docs/

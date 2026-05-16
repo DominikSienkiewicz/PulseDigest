@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.http.ExternalRestClients;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.CncfProjectUpdate;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.CncfLandscapeProperties;
 
 import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
@@ -34,16 +34,12 @@ public class CncfLandscapeAdapter {
             "^(?:Add|Update|Move|Promote)\\s+(?:the\\s+)?(?:CNCF\\s+)?(?:project\\s+)?([\\w.\\-]+)",
             Pattern.CASE_INSENSITIVE);
 
-    private final ReportProperties.CncfLandscapeProperties properties;
+    private final CncfLandscapeProperties properties;
     private final ObjectMapper objectMapper;
     private RestClient restClient;
 
     @Autowired
-    public CncfLandscapeAdapter(ReportProperties reportProperties, ObjectMapper objectMapper) {
-        this(reportProperties.cncfLandscape(), objectMapper);
-    }
-
-    CncfLandscapeAdapter(ReportProperties.CncfLandscapeProperties properties, ObjectMapper objectMapper) {
+    public CncfLandscapeAdapter(CncfLandscapeProperties properties, ObjectMapper objectMapper) {
         this.properties = properties;
         this.objectMapper = objectMapper;
     }

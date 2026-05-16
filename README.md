@@ -114,6 +114,7 @@ All three item tiers render an identical full table: **article link + 1–2 sent
 - **spring-dotenv** — auto-loads `.env` locally (parity with GitHub Actions secrets)
 - **Testcontainers** — Postgres container for integration tests (isolated, never touches prod Supabase)
 - **Bean Validation** — startup validation for required report/Twitter configuration
+- **Micrometer (core only)** — counters/timers registered into a `SimpleMeterRegistry`; on shutdown a `MetricsLogger` dumps every meter as a structured log line (no HTTP scrape, since the batch has no web server). Currently instruments `http.client.retries` per host/reason; new meters can be added with `Metrics.counter(...)` from anywhere.
 - **ArchUnit + JaCoCo** — architecture boundaries and minimum coverage gate
 - **Gradle 9** (Kotlin DSL)
 - **Project Loom** — Virtual Threads for all I/O
@@ -182,7 +183,16 @@ Required repository secrets: `TWITTER_BEARER_TOKEN`, `OPENAI_API_KEY`, `RESEND_A
 
 ## Configuration
 
-All tuneable parameters live in [`src/main/resources/application.yaml`](src/main/resources/application.yaml) under the `report:` prefix:
+All tuneable parameters live in [`src/main/resources/application.yaml`](src/main/resources/application.yaml) under the `report:` prefix.
+
+**Env override convention:** any value written as `"${VAR:default}"` in `application.yaml` reads from the
+environment first and falls back to `default` (or empty). All other keys below are baked into the YAML and
+require a code change + redeploy to override. The keys currently accepting `${ENV}` are: `OPENAI_API_KEY`,
+`TWITTER_BEARER_TOKEN`, `RESEND_API_KEY`, `DIGEST_FROM_EMAIL`, `DIGEST_TO_EMAIL`,
+`PRODUCTHUNT_DEVELOPER_TOKEN`, `LIBRARIES_IO_API_KEY`, `YOUTUBE_API_KEY`, plus the three Supabase
+datasource keys (`SUPABASE_DB_URL`, `SUPABASE_DB_USERNAME`, `SUPABASE_DB_PASSWORD`). Tuning thresholds
+(min-score, lookback windows, limits) are **not** env-overridable by default — they are project-policy
+defaults, not per-environment knobs.
 
 | Key                            | Default                  | Description                                        |
 |--------------------------------|--------------------------|----------------------------------------------------|

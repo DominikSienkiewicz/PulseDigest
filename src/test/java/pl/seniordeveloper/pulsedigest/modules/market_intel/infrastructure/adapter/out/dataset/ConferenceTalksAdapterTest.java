@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ConferenceTalk;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ConferenceTalksProperties;
 
 import java.util.List;
 
@@ -44,14 +44,14 @@ class ConferenceTalksAdapterTest {
 
     @BeforeEach
     void setUp() {
-        ReportProperties.ConferenceTalksProperties props =
-                new ReportProperties.ConferenceTalksProperties(
+        ConferenceTalksProperties props =
+                new ConferenceTalksProperties(
                         "https://www.googleapis.com/youtube/v3/search",
                         "test-api-key",
                         7,
                         10,
                         List.of(
-                                new ReportProperties.ConferenceTalksProperties.ChannelConfig(
+                                new ConferenceTalksProperties.ChannelConfig(
                                         "SpringDeveloper", "Spring I/O", "UC_test"))
                 );
         adapter = new ConferenceTalksAdapter(props, new ObjectMapper());

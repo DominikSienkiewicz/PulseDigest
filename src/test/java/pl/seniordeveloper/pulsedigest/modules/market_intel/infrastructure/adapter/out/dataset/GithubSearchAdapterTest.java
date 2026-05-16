@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.client.RestClient;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.GithubRepo;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.GithubProperties;
 
 import java.lang.reflect.Field;
 import java.net.URI;
@@ -57,12 +57,8 @@ class GithubSearchAdapterTest {
 
     @SuppressWarnings({"rawtypes", "unchecked"})
     private static GithubSearchAdapter adapter(String query, int limit, String responseBody) throws Exception {
-        ReportProperties.GithubProperties props = new ReportProperties.GithubProperties(query, limit);
-        ReportProperties reportProperties = new ReportProperties(
-                60, 30, null, null, null, props, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null, null
-        );
-        GithubSearchAdapter adapter = new GithubSearchAdapter(new ObjectMapper(), reportProperties);
+        GithubProperties props = new GithubProperties(query, limit);
+        GithubSearchAdapter adapter = new GithubSearchAdapter(new ObjectMapper(), props);
 
         Field propsField = GithubSearchAdapter.class.getDeclaredField("props");
         propsField.setAccessible(true);

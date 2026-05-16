@@ -10,7 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.http.ExternalRestClients;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ProductHuntPost;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ProductHuntProperties;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -35,16 +35,12 @@ public class ProductHuntAdapter {
                     + "edges { node { name tagline url votesCount createdAt "
                     + "topics { edges { node { name } } } } } } }";
 
-    private final ReportProperties.ProductHuntProperties properties;
+    private final ProductHuntProperties properties;
     private final ObjectMapper objectMapper;
     private RestClient restClient;
 
     @Autowired
-    public ProductHuntAdapter(ReportProperties reportProperties, ObjectMapper objectMapper) {
-        this(reportProperties.productHunt(), objectMapper);
-    }
-
-    ProductHuntAdapter(ReportProperties.ProductHuntProperties properties, ObjectMapper objectMapper) {
+    public ProductHuntAdapter(ProductHuntProperties properties, ObjectMapper objectMapper) {
         this.properties = properties;
         this.objectMapper = objectMapper;
     }

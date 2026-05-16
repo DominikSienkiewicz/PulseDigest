@@ -11,7 +11,7 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.DigestIt
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.EmailDeliveryReceipt;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportData;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ResearchResult;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.EmailProperties;
 
 import java.lang.reflect.Field;
 import java.time.LocalDateTime;
@@ -80,12 +80,8 @@ class ResendEmailAdapterIT {
                 .hasMessageContaining("Failed to send email via Resend");
     }
 
-    private ResendEmailAdapter adapter(ReportProperties.EmailProperties emailProperties) throws Exception {
-        ReportProperties reportProperties = new ReportProperties(
-                60, 30, emailProperties, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null, null
-        );
-        ResendEmailAdapter adapter = new ResendEmailAdapter(new ObjectMapper(), new ReportEmailBuilder(), reportProperties);
+    private ResendEmailAdapter adapter(EmailProperties emailProperties) throws Exception {
+        ResendEmailAdapter adapter = new ResendEmailAdapter(new ObjectMapper(), new ReportEmailBuilder(), emailProperties);
         Field field = ResendEmailAdapter.class.getDeclaredField("resendClient");
         field.setAccessible(true);
         field.set(adapter, RestClient.builder()
@@ -95,8 +91,8 @@ class ResendEmailAdapterIT {
         return adapter;
     }
 
-    private static ReportProperties.EmailProperties emailProperties(String apiKey, String from, String to) {
-        return new ReportProperties.EmailProperties(apiKey, from, to);
+    private static EmailProperties emailProperties(String apiKey, String from, String to) {
+        return new EmailProperties(apiKey, from, to);
     }
 
     private static ReportData report() {

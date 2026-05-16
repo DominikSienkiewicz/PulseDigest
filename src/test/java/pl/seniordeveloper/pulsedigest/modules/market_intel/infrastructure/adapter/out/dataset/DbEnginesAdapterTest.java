@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.DbEngineRanking;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.DbEnginesProperties;
 
 import java.util.List;
 
@@ -28,8 +28,8 @@ class DbEnginesAdapterTest {
 
     @BeforeEach
     void setUp() {
-        ReportProperties.DbEnginesProperties props =
-                new ReportProperties.DbEnginesProperties(
+        DbEnginesProperties props =
+                new DbEnginesProperties(
                         "https://db-engines.com/en/ranking",
                         7,
                         5

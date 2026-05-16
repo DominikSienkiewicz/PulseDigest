@@ -3,7 +3,7 @@ package pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapt
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ResearchPaper;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ArxivProperties;
 
 import java.util.List;
 
@@ -46,8 +46,8 @@ class ArxivSearchAdapterTest {
 
     @BeforeEach
     void setUp() {
-        ReportProperties.ArxivProperties props =
-                new ReportProperties.ArxivProperties("cs.AI,cs.LG", "agent,llm,rag", 10, 24);
+        ArxivProperties props =
+                new ArxivProperties("cs.AI,cs.LG", "agent,llm,rag", 10, 24);
         adapter = new ArxivSearchAdapter(props);
     }
 

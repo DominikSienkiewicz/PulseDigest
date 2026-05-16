@@ -8,7 +8,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.client.RestClient;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SoftwareRelease;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.GithubReleasesProperties;
 
 import java.lang.reflect.Field;
 import java.util.List;
@@ -43,8 +43,8 @@ class GithubReleasesAdapterIT {
         wireMock = new WireMockServer(WireMockConfiguration.wireMockConfig().dynamicPort());
         wireMock.start();
 
-        ReportProperties.GithubReleasesProperties props =
-                new ReportProperties.GithubReleasesProperties(
+        GithubReleasesProperties props =
+                new GithubReleasesProperties(
                         List.of("spring-projects/spring-boot"), 48);
         adapter = new GithubReleasesAdapter(props, new ObjectMapper());
 

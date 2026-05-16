@@ -10,7 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.http.ExternalRestClients;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RedditPost;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.RedditProperties;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -23,7 +23,7 @@ public class RedditSearchAdapter {
     private static final String BASE_URL = "https://www.reddit.com";
 
     private final ObjectMapper objectMapper;
-    private final ReportProperties reportProperties;
+    private final RedditProperties cfg;
     private RestClient restClient;
 
     @PostConstruct
@@ -36,7 +36,6 @@ public class RedditSearchAdapter {
     }
 
     public List<RedditPost> fetchTopPosts() {
-        ReportProperties.RedditProperties cfg = reportProperties.reddit();
         List<RedditPost> result = new ArrayList<>();
         for (String subreddit : cfg.subreddits()) {
             result.addAll(fetchSubreddit(subreddit, cfg.limit(), cfg.minScore()));

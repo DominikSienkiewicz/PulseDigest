@@ -112,6 +112,37 @@ class SupabaseHistoricalDigestAdapterIT {
         assertThat(digests).anyMatch(d -> d.items().size() == 1);
     }
 
+    @Test
+    void deduplicatesByDayKeepingLatestRun() {
+        Instant morning = Instant.now().truncatedTo(ChronoUnit.DAYS).plus(6, ChronoUnit.HOURS);
+        Instant evening = morning.plus(10, ChronoUnit.HOURS);
+
+        insertRow("morning-run", morning,
+                "{\"report\":{\"items\":[{\"title\":\"morning\",\"category\":\"AI/LLM\",\"score\":4}]}}");
+        insertRow("evening-run", evening,
+                "{\"report\":{\"items\":[{\"title\":\"evening\",\"category\":\"AI/LLM\",\"score\":9}]}}");
+
+        List<HistoricalDigest> digests = adapter.fetchRecent(7);
+
+        assertThat(digests)
+                .as("two runs on the same day must collapse to the latest one")
+                .hasSize(1);
+        assertThat(digests.getFirst().items().getFirst().title()).isEqualTo("evening");
+    }
+
+    @Test
+    void keepsRunsOnDifferentDaysSeparate() {
+        Instant today = Instant.now().truncatedTo(ChronoUnit.DAYS).plus(8, ChronoUnit.HOURS);
+        Instant yesterday = today.minus(1, ChronoUnit.DAYS);
+        Instant twoDaysAgo = today.minus(2, ChronoUnit.DAYS);
+
+        insertRow("d0", today, "{\"report\":{\"items\":[]}}");
+        insertRow("d-1", yesterday, "{\"report\":{\"items\":[]}}");
+        insertRow("d-2", twoDaysAgo, "{\"report\":{\"items\":[]}}");
+
+        assertThat(adapter.fetchRecent(7)).hasSize(3);
+    }
+
     private void insertRow(String jobId, Instant generatedAt, String payload) {
         jdbc.sql("INSERT INTO reports (job_id, generated_at, payload) VALUES (?, ?, ?::jsonb)")
                 .params(jobId, OffsetDateTime.ofInstant(generatedAt, ZoneOffset.UTC), payload)

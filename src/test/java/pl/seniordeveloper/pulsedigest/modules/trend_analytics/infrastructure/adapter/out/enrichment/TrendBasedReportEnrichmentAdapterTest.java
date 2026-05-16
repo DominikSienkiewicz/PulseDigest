@@ -11,7 +11,7 @@ import pl.seniordeveloper.pulsedigest.modules.trend_analytics.domain.model.Histo
 import pl.seniordeveloper.pulsedigest.modules.trend_analytics.domain.model.TrendCluster;
 import pl.seniordeveloper.pulsedigest.modules.trend_analytics.domain.port.out.HistoricalDigestPort;
 import pl.seniordeveloper.pulsedigest.modules.trend_analytics.domain.port.out.TrendNarrativePort;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.TrendProperties;
 import pl.seniordeveloper.pulsedigest.shared.result.Result;
 
 import java.util.List;
@@ -23,6 +23,7 @@ class TrendBasedReportEnrichmentAdapterTest {
 
     private static final ReportData BASE_REPORT = new ReportData(
             "preview", "editorial", List.of("insight"), List.of(), List.of());
+    private static final TrendProperties DEFAULT_PROPS = new TrendProperties(true, 7, 2, 5);
 
     private TrendBasedReportEnrichmentAdapter adapter;
     private FixedAnalyzeTrendsService trendsService;
@@ -30,7 +31,7 @@ class TrendBasedReportEnrichmentAdapterTest {
     @BeforeEach
     void setUp() {
         trendsService = new FixedAnalyzeTrendsService();
-        adapter = new TrendBasedReportEnrichmentAdapter(trendsService, propertiesWithTrend(7, 2, 5));
+        adapter = new TrendBasedReportEnrichmentAdapter(trendsService, DEFAULT_PROPS);
     }
 
     @Test
@@ -53,30 +54,6 @@ class TrendBasedReportEnrichmentAdapterTest {
         ReportData enriched = adapter.enrich(BASE_REPORT);
 
         assertThat(enriched).isSameAs(BASE_REPORT);
-    }
-
-    @Test
-    void returnsOriginalReportWhenTrendPropertiesMissing() {
-        adapter = new TrendBasedReportEnrichmentAdapter(trendsService, propertiesWithoutTrend());
-
-        ReportData enriched = adapter.enrich(BASE_REPORT);
-
-        assertThat(enriched).isSameAs(BASE_REPORT);
-    }
-
-    private static ReportProperties propertiesWithTrend(int days, int min, int max) {
-        return new ReportProperties(
-                60, 30, null, null, null, null, null, null, null, null,
-                new ReportProperties.TrendProperties(true, days, min, max),
-                null, null, null, null, null, null, null, null, null, null
-        );
-    }
-
-    private static ReportProperties propertiesWithoutTrend() {
-        return new ReportProperties(
-                60, 30, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null
-        );
     }
 
     private static final class FixedAnalyzeTrendsService extends AnalyzeTrendsService {

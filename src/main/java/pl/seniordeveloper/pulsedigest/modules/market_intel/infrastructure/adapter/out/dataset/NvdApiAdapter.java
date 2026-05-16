@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.http.ExternalRestClients;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.NvdVulnerability;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.NvdProperties;
 
 import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
@@ -27,16 +27,12 @@ import java.util.Set;
 @Service
 public class NvdApiAdapter {
 
-    private final ReportProperties.NvdProperties properties;
+    private final NvdProperties properties;
     private final ObjectMapper objectMapper;
     private RestClient restClient;
 
     @Autowired
-    public NvdApiAdapter(ReportProperties reportProperties, ObjectMapper objectMapper) {
-        this(reportProperties.nvd(), objectMapper);
-    }
-
-    NvdApiAdapter(ReportProperties.NvdProperties properties, ObjectMapper objectMapper) {
+    public NvdApiAdapter(NvdProperties properties, ObjectMapper objectMapper) {
         this.properties = properties;
         this.objectMapper = objectMapper;
     }

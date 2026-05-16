@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SoftwareRelease;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.GithubReleasesProperties;
 
 import java.util.List;
 
@@ -48,8 +48,8 @@ class GithubReleasesAdapterTest {
 
     @BeforeEach
     void setUp() {
-        ReportProperties.GithubReleasesProperties props =
-                new ReportProperties.GithubReleasesProperties(
+        GithubReleasesProperties props =
+                new GithubReleasesProperties(
                         List.of("spring-projects/spring-boot"), 48);
         adapter = new GithubReleasesAdapter(props, new ObjectMapper());
     }

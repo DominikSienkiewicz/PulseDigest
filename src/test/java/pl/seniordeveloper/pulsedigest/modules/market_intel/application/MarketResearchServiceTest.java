@@ -20,8 +20,8 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Security
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SoftwareRelease;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceFetchStatus;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Tweet;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.application.policy.ResearchPolicy;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.MarketIntelligencePort;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportProperties;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -37,7 +37,7 @@ class MarketResearchServiceTest {
     void fetchAndFilterAggregatesCanonicalizesAndFiltersSources() {
         MarketResearchService service = new MarketResearchService(
                 new StubMarketIntelligencePort(false),
-                properties(),
+                researchPolicy(),
                 Runnable::run);
 
         ResearchResult result = service.fetchAndFilter();
@@ -65,7 +65,7 @@ class MarketResearchServiceTest {
     void fetchAndFilterRecordsFailedSourceAndContinues() {
         MarketResearchService service = new MarketResearchService(
                 new StubMarketIntelligencePort(true),
-                properties(),
+                researchPolicy(),
                 Runnable::run);
 
         ResearchResult result = service.fetchAndFilter();
@@ -80,33 +80,8 @@ class MarketResearchServiceTest {
                 });
     }
 
-    private static ReportProperties properties() {
-        return new ReportProperties(
-                60,
-                15,
-                new ReportProperties.EmailProperties("resend-key", "from@example.com", "to@example.com"),
-                new ReportProperties.ResearchProperties(10, 2, List.of("authority")),
-                new ReportProperties.HackerNewsProperties("https://hn.example", List.of("java"), 10, 0),
-                new ReportProperties.GithubProperties("language:java", 10),
-                new ReportProperties.RssProperties(10, List.of(
-                        new ReportProperties.RssProperties.FeedConfig("Java", "https://blog.example/rss"))),
-                new ReportProperties.RedditProperties(List.of("java"), 10, 0),
-                new ReportProperties.ArxivProperties("cs.SE", "java", 10, 24),
-                new ReportProperties.GithubReleasesProperties(List.of("spring/project"), 24),
-                new ReportProperties.TrendProperties(true, 7, 2, 5),
-                new ReportProperties.HuggingFaceProperties("https://hf.example", 10, 0, 0, List.of("text")),
-                new ReportProperties.ProductHuntProperties("https://ph.example", "token", 0, 24, List.of("Dev")),
-                new ReportProperties.SecurityAdvisoriesProperties(
-                        "https://ghsa.example", 10, 24, List.of("HIGH"), List.of("Maven")),
-                new ReportProperties.NvdProperties("https://nvd.example", 10, 24, List.of("HIGH")),
-                new ReportProperties.LibrariesIoProperties("https://libraries.example", "key", 10, List.of("Maven"), 7),
-                new ReportProperties.OpenJdkProperties("https://openjdk.example", 7, List.of("delivered")),
-                new ReportProperties.CncfLandscapeProperties("https://cncf.example", 7, List.of("graduated")),
-                new ReportProperties.TechnologyRadarProperties("https://radar.example", "/radar.json", 3),
-                new ReportProperties.ConferenceTalksProperties("https://youtube.example", "key", 7, 10, List.of(
-                        new ReportProperties.ConferenceTalksProperties.ChannelConfig("Devoxx", "Devoxx", "channel"))),
-                new ReportProperties.DbEnginesProperties("https://db.example", 30, 0)
-        );
+    private static ResearchPolicy researchPolicy() {
+        return new ResearchPolicy(10, 2, List.of("authority"));
     }
 
     private static String recentHoursAgo(int hours) {

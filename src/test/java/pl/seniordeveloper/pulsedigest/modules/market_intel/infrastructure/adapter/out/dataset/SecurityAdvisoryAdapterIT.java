@@ -8,7 +8,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.client.RestClient;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SecurityAdvisory;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.SecurityAdvisoriesProperties;
 
 import java.lang.reflect.Field;
 import java.time.LocalDateTime;
@@ -31,8 +31,8 @@ class SecurityAdvisoryAdapterIT {
         wireMock = new WireMockServer(WireMockConfiguration.wireMockConfig().dynamicPort());
         wireMock.start();
 
-        ReportProperties.SecurityAdvisoriesProperties props =
-                new ReportProperties.SecurityAdvisoriesProperties(
+        SecurityAdvisoriesProperties props =
+                new SecurityAdvisoriesProperties(
                         "http://localhost:" + wireMock.port(),
                         50,
                         72,

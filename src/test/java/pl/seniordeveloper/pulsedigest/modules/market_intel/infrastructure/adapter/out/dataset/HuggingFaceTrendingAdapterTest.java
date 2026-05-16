@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.HuggingFaceModel;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.HuggingFaceProperties;
 
 import java.util.List;
 
@@ -49,8 +49,8 @@ class HuggingFaceTrendingAdapterTest {
 
     @BeforeEach
     void setUp() {
-        ReportProperties.HuggingFaceProperties props =
-                new ReportProperties.HuggingFaceProperties(
+        HuggingFaceProperties props =
+                new HuggingFaceProperties(
                         "https://huggingface.co/api/models",
                         30,
                         10,

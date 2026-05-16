@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.http.ExternalRestClients;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.HuggingFaceModel;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.HuggingFaceProperties;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -25,16 +25,12 @@ import java.util.Set;
 @Service
 public class HuggingFaceTrendingAdapter {
 
-    private final ReportProperties.HuggingFaceProperties properties;
+    private final HuggingFaceProperties properties;
     private final ObjectMapper objectMapper;
     private RestClient restClient;
 
     @Autowired
-    public HuggingFaceTrendingAdapter(ReportProperties reportProperties, ObjectMapper objectMapper) {
-        this(reportProperties.huggingFace(), objectMapper);
-    }
-
-    HuggingFaceTrendingAdapter(ReportProperties.HuggingFaceProperties properties, ObjectMapper objectMapper) {
+    public HuggingFaceTrendingAdapter(HuggingFaceProperties properties, ObjectMapper objectMapper) {
         this.properties = properties;
         this.objectMapper = objectMapper;
     }

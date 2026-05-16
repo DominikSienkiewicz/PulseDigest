@@ -4,6 +4,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+import pl.seniordeveloper.pulsedigest.shared.async.AsyncQualifiers;
 
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
@@ -12,10 +13,7 @@ import java.util.concurrent.Executors;
 @EnableAsync
 public class AsyncConfig {
 
-    public static final String REPORT_EXECUTOR = "reportTaskExecutor";
-    public static final String DATA_FETCH_EXECUTOR = "dataFetchExecutor";
-
-    @Bean(name = REPORT_EXECUTOR)
+    @Bean(name = AsyncQualifiers.REPORT_EXECUTOR)
     public Executor reportTaskExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
         executor.setCorePoolSize(2);
@@ -28,7 +26,7 @@ public class AsyncConfig {
         return executor;
     }
 
-    @Bean(name = DATA_FETCH_EXECUTOR)
+    @Bean(name = AsyncQualifiers.DATA_FETCH_EXECUTOR)
     public Executor dataFetchExecutor() {
         return Executors.newVirtualThreadPerTaskExecutor();
     }
