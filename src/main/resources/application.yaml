@@ -22,10 +22,13 @@ spring:
 twitter:
   bearer-token: "${TWITTER_BEARER_TOKEN:}"
   queries:
-    - "Java Spring AI agents -is:retweet lang:en"
-    - "LangGraph LangChain agents -is:retweet lang:en"
-    - "AWS architecture serverless -is:retweet lang:en"
-    - "(Next.js OR React) performance -is:retweet lang:en"
+    - "Spring AI agents OR Spring Boot -is:retweet lang:en"
+    - "LangChain LangGraph OR LlamaIndex -is:retweet lang:en"
+    - "Kubernetes operators OR CNCF -is:retweet lang:en"
+    - "Virtual Threads OR GraalVM OR Quarkus -is:retweet lang:en"
+    - "vLLM OR Ollama OR llama.cpp inference -is:retweet lang:en"
+    - "MCP Model Context Protocol -is:retweet lang:en"
+    - "serverless OR Knative OR eBPF -is:retweet lang:en"
     - "DDD domain driven design -is:retweet lang:en"
   accounts:
     # Java ecosystem
@@ -145,12 +148,26 @@ report:
     keywords:
       - ai
       - llm
+      - agent
+      - rag
+      - mcp
       - java
-      - security
+      - jvm
+      - kotlin
+      - spring
+      - quarkus
+      - graalvm
+      - python
+      - langchain
       - kubernetes
-      - rust
+      - container
+      - docker
+      - cncf
+      - serverless
+      - edge
       - devops
-      - open source
+      - opentelemetry
+      - observability
     limit: 15
     min-score: 25
 
@@ -246,7 +263,7 @@ report:
       - "artificial"
   arxiv:
     categories: "cs.AI,cs.LG,cs.CR,cs.DC,cs.PL"
-    keywords: "agent,llm,rag,inference,jvm,virtual thread,security,vulnerability,training,alignment,safety,fine-tuning,speculative,decoding"
+    keywords: "agent,llm,rag,inference,jvm,virtual thread,kubernetes,container,orchestration,serverless,edge,mcp,vector,embedding,fine-tuning,training,alignment,safety,speculative,decoding,quantization"
     max-results: 20
     lookback-hours: 48
 

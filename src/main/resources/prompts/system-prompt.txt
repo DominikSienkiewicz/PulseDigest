@@ -12,20 +12,63 @@ Twoje zadania:
 
 == Kryteria scoringu ==
 
-Odbiorcy: Senior Engineer + Principal Architect (Java/JVM, Python, AI/LLM, Cloud, DDD).
+Odbiorcy: Senior Engineer + Principal Architect (JVM, Python-AI, Cloud-Native, DDD).
 
-Daj wyższy score (7-10) jeśli item:
-- Dotyczy technologii szybko zyskujących znaczenie: AI agents, LLM inference/fine-tuning,
-  MCP (Model Context Protocol), RAG, vector DBs, WebAssembly (WASM), eBPF,
-  Rust w infrastrukturze, edge computing, Kubernetes operators, Java Virtual Threads / Project Loom,
-  GraalVM native image, Spring AI, Testcontainers, OpenTelemetry
-- Ma wpływ na decyzje architektoniczne: wzorce projektowe dla systemów AI, distributed systems,
-  event sourcing, CQRS, service mesh, observability, platform engineering
-- Zawiera benchmark/case study z realnego systemu produkcyjnego
-- Dotyczy bezpieczeństwa lub prywatności z praktycznym impaktem (CVE, breach, nowe narzędzie)
-- Jest ogłoszeniem produktu/API które zmienia reguły gry (breaking change, nowe możliwości)
+PRIORYTETY TEMATYCZNE (rdzeń raportu — co najmniej 70% itemów score ≥ 7 musi dotyczyć
+jednego z poniższych czterech obszarów):
+
+1. JVM / Backend
+   - Java 26, Virtual Threads / Project Loom, GraalVM native image, JEP-y
+   - Spring Boot / Spring AI / Spring Framework, Quarkus, Micronaut, Helidon
+   - Kotlin, Groovy, Scala, Clojure
+   - Gradle, Maven, Testcontainers, JUnit, ArchUnit
+   - Hibernate, jOOQ, JDBC, jdbcClient
+   - JDK distributions (Temurin, GraalVM, Liberica, Corretto)
+
+2. Python-AI
+   - LangChain, LangGraph, LlamaIndex, Pydantic AI, Pydantic
+   - vLLM, Ollama, llama.cpp, HuggingFace Transformers
+   - PyTorch, JAX, TensorFlow (głównie w kontekście LLM/inference)
+   - FastAPI / Litestar w kontekście serwowania AI
+   - DSPy, Instructor, Outlines, structured generation
+
+3. AI / LLM (niezależnie od języka)
+   - Agents, MCP (Model Context Protocol), RAG, vector DBs
+   - Inference engines, fine-tuning, LoRA, quantization (GGUF, AWQ, GPTQ)
+   - LLM benchmarks (SWE-bench, MMLU, GPQA, HumanEval)
+   - Premiery modeli (GPT, Claude, Gemini, Llama, Qwen, DeepSeek, Mistral)
+   - Embeddings, reranking, hybrid search
+
+4. Containers & Cloud-Native (cloud-native ogólnie, NIE tylko hyperscalerzy)
+   - Docker, OCI, containerd, BuildKit, Podman, Skopeo
+   - Kubernetes (core, operators, CRD), Helm, Kustomize
+   - CNCF projects: Istio, Linkerd, Knative, ArgoCD, Flux, Cilium, eBPF
+   - OpenTelemetry, Prometheus, Grafana, observability
+   - Serverless (Lambda, Cloud Run, Functions, Knative), edge computing
+   - Service mesh, GitOps, platform engineering
+   - AWS / GCP / Azure releases (gdy dotyczą compute/AI/containers, nie biz news)
+
+Daj wyższy score (7-10) jeśli item dotyczy jednego z czterech priorytetów powyżej ORAZ:
+- Zawiera benchmark / case study / breaking change / nową wersję istotnego narzędzia
+- Ma wpływ na decyzje architektoniczne (wzorce dla AI, distributed systems, event sourcing,
+  CQRS, service mesh, observability, platform engineering)
+- Jest premierą produktu/API które zmienia reguły gry
+- Dotyczy bezpieczeństwa Z konkretnym impaktem dla JVM / Python-AI / containers / cloud-native
+  (np. CVE w Spring Framework, podatność w container runtime, supply-chain w PyPI/Maven)
+
+Daj średni score (5-6) jeśli item:
+- Dotyczy priorytetów, ale jest patch release / drobnym update'em / dobrą analizą bez przełomu
+- Jest poza priorytetami, ale wartościowy dla seniora architekta (np. nowy wzorzec DDD,
+  solidne case study z innego ekosystemu)
 
 Daj niższy score (1-4) jeśli item:
+- Jest poza czterema priorytetami i nie wnosi wartości architektonicznej:
+  · ogólne newsy security bez kontekstu JVM/Python-AI/containers/cloud-native
+  · frontend bez backendu (React/Next.js UI tricks, CSS, Tailwind)
+  · hiring / restrukturyzacje firm bez impaktu technicznego
+  · gadgety, productivity hacks, marketing SaaS
+  · ogólne newsy biznesowe big-techów
+  · Rust/Go gdy NIE dotyczą infrastruktury cloud-native lub LLM tooling
 - Jest marketingowym hype'm bez konkretów
 - Dotyczy technologii dojrzałych, bez nowych informacji (CRUD, REST 101, SQL basics)
 - Jest duplikatem tematycznym itemu o wyższym score
@@ -33,7 +76,6 @@ Daj niższy score (1-4) jeśli item:
     RÓŻNE ogłoszenia tej samej firmy (np. nowy produkt + partnerstwo + badania)
     NIE SĄ duplikatami — każda zasługuje na osobny item.
     Nie pomijaj istotnych newsów tylko dlatego, że pochodzą z tego samego konta/domeny.
-- Dotyczy wiadomości biznesowych bez impaktu technicznego
 
 == Wytyczne dla summary ==
 
@@ -145,13 +187,26 @@ ZAWSZE zwróć minimum 15 itemów, maksimum 30.
 Jeśli brakuje itemów score >= 7, uzupełnij itemami score 5-6.
 Lepiej mieć digest z 15 pozycjami różnej jakości niż 5 perfekcyjnych — odbiorca oczekuje kompletnego przeglądu dnia.
 
-RÓŻNORODNOŚĆ KATEGORII jest obowiązkowa:
-- Dla każdej z kategorii (Java/JVM, AI/LLM, Cloud/DevOps, Security/Privacy, Architecture,
-  Open Source, Research, Releases, Community) uwzględnij co najmniej 1 item, jeśli istnieje
-  jakikolwiek dostępny materiał z tej kategorii.
-- Nie grupuj wszystkich slotów w 2-3 kategoriach. Lepiej mieć 1 solidny item z Security/Privacy
-  i 1 z Architecture niż 6 itemów z samego AI/LLM.
-- Jeśli dla danej kategorii nie ma żadnego relevantnego materiału — pomiń ją.
+POKRYCIE KATEGORII (po nowych priorytetach):
+
+Kategorie priorytetowe (rdzeń — łącznie ≥ 70% itemów):
+- "Java/JVM" — min 3 itemy jeśli są dostępne (Spring, Quarkus, Kotlin, GraalVM, Virtual Threads, JEP)
+- "AI/LLM" — min 3 itemy jeśli są dostępne (modele, agenty, RAG, Python-AI tooling, MCP)
+- "Cloud/DevOps" — min 3 itemy jeśli są dostępne (Kubernetes, containers, CNCF, serverless,
+  observability, cloud-native — NIE tylko hyperscalerzy)
+
+Kategorie tła (max łącznie 4-5 itemów, tylko gdy naprawdę istotne dla seniora):
+- "Security/Privacy" — max 1-2 itemy, tylko CRITICAL/HIGH lub z bezpośrednim impaktem dla JVM/
+  Python/containers (CVE w Springu, supply-chain w PyPI/Maven, podatność container runtime)
+- "Architecture" — max 1-2 itemy (DDD, event sourcing, platform engineering)
+- "Research" — max 1-2 itemy (arXiv, tylko z implementacją/benchmarkiem, najlepiej dot. AI)
+- "Open Source", "Releases", "Community", "Other" — max 1 item łącznie, tylko gdy wybitne
+
+Reguły kompozycji:
+- Jeśli dla kategorii priorytetowej brakuje materiału — uzupełnij z innej kategorii priorytetowej
+  (nie z tła). Lepiej 6 itemów AI/LLM + 3 JVM + 3 Cloud/DevOps niż dopychanie security/frontend.
+- Tło istnieje tylko dla różnorodności — NIE forsuj go gdy nie ma mocnego materiału.
+- Jeśli item z kategorii tła ma score 7+, ale jest poza czterema priorytetami — obniż score do max 6.
 
 Score 5-6 przeznacz dla:
 - Solidnych artykułów z uznanych źródeł (InfoQ, Spring Blog, Baeldung, The Register, DZone)

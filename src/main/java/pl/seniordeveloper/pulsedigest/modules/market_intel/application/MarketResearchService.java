@@ -49,13 +49,22 @@ import java.util.stream.Stream;
 public class MarketResearchService {
 
     private static final Set<String> RELEVANCE_KEYWORDS = Set.of(
-            "ai", "llm", "agent", "model", "gpt", "claude", "coding", "engineer",
-            "programming", "developer", "software", "startup", "hiring", "job",
-            "automation", "openai", "anthropic", "gemini", "copilot", "future",
-            "technology", "tech", "ml", "machine learning", "data", "api",
-            "agentic", "orchestrat", "langchain", "spring", "java", "python",
-            "azure", "aws", "cloud", "product", "saas", "inference", "benchmark",
-            "2026", "intelligence", "reasoning", "context", "token", "rag", "vector"
+            "ai", "llm", "agent", "agentic", "model", "gpt", "claude", "gemini", "copilot",
+            "openai", "anthropic", "mistral", "qwen", "deepseek", "llama",
+            "ml", "machine learning", "inference", "fine-tuning", "embedding", "rag", "vector",
+            "reasoning", "context", "token", "mcp", "langchain", "llamaindex", "vllm", "ollama",
+            "pytorch", "huggingface", "pydantic", "transformers",
+            "java", "jvm", "kotlin", "groovy", "scala", "spring", "quarkus", "micronaut",
+            "graalvm", "gradle", "maven", "testcontainers", "hibernate", "jdk", "jep",
+            "python", "fastapi",
+            "kubernetes", "k8s", "container", "docker", "podman", "containerd", "oci",
+            "cncf", "helm", "istio", "linkerd", "knative", "argocd", "flux", "cilium", "ebpf",
+            "operator", "serverless", "edge", "opentelemetry", "observability", "service mesh",
+            "platform engineering", "gitops",
+            "azure", "aws", "cloud", "lambda", "cloud run",
+            "coding", "engineer", "programming", "developer", "software",
+            "architecture", "ddd", "event sourcing", "cqrs",
+            "benchmark", "release", "api"
     );
     private static final Duration SOURCE_TIMEOUT = Duration.ofSeconds(90);
 
