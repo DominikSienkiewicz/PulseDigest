@@ -37,45 +37,61 @@ public class RedditSearchAdapter {
 
     public List<RedditPost> fetchTopPosts() {
         List<RedditPost> result = new ArrayList<>();
+        int failed = 0;
+        Exception lastError = null;
         for (String subreddit : cfg.subreddits()) {
-            result.addAll(fetchSubreddit(subreddit, cfg.limit(), cfg.minScore()));
+            try {
+                result.addAll(fetchSubreddit(subreddit, cfg.limit(), cfg.minScore()));
+            } catch (Exception e) {
+                failed++;
+                lastError = e;
+                log.warn("Błąd pobierania r/{}: {}", subreddit, e.getMessage());
+            }
         }
-        log.info("Reddit łącznie: {} postów z {} subredditów", result.size(), cfg.subreddits().size());
+        if (failed > 0 && failed == cfg.subreddits().size()) {
+            throw new IllegalStateException(
+                    "All " + failed + " Reddit subreddits failed; last error: "
+                            + (lastError != null ? lastError.getMessage() : "unknown"),
+                    lastError);
+        }
+        log.info("Reddit łącznie: {} postów z {} subredditów ({} udanych)",
+                result.size(), cfg.subreddits().size(), cfg.subreddits().size() - failed);
         return result;
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
 
     private List<RedditPost> fetchSubreddit(String subreddit, int limit, int minScore) {
-        try {
-            String json = restClient.get()
-                    .uri("/r/{sub}/top.json?t=day&limit={limit}", subreddit, limit)
-                    .retrieve()
-                    .body(String.class);
+        // HTTP errors propagate; caller aggregates per-subreddit failures.
+        String json = restClient.get()
+                .uri("/r/{sub}/top.json?t=day&limit={limit}", subreddit, limit)
+                .retrieve()
+                .body(String.class);
 
-            if (json == null || json.isBlank()) {
-                log.warn("Pusta odpowiedź dla r/{}", subreddit);
-                return List.of();
-            }
-
-            RedditResponse response = objectMapper.readValue(json, RedditResponse.class);
-            if (response.data() == null || response.data().children() == null) {
-                return List.of();
-            }
-
-            List<RedditPost> posts = response.data().children().stream()
-                    .map(child -> child.data())
-                    .filter(d -> d.score() >= minScore)
-                    .map(d -> new RedditPost(d.title(), resolveUrl(d), d.score(), subreddit))
-                    .toList();
-
-            log.info("r/{}: {} postów (min score={})", subreddit, posts.size(), minScore);
-            return posts;
-
-        } catch (Exception e) {
-            log.warn("Błąd pobierania r/{}: {}", subreddit, e.getMessage());
+        if (json == null || json.isBlank()) {
+            log.warn("Pusta odpowiedź dla r/{}", subreddit);
             return List.of();
         }
+
+        RedditResponse response;
+        try {
+            response = objectMapper.readValue(json, RedditResponse.class);
+        } catch (Exception e) {
+            log.warn("Reddit r/{} parse failed: {}", subreddit, e.getMessage());
+            return List.of();
+        }
+        if (response.data() == null || response.data().children() == null) {
+            return List.of();
+        }
+
+        List<RedditPost> posts = response.data().children().stream()
+                .map(Child::data)
+                .filter(d -> d.score() >= minScore)
+                .map(d -> new RedditPost(d.title(), resolveUrl(d), d.score(), subreddit))
+                .toList();
+
+        log.info("r/{}: {} postów (min score={})", subreddit, posts.size(), minScore);
+        return posts;
     }
 
     /**

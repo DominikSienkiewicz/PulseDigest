@@ -55,27 +55,23 @@ public class OpenJdkJepAdapter {
     }
 
     public List<JepUpdate> fetchJepUpdates() {
-        try {
-            String since = ZonedDateTime.now()
-                    .minusDays(properties.lookbackDays())
-                    .format(DateTimeFormatter.ISO_INSTANT);
-            String json = restClient.get()
-                    .uri(uri -> uri
-                            .queryParam("since", since)
-                            .queryParam("per_page", 100)
-                            .build())
-                    .retrieve()
-                    .body(String.class);
-            if (json == null || json.isBlank()) {
-                return List.of();
-            }
-            List<JepUpdate> updates = parseJepUpdates(json);
-            log.info("OpenJDK JEP: {} updates (lookback={}d)", updates.size(), properties.lookbackDays());
-            return updates;
-        } catch (Exception e) {
-            log.warn("OpenJDK JEP fetch failed: {}", e.getMessage());
+        // HTTP errors propagate so MarketResearchService.fetchSource marks the source FAILED.
+        String since = ZonedDateTime.now()
+                .minusDays(properties.lookbackDays())
+                .format(DateTimeFormatter.ISO_INSTANT);
+        String json = restClient.get()
+                .uri(uri -> uri
+                        .queryParam("since", since)
+                        .queryParam("per_page", 100)
+                        .build())
+                .retrieve()
+                .body(String.class);
+        if (json == null || json.isBlank()) {
             return List.of();
         }
+        List<JepUpdate> updates = parseJepUpdates(json);
+        log.info("OpenJDK JEP: {} updates (lookback={}d)", updates.size(), properties.lookbackDays());
+        return updates;
     }
 
     List<JepUpdate> parseJepUpdates(String json) {

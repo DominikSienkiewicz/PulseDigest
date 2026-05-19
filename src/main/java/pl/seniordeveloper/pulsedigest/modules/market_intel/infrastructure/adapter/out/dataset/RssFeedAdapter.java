@@ -47,29 +47,40 @@ public class RssFeedAdapter {
 
     public List<RssItem> fetchAll() {
         List<RssItem> result = new ArrayList<>();
+        int failed = 0;
+        Exception lastError = null;
         for (RssProperties.FeedConfig feed : cfg.feeds()) {
-            result.addAll(fetchFeed(feed.url(), feed.name(), cfg.limit()));
+            try {
+                result.addAll(fetchFeed(feed.url(), feed.name(), cfg.limit()));
+            } catch (Exception e) {
+                failed++;
+                lastError = e;
+                log.warn("Błąd pobierania feeda [{}] {}: {}", feed.name(), feed.url(), e.getMessage());
+            }
         }
-        log.info("RSS łącznie: {} itemów z {} feedów", result.size(), cfg.feeds().size());
+        if (failed > 0 && failed == cfg.feeds().size()) {
+            throw new IllegalStateException(
+                    "All " + failed + " RSS feeds failed; last error: "
+                            + (lastError != null ? lastError.getMessage() : "unknown"),
+                    lastError);
+        }
+        log.info("RSS łącznie: {} itemów z {} feedów ({} udanych)",
+                result.size(), cfg.feeds().size(), cfg.feeds().size() - failed);
         return result;
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
 
-    private List<RssItem> fetchFeed(String url, String feedName, int limit) {
-        try {
-            String xml = restClient.get().uri(url).retrieve().body(String.class);
-            if (xml == null || xml.isBlank()) {
-                log.warn("Pusty feed: {}", feedName);
-                return List.of();
-            }
-            List<RssItem> items = parseXml(xml, feedName, limit);
-            log.info("Feed [{}]: {} itemów", feedName, items.size());
-            return items;
-        } catch (Exception e) {
-            log.warn("Błąd pobierania feeda [{}] {}: {}", feedName, url, e.getMessage());
+    private List<RssItem> fetchFeed(String url, String feedName, int limit) throws Exception {
+        // HTTP errors propagate; caller aggregates per-feed failures.
+        String xml = restClient.get().uri(url).retrieve().body(String.class);
+        if (xml == null || xml.isBlank()) {
+            log.warn("Pusty feed: {}", feedName);
             return List.of();
         }
+        List<RssItem> items = parseXml(xml, feedName, limit);
+        log.info("Feed [{}]: {} itemów", feedName, items.size());
+        return items;
     }
 
     private List<RssItem> parseXml(String xml, String feedName, int limit) throws Exception {

@@ -47,25 +47,21 @@ public class SecurityAdvisoryAdapter {
     }
 
     public List<SecurityAdvisory> fetchSecurityAdvisories() {
-        try {
-            String json = restClient.get()
-                    .uri(uri -> uri
-                            .queryParam("per_page", properties.limit())
-                            .queryParam("sort", "published")
-                            .queryParam("direction", "desc")
-                            .build())
-                    .retrieve()
-                    .body(String.class);
-            if (json == null || json.isBlank()) {
-                return List.of();
-            }
-            List<SecurityAdvisory> advisories = parseAdvisories(json);
-            log.info("Security Advisories: {} (limit={})", advisories.size(), properties.limit());
-            return advisories;
-        } catch (Exception e) {
-            log.warn("Security Advisories fetch failed: {}", e.getMessage());
+        // HTTP errors propagate so MarketResearchService.fetchSource marks the source FAILED.
+        String json = restClient.get()
+                .uri(uri -> uri
+                        .queryParam("per_page", properties.limit())
+                        .queryParam("sort", "published")
+                        .queryParam("direction", "desc")
+                        .build())
+                .retrieve()
+                .body(String.class);
+        if (json == null || json.isBlank()) {
             return List.of();
         }
+        List<SecurityAdvisory> advisories = parseAdvisories(json);
+        log.info("Security Advisories: {} (limit={})", advisories.size(), properties.limit());
+        return advisories;
     }
 
     List<SecurityAdvisory> parseAdvisories(String json) {

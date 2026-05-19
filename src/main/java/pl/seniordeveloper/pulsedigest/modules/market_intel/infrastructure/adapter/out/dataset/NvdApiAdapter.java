@@ -47,28 +47,24 @@ public class NvdApiAdapter {
     }
 
     public List<NvdVulnerability> fetchNvdVulnerabilities() {
-        try {
-            String json = restClient.get()
-                    .uri(uri -> uri
-                            .queryParam("pubStartDate", ZonedDateTime.now()
-                                    .minusHours(properties.lookbackHours())
-                                    .format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS")))
-                            .queryParam("pubEndDate", ZonedDateTime.now()
-                                    .format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS")))
-                            .queryParam("resultsPerPage", properties.resultsPerPage())
-                            .build())
-                    .retrieve()
-                    .body(String.class);
-            if (json == null || json.isBlank()) {
-                return List.of();
-            }
-            List<NvdVulnerability> vulns = parseVulnerabilities(json);
-            log.info("NVD: {} CVEs fetched (limit={})", vulns.size(), properties.resultsPerPage());
-            return vulns;
-        } catch (Exception e) {
-            log.warn("NVD fetch failed: {}", e.getMessage());
+        // HTTP errors propagate so MarketResearchService.fetchSource marks the source FAILED.
+        String json = restClient.get()
+                .uri(uri -> uri
+                        .queryParam("pubStartDate", ZonedDateTime.now()
+                                .minusHours(properties.lookbackHours())
+                                .format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS")))
+                        .queryParam("pubEndDate", ZonedDateTime.now()
+                                .format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS")))
+                        .queryParam("resultsPerPage", properties.resultsPerPage())
+                        .build())
+                .retrieve()
+                .body(String.class);
+        if (json == null || json.isBlank()) {
             return List.of();
         }
+        List<NvdVulnerability> vulns = parseVulnerabilities(json);
+        log.info("NVD: {} CVEs fetched (limit={})", vulns.size(), properties.resultsPerPage());
+        return vulns;
     }
 
     List<NvdVulnerability> parseVulnerabilities(String json) {

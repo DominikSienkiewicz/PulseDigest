@@ -55,21 +55,17 @@ public class DbEnginesAdapter {
     }
 
     public List<DbEngineRanking> fetchDbEngineRankings() {
-        try {
-            String html = restClient.get()
-                    .retrieve()
-                    .body(String.class);
-            if (html == null || html.isBlank()) {
-                return List.of();
-            }
-            List<DbEngineRanking> rankings = parseRankings(html);
-            log.info("DB-Engines: {} significant movers (minScoreChange={})",
-                    rankings.size(), properties.minScoreChange());
-            return rankings;
-        } catch (Exception e) {
-            log.warn("DB-Engines fetch failed: {}", e.getMessage());
+        // HTTP errors propagate so MarketResearchService.fetchSource marks the source FAILED.
+        String html = restClient.get()
+                .retrieve()
+                .body(String.class);
+        if (html == null || html.isBlank()) {
             return List.of();
         }
+        List<DbEngineRanking> rankings = parseRankings(html);
+        log.info("DB-Engines: {} significant movers (minScoreChange={})",
+                rankings.size(), properties.minScoreChange());
+        return rankings;
     }
 
     List<DbEngineRanking> parseRankings(String html) {

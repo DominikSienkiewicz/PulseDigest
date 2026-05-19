@@ -52,44 +52,45 @@ public class GithubSearchAdapter {
         log.info("Przeszukuję GitHub: {}", query);
         int limit = props.limit() > 0 ? props.limit() : 5;
 
+        // HTTP/transport errors propagate so MarketResearchService.fetchSource marks the source FAILED.
+        URI uri = UriComponentsBuilder.fromUriString(API_URL)
+                .queryParam("q", query)
+                .queryParam("sort", "stars")
+                .queryParam("order", "desc")
+                .queryParam("per_page", limit)
+                .build()
+                .toUri();
+
+        String rawJson = restClient.get()
+                .uri(uri)
+                .retrieve()
+                .body(String.class);
+
+        GhResponse response;
         try {
-            URI uri = UriComponentsBuilder.fromUriString(API_URL)
-                    .queryParam("q", query)
-                    .queryParam("sort", "stars")
-                    .queryParam("order", "desc")
-                    .queryParam("per_page", limit)
-                    .build()
-                    .toUri();
-
-            String rawJson = restClient.get()
-                    .uri(uri)
-                    .retrieve()
-                    .body(String.class);
-
-            GhResponse response = objectMapper.readValue(rawJson, GhResponse.class);
-
-            if (response.items() == null || response.items().isEmpty()) {
-                log.info("Nie znaleziono pasujących repozytoriów dla GH Search.");
-                return List.of();
-            }
-
-            List<GithubRepo> repos = response.items().stream()
-                    .limit(limit)
-                    .map(it -> new GithubRepo(
-                            it.fullName() != null ? it.fullName() : "Brak nazwy",
-                            it.description() != null ? it.description() : "",
-                            it.stargazersCount() != null ? it.stargazersCount() : 0,
-                            it.htmlUrl() != null ? it.htmlUrl() : ""
-                    ))
-                    .collect(Collectors.toList());
-
-            log.info("Znaleziono {} repozytoriów na platformie GitHub.", repos.size());
-            return repos;
-
+            response = objectMapper.readValue(rawJson, GhResponse.class);
         } catch (Exception e) {
-            log.error("Błąd podczas pobierania danych z GitHub Search API: {}", e.getMessage());
+            log.warn("GitHub Search response parse failed: {}", e.getMessage());
             return List.of();
         }
+
+        if (response.items() == null || response.items().isEmpty()) {
+            log.info("Nie znaleziono pasujących repozytoriów dla GH Search.");
+            return List.of();
+        }
+
+        List<GithubRepo> repos = response.items().stream()
+                .limit(limit)
+                .map(it -> new GithubRepo(
+                        it.fullName() != null ? it.fullName() : "Brak nazwy",
+                        it.description() != null ? it.description() : "",
+                        it.stargazersCount() != null ? it.stargazersCount() : 0,
+                        it.htmlUrl() != null ? it.htmlUrl() : ""
+                ))
+                .collect(Collectors.toList());
+
+        log.info("Znaleziono {} repozytoriów na platformie GitHub.", repos.size());
+        return repos;
     }
 
     // -------------------------------------------------------------------------

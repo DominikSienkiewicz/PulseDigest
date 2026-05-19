@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.http.ExternalRestClients;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Tweet;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ResearchProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.TwitterProperties;
 
 import java.time.ZoneOffset;
@@ -30,7 +31,9 @@ public class TwitterSearchAdapter {
     private static final DateTimeFormatter X_API_FMT =
             DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'");
     private static final int ACCOUNT_BATCH_SIZE = 8;
-    private static final int DAYS_BACK = 7;
+    private static final int MAX_RESULTS = 100;
+    private static final String SORT_RECENCY = "recency";
+    private static final String SORT_RELEVANCY = "relevancy";
 
     private static final String ANTHROPIC_QUERY =
             "(from:AnthropicAI OR from:claudeai) "
@@ -38,6 +41,7 @@ public class TwitterSearchAdapter {
 
     private final ObjectMapper objectMapper;
     private final TwitterProperties twitterProperties;
+    private final ResearchProperties researchProperties;
     private RestClient restClient;
 
     @PostConstruct
@@ -55,7 +59,7 @@ public class TwitterSearchAdapter {
         List<String> batchQueries = buildAccountBatchQueries(twitterProperties.accounts());
         List<Tweet> result = new ArrayList<>();
         for (String query : batchQueries) {
-            result.addAll(fetchTweets(query, 20, DAYS_BACK));
+            result.addAll(fetchTweets(query, MAX_RESULTS, researchProperties.daysBack(), SORT_RECENCY));
         }
         log.info("Influencer tweets łącznie: {} (z {} batchy kont)", result.size(), batchQueries.size());
         return result;
@@ -67,7 +71,7 @@ public class TwitterSearchAdapter {
     public List<Tweet> searchTopicTweets() {
         List<Tweet> result = new ArrayList<>();
         for (String query : twitterProperties.queries()) {
-            result.addAll(fetchTweets(query, 20, DAYS_BACK));
+            result.addAll(fetchTweets(query, MAX_RESULTS, researchProperties.daysBack(), SORT_RELEVANCY));
         }
         log.info("Topic tweets łącznie: {} (z {} queries)", result.size(), twitterProperties.queries().size());
         return result;
@@ -77,7 +81,7 @@ public class TwitterSearchAdapter {
      * Pobiera tweety Anthropic/Claude – kontekst produktowy.
      */
     public List<Tweet> searchAnthropicTweets() {
-        return fetchTweets(ANTHROPIC_QUERY, 15, DAYS_BACK);
+        return fetchTweets(ANTHROPIC_QUERY, MAX_RESULTS, researchProperties.daysBack(), SORT_RECENCY);
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
@@ -94,35 +98,34 @@ public class TwitterSearchAdapter {
         return batchQueries;
     }
 
-    private List<Tweet> fetchTweets(String query, int maxResults, int daysBack) {
+    private List<Tweet> fetchTweets(String query, int maxResults, int daysBack, String sortOrder) {
         ZonedDateTime now = ZonedDateTime.now(ZoneOffset.UTC);
         String endTime = now.minusMinutes(10).format(X_API_FMT);
         String startTime = now.minusDays(daysBack).format(X_API_FMT);
 
-        log.info("X API query [{} dni]: {}...", daysBack, query.substring(0, Math.min(70, query.length())));
+        log.info("X API query [{} dni, sort={}]: {}...",
+                daysBack, sortOrder, query.substring(0, Math.min(70, query.length())));
 
-        try {
-            String raw = restClient.get()
-                    .uri(uriBuilder -> uriBuilder
-                            .path("/tweets/search/recent")
-                            .queryParam("query", query)
-                            .queryParam("max_results", Math.max(10, Math.min(maxResults, 100)))
-                            .queryParam("tweet.fields", "created_at,author_id,text,public_metrics")
-                            .queryParam("expansions", "author_id")
-                            .queryParam("user.fields", "username,name")
-                            .queryParam("start_time", startTime)
-                            .queryParam("end_time", endTime)
-                            .queryParam("sort_order", "relevancy")
-                            .build())
-                    .retrieve()
-                    .body(String.class);
+        // HTTP/transport errors (402 CreditsDepleted, 401, 429, 5xx) intentionally propagate.
+        // MarketResearchService.fetchSource catches them and marks the source as FAILED in
+        // SourceFetchReport, so a dead Twitter feed shows up in the digest health section
+        // instead of silently returning zero items.
+        String raw = restClient.get()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/tweets/search/recent")
+                        .queryParam("query", query)
+                        .queryParam("max_results", Math.max(10, Math.min(maxResults, 100)))
+                        .queryParam("tweet.fields", "created_at,author_id,text,public_metrics")
+                        .queryParam("expansions", "author_id")
+                        .queryParam("user.fields", "username,name")
+                        .queryParam("start_time", startTime)
+                        .queryParam("end_time", endTime)
+                        .queryParam("sort_order", sortOrder)
+                        .build())
+                .retrieve()
+                .body(String.class);
 
-            return parseResponse(raw);
-        } catch (Exception e) {
-            log.error("Błąd X API [query={}...]: {}",
-                    query.substring(0, Math.min(40, query.length())), e.getMessage());
-            return List.of();
-        }
+        return parseResponse(raw);
     }
 
     private List<Tweet> parseResponse(String json) {

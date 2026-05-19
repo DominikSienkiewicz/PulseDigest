@@ -46,28 +46,39 @@ public class GithubReleasesAdapter {
 
     public List<SoftwareRelease> fetchLatestReleases() {
         List<SoftwareRelease> result = new ArrayList<>();
+        int failed = 0;
+        Exception lastError = null;
         for (String repo : properties.repositories()) {
-            result.addAll(fetchReleasesForRepo(repo));
+            try {
+                result.addAll(fetchReleasesForRepo(repo));
+            } catch (Exception e) {
+                failed++;
+                lastError = e;
+                log.warn("GitHub Releases fetch failed for {}: {}", repo, e.getMessage());
+            }
         }
-        log.info("GitHub Releases: {} releases from {} repos", result.size(), properties.repositories().size());
+        if (failed > 0 && failed == properties.repositories().size()) {
+            throw new IllegalStateException(
+                    "All " + failed + " GitHub Releases repos failed; last error: "
+                            + (lastError != null ? lastError.getMessage() : "unknown"),
+                    lastError);
+        }
+        log.info("GitHub Releases: {} releases from {} repos ({} udanych)",
+                result.size(), properties.repositories().size(), properties.repositories().size() - failed);
         return result;
     }
 
     private List<SoftwareRelease> fetchReleasesForRepo(String repoFullName) {
         String[] parts = repoFullName.split("/", 2);
-        try {
-            String json = restClient.get()
-                    .uri("/repos/{owner}/{repo}/releases?per_page=1", parts[0], parts[1])
-                    .retrieve()
-                    .body(String.class);
-            if (json == null || json.isBlank()) {
-                return List.of();
-            }
-            return parseReleases(json, repoFullName, properties.lookbackHours());
-        } catch (Exception e) {
-            log.warn("GitHub Releases fetch failed for {}: {}", repoFullName, e.getMessage());
+        // HTTP errors propagate; caller aggregates per-repo failures.
+        String json = restClient.get()
+                .uri("/repos/{owner}/{repo}/releases?per_page=1", parts[0], parts[1])
+                .retrieve()
+                .body(String.class);
+        if (json == null || json.isBlank()) {
             return List.of();
         }
+        return parseReleases(json, repoFullName, properties.lookbackHours());
     }
 
     List<SoftwareRelease> parseReleases(String json, String repoFullName, int lookbackHours) {

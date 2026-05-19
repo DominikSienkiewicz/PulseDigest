@@ -59,28 +59,24 @@ public class ProductHuntAdapter {
             log.info("Product Hunt: brak developer tokenu, pomijam fetch");
             return List.of();
         }
-        try {
-            Map<String, Object> body = Map.of(
-                    "query", GRAPHQL_QUERY,
-                    "variables", Map.of("first", Math.max(properties.minVotes() > 0 ? 25 : 10, 25))
-            );
-            String json = restClient.post()
-                    .uri("")
-                    .header("Authorization", "Bearer " + properties.developerToken())
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(body)
-                    .retrieve()
-                    .body(String.class);
-            if (json == null || json.isBlank()) {
-                return List.of();
-            }
-            List<ProductHuntPost> posts = parsePosts(json);
-            log.info("Product Hunt: {} launches", posts.size());
-            return posts;
-        } catch (Exception e) {
-            log.warn("Product Hunt fetch failed: {}", e.getMessage());
+        // HTTP errors propagate so MarketResearchService.fetchSource marks the source FAILED.
+        Map<String, Object> body = Map.of(
+                "query", GRAPHQL_QUERY,
+                "variables", Map.of("first", Math.max(properties.minVotes() > 0 ? 25 : 10, 25))
+        );
+        String json = restClient.post()
+                .uri("")
+                .header("Authorization", "Bearer " + properties.developerToken())
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body)
+                .retrieve()
+                .body(String.class);
+        if (json == null || json.isBlank()) {
             return List.of();
         }
+        List<ProductHuntPost> posts = parsePosts(json);
+        log.info("Product Hunt: {} launches", posts.size());
+        return posts;
     }
 
     List<ProductHuntPost> parsePosts(String json) {

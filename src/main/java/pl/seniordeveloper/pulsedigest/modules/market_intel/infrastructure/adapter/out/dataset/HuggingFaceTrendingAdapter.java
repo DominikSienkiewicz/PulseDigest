@@ -45,25 +45,21 @@ public class HuggingFaceTrendingAdapter {
     }
 
     public List<HuggingFaceModel> fetchTrendingModels() {
-        try {
-            String json = restClient.get()
-                    .uri(uri -> uri
-                            .queryParam("sort", "trendingScore")
-                            .queryParam("direction", "-1")
-                            .queryParam("limit", properties.limit())
-                            .build())
-                    .retrieve()
-                    .body(String.class);
-            if (json == null || json.isBlank()) {
-                return List.of();
-            }
-            List<HuggingFaceModel> models = parseModels(json);
-            log.info("Hugging Face: {} trending models (limit={})", models.size(), properties.limit());
-            return models;
-        } catch (Exception e) {
-            log.warn("Hugging Face fetch failed: {}", e.getMessage());
+        // HTTP errors propagate so MarketResearchService.fetchSource marks the source FAILED.
+        String json = restClient.get()
+                .uri(uri -> uri
+                        .queryParam("sort", "trendingScore")
+                        .queryParam("direction", "-1")
+                        .queryParam("limit", properties.limit())
+                        .build())
+                .retrieve()
+                .body(String.class);
+        if (json == null || json.isBlank()) {
             return List.of();
         }
+        List<HuggingFaceModel> models = parseModels(json);
+        log.info("Hugging Face: {} trending models (limit={})", models.size(), properties.limit());
+        return models;
     }
 
     List<HuggingFaceModel> parseModels(String json) {

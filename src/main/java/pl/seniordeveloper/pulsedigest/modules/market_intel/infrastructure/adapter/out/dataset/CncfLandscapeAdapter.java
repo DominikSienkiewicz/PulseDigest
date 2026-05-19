@@ -55,28 +55,24 @@ public class CncfLandscapeAdapter {
     }
 
     public List<CncfProjectUpdate> fetchCncfLandscapeChanges() {
-        try {
-            String since = ZonedDateTime.now()
-                    .minusDays(properties.lookbackDays())
-                    .format(DateTimeFormatter.ISO_INSTANT);
-            String json = restClient.get()
-                    .uri(uri -> uri
-                            .queryParam("since", since)
-                            .queryParam("path", "landscape.yml")
-                            .queryParam("per_page", 100)
-                            .build())
-                    .retrieve()
-                    .body(String.class);
-            if (json == null || json.isBlank()) {
-                return List.of();
-            }
-            List<CncfProjectUpdate> changes = parseLandscapeChanges(json);
-            log.info("CNCF Landscape: {} changes (lookback={}d)", changes.size(), properties.lookbackDays());
-            return changes;
-        } catch (Exception e) {
-            log.warn("CNCF Landscape fetch failed: {}", e.getMessage());
+        // HTTP errors propagate so MarketResearchService.fetchSource marks the source FAILED.
+        String since = ZonedDateTime.now()
+                .minusDays(properties.lookbackDays())
+                .format(DateTimeFormatter.ISO_INSTANT);
+        String json = restClient.get()
+                .uri(uri -> uri
+                        .queryParam("since", since)
+                        .queryParam("path", "landscape.yml")
+                        .queryParam("per_page", 100)
+                        .build())
+                .retrieve()
+                .body(String.class);
+        if (json == null || json.isBlank()) {
             return List.of();
         }
+        List<CncfProjectUpdate> changes = parseLandscapeChanges(json);
+        log.info("CNCF Landscape: {} changes (lookback={}d)", changes.size(), properties.lookbackDays());
+        return changes;
     }
 
     List<CncfProjectUpdate> parseLandscapeChanges(String json) {

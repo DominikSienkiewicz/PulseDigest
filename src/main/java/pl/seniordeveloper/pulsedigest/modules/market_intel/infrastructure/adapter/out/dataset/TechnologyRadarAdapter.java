@@ -45,21 +45,17 @@ public class TechnologyRadarAdapter {
     }
 
     public List<RadarEntry> fetchTechRadarEntries() {
-        try {
-            String json = restClient.get()
-                    .uri(URI.create(properties.dataPath()))
-                    .retrieve()
-                    .body(String.class);
-            if (json == null || json.isBlank()) {
-                return List.of();
-            }
-            List<RadarEntry> entries = parseRadarEntries(json);
-            log.info("Tech Radar: {} entries", entries.size());
-            return entries;
-        } catch (Exception e) {
-            log.warn("Tech Radar fetch failed: {}", e.getMessage());
+        // HTTP errors propagate so MarketResearchService.fetchSource marks the source FAILED.
+        String json = restClient.get()
+                .uri(URI.create(properties.dataPath()))
+                .retrieve()
+                .body(String.class);
+        if (json == null || json.isBlank()) {
             return List.of();
         }
+        List<RadarEntry> entries = parseRadarEntries(json);
+        log.info("Tech Radar: {} entries", entries.size());
+        return entries;
     }
 
     List<RadarEntry> parseRadarEntries(String json) {

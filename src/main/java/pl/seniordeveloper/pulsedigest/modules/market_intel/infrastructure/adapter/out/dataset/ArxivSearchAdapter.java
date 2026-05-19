@@ -52,29 +52,25 @@ public class ArxivSearchAdapter {
 
     public List<ResearchPaper> fetchLatestPapers() {
         String categoryQuery = buildCategoryQuery();
-        try {
-            String xml = restClient.get()
-                    .uri(uriBuilder -> uriBuilder
-                            .path("/api/query")
-                            .queryParam("search_query", categoryQuery)
-                            .queryParam("start", 0)
-                            .queryParam("max_results", properties.maxResults())
-                            .queryParam("sortBy", "submittedDate")
-                            .queryParam("sortOrder", "descending")
-                            .build())
-                    .retrieve()
-                    .body(String.class);
-            if (xml == null || xml.isBlank()) {
-                log.warn("arXiv returned empty response");
-                return List.of();
-            }
-            List<ResearchPaper> papers = parseFeed(xml, properties.lookbackHours());
-            log.info("arXiv: {} papers after filtering (query={})", papers.size(), categoryQuery);
-            return papers;
-        } catch (Exception e) {
-            log.warn("arXiv fetch failed: {}", e.getMessage());
+        // HTTP errors propagate so MarketResearchService.fetchSource marks the source FAILED.
+        String xml = restClient.get()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/api/query")
+                        .queryParam("search_query", categoryQuery)
+                        .queryParam("start", 0)
+                        .queryParam("max_results", properties.maxResults())
+                        .queryParam("sortBy", "submittedDate")
+                        .queryParam("sortOrder", "descending")
+                        .build())
+                .retrieve()
+                .body(String.class);
+        if (xml == null || xml.isBlank()) {
+            log.warn("arXiv returned empty response");
             return List.of();
         }
+        List<ResearchPaper> papers = parseFeed(xml, properties.lookbackHours());
+        log.info("arXiv: {} papers after filtering (query={})", papers.size(), categoryQuery);
+        return papers;
     }
 
     List<ResearchPaper> parseFeed(String xml, int lookbackHours) {

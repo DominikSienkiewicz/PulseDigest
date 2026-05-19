@@ -49,26 +49,22 @@ public class LibrariesIoAdapter {
             log.info("Libraries.io: no API key configured, skipping fetch");
             return List.of();
         }
-        try {
-            String json = restClient.get()
-                    .uri(uri -> uri
-                            .queryParam("api_key", properties.apiKey())
-                            .queryParam("platforms", String.join(",", properties.platforms()))
-                            .queryParam("sort", "rank")
-                            .queryParam("per_page", properties.limit())
-                            .build())
-                    .retrieve()
-                    .body(String.class);
-            if (json == null || json.isBlank()) {
-                return List.of();
-            }
-            List<PackageTrend> trends = parsePackageTrends(json);
-            log.info("Libraries.io: {} package trends (limit={})", trends.size(), properties.limit());
-            return trends;
-        } catch (Exception e) {
-            log.warn("Libraries.io fetch failed: {}", e.getMessage());
+        // HTTP errors propagate so MarketResearchService.fetchSource marks the source FAILED.
+        String json = restClient.get()
+                .uri(uri -> uri
+                        .queryParam("api_key", properties.apiKey())
+                        .queryParam("platforms", String.join(",", properties.platforms()))
+                        .queryParam("sort", "rank")
+                        .queryParam("per_page", properties.limit())
+                        .build())
+                .retrieve()
+                .body(String.class);
+        if (json == null || json.isBlank()) {
             return List.of();
         }
+        List<PackageTrend> trends = parsePackageTrends(json);
+        log.info("Libraries.io: {} package trends (limit={})", trends.size(), properties.limit());
+        return trends;
     }
 
     List<PackageTrend> parsePackageTrends(String json) {

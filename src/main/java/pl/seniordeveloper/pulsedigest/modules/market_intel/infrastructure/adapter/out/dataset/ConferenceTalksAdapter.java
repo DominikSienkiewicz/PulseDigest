@@ -48,9 +48,11 @@ public class ConferenceTalksAdapter {
             log.info("Conference Talks: no YouTube API key configured, skipping fetch");
             return List.of();
         }
-        try {
-            List<ConferenceTalk> allTalks = new ArrayList<>();
-            for (var channel : properties.channels()) {
+        List<ConferenceTalk> allTalks = new ArrayList<>();
+        int failed = 0;
+        Exception lastError = null;
+        for (var channel : properties.channels()) {
+            try {
                 String json = restClient.get()
                         .uri(uri -> uri
                                 .queryParam("part", "snippet")
@@ -65,16 +67,22 @@ public class ConferenceTalksAdapter {
                 if (json == null || json.isBlank()) {
                     continue;
                 }
-                List<ConferenceTalk> talks = parseSearchResults(json, channel.channelName(),
-                        channel.conferenceName());
-                allTalks.addAll(talks);
+                allTalks.addAll(parseSearchResults(json, channel.channelName(), channel.conferenceName()));
+            } catch (Exception e) {
+                failed++;
+                lastError = e;
+                log.warn("Conference Talks fetch failed for {}: {}", channel.conferenceName(), e.getMessage());
             }
-            log.info("Conference Talks: {} talks from {} channels", allTalks.size(), properties.channels().size());
-            return allTalks;
-        } catch (Exception e) {
-            log.warn("Conference Talks fetch failed: {}", e.getMessage());
-            return List.of();
         }
+        if (failed > 0 && failed == properties.channels().size()) {
+            throw new IllegalStateException(
+                    "All " + failed + " YouTube channels failed; last error: "
+                            + (lastError != null ? lastError.getMessage() : "unknown"),
+                    lastError);
+        }
+        log.info("Conference Talks: {} talks from {} channels ({} udanych)",
+                allTalks.size(), properties.channels().size(), properties.channels().size() - failed);
+        return allTalks;
     }
 
     List<ConferenceTalk> parseSearchResults(String json, String channelName, String conferenceName) {
