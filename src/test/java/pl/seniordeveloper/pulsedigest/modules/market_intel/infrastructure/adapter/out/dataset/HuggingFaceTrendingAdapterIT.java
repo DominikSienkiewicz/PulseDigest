@@ -18,6 +18,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class HuggingFaceTrendingAdapterIT {
 
@@ -84,12 +85,11 @@ class HuggingFaceTrendingAdapterIT {
     }
 
     @Test
-    void returnsEmptyListWhenApiReturns503() {
+    void propagatesHttpErrorOnApiReturns503() {
         wireMock.stubFor(get(urlPathEqualTo("/"))
                 .willReturn(aResponse().withStatus(503)));
 
-        List<HuggingFaceModel> models = adapter.fetchTrendingModels();
-
-        assertThat(models).isEmpty();
+        assertThatThrownBy(() -> adapter.fetchTrendingModels())
+                .isInstanceOf(RuntimeException.class);
     }
 }

@@ -17,6 +17,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ArxivSearchAdapterIT {
 
@@ -81,12 +82,11 @@ class ArxivSearchAdapterIT {
     }
 
     @Test
-    void returnsEmptyListWhenApiFails() {
+    void propagatesHttpErrorOnApiFails() {
         wireMock.stubFor(get(urlPathEqualTo("/api/query"))
                 .willReturn(aResponse().withStatus(503)));
 
-        List<ResearchPaper> papers = adapter.fetchLatestPapers();
-
-        assertThat(papers).isEmpty();
+        assertThatThrownBy(() -> adapter.fetchLatestPapers())
+                .isInstanceOf(RuntimeException.class);
     }
 }

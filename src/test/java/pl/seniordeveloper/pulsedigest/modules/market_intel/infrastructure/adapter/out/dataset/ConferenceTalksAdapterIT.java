@@ -18,6 +18,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ConferenceTalksAdapterIT {
 
@@ -79,12 +80,11 @@ class ConferenceTalksAdapterIT {
     }
 
     @Test
-    void returnsEmptyListWhenApiReturns503() {
+    void propagatesHttpErrorOnApiReturns503() {
         wireMock.stubFor(get(urlPathEqualTo("/"))
                 .willReturn(aResponse().withStatus(503)));
 
-        List<ConferenceTalk> talks = adapter.fetchConferenceTalks();
-
-        assertThat(talks).isEmpty();
+        assertThatThrownBy(() -> adapter.fetchConferenceTalks())
+                .isInstanceOf(RuntimeException.class);
     }
 }

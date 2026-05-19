@@ -18,6 +18,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class DbEnginesAdapterIT {
 
@@ -77,12 +78,11 @@ class DbEnginesAdapterIT {
     }
 
     @Test
-    void returnsEmptyListWhenApiReturns503() {
+    void propagatesHttpErrorOnApiReturns503() {
         wireMock.stubFor(get(urlPathEqualTo("/"))
                 .willReturn(aResponse().withStatus(503)));
 
-        List<DbEngineRanking> rankings = adapter.fetchDbEngineRankings();
-
-        assertThat(rankings).isEmpty();
+        assertThatThrownBy(() -> adapter.fetchDbEngineRankings())
+                .isInstanceOf(RuntimeException.class);
     }
 }

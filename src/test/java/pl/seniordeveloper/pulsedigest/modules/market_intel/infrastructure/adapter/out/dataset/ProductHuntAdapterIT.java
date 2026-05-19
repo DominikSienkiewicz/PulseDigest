@@ -22,6 +22,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ProductHuntAdapterIT {
 
@@ -93,12 +94,11 @@ class ProductHuntAdapterIT {
     }
 
     @Test
-    void returnsEmptyListWhenApiReturns503() {
+    void propagatesHttpErrorOnApiReturns503() {
         wireMock.stubFor(post(urlPathEqualTo("/"))
                 .willReturn(aResponse().withStatus(503)));
 
-        List<ProductHuntPost> posts = adapter.fetchProductLaunches();
-
-        assertThat(posts).isEmpty();
+        assertThatThrownBy(() -> adapter.fetchProductLaunches())
+                .isInstanceOf(RuntimeException.class);
     }
 }

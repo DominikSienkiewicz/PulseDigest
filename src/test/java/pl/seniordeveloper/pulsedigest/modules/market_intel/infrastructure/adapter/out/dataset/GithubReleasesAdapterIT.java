@@ -18,6 +18,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class GithubReleasesAdapterIT {
 
@@ -83,12 +84,11 @@ class GithubReleasesAdapterIT {
     }
 
     @Test
-    void returnsEmptyListWhenApiReturns503() {
+    void propagatesHttpErrorOnApiReturns503() {
         wireMock.stubFor(get(urlPathEqualTo("/repos/spring-projects/spring-boot/releases"))
                 .willReturn(aResponse().withStatus(503)));
 
-        List<SoftwareRelease> releases = adapter.fetchLatestReleases();
-
-        assertThat(releases).isEmpty();
+        assertThatThrownBy(() -> adapter.fetchLatestReleases())
+                .isInstanceOf(RuntimeException.class);
     }
 }
