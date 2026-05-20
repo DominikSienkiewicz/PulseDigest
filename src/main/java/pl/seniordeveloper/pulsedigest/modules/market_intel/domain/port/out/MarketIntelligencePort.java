@@ -1,5 +1,6 @@
 package pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out;
 
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.LabAnnouncement;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.CncfProjectUpdate;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ConferenceTalk;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.DbEngineRanking;
@@ -61,4 +62,6 @@ public interface MarketIntelligencePort {
     List<ConferenceTalk> fetchConferenceTalks();
 
     List<DbEngineRanking> fetchDbEngineRankings();
+
+    List<LabAnnouncement> fetchLabAnnouncements();
 }

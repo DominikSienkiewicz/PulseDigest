@@ -2,6 +2,7 @@ package pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapt
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.LabAnnouncement;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.CncfProjectUpdate;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ConferenceTalk;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.DbEngineRanking;
@@ -44,6 +45,7 @@ public class MarketIntelligenceAdapter implements MarketIntelligencePort {
     private final TechnologyRadarAdapter technologyRadarAdapter;
     private final ConferenceTalksAdapter conferenceTalksAdapter;
     private final DbEnginesAdapter dbEnginesAdapter;
+    private final LabAnnouncementsAdapter labAnnouncementsAdapter;
 
     @Override
     public List<Tweet> fetchInfluencerTweets() {
@@ -138,5 +140,10 @@ public class MarketIntelligenceAdapter implements MarketIntelligencePort {
     @Override
     public List<DbEngineRanking> fetchDbEngineRankings() {
         return dbEnginesAdapter.fetchDbEngineRankings();
+    }
+
+    @Override
+    public List<LabAnnouncement> fetchLabAnnouncements() {
+        return labAnnouncementsAdapter.fetchAnnouncements();
     }
 }

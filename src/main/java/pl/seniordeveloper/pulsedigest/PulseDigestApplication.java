@@ -4,6 +4,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.scheduling.annotation.EnableScheduling;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.LabAnnouncementsProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ArxivProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.CncfLandscapeProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ConferenceTalksProperties;
@@ -49,7 +50,8 @@ import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.TwitterProper
         CncfLandscapeProperties.class,
         TechnologyRadarProperties.class,
         ConferenceTalksProperties.class,
-        DbEnginesProperties.class
+        DbEnginesProperties.class,
+        LabAnnouncementsProperties.class
 })
 public final class PulseDigestApplication {
 

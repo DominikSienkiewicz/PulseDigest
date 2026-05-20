@@ -56,7 +56,7 @@ class MarketResearchServiceTest {
         assertThat(result.redditPosts()).hasSize(1);
         assertThat(result.rawTotalCount()).isEqualTo(27);
         assertThat(result.activeSourceCount()).isEqualTo(17);
-        assertThat(result.sourceFetchReports()).hasSize(19);
+        assertThat(result.sourceFetchReports()).hasSize(20);
         assertThat(result.sourceFetchReports())
                 .allMatch(report -> report.status() == SourceFetchStatus.SUCCESS);
     }
@@ -225,6 +225,12 @@ class MarketResearchServiceTest {
         @Override
         public List<DbEngineRanking> fetchDbEngineRankings() {
             return List.of(new DbEngineRanking("PostgreSQL", 1, 0, 1_000.0, 1.0, trackedUrl("db"), now));
+        }
+
+        @Override
+        public List<pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.LabAnnouncement>
+                fetchLabAnnouncements() {
+            return List.of();
         }
     }
 }

@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.LabAnnouncement;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.CncfProjectUpdate;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ConferenceTalk;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.DbEngineRanking;
@@ -114,11 +115,13 @@ public class MarketResearchService {
                 fetchSource("Conference Talks", intelligencePort::fetchConferenceTalks);
         CompletableFuture<FetchOutcome<DbEngineRanking>> futureDb =
                 fetchSource("DB-Engines", intelligencePort::fetchDbEngineRankings);
+        CompletableFuture<FetchOutcome<LabAnnouncement>> futureAnnouncements =
+                fetchSource("Lab Announcements", intelligencePort::fetchLabAnnouncements);
 
         CompletableFuture.allOf(futureInfluencer, futureTopic, futureAnthropic, futureHn, futureGh,
                 futureRss, futureReddit, futurePapers, futureReleases,
                 futureHf, futurePh, futureAdvisories, futureNvd, futurePackages,
-                futureJep, futureCncf, futureRadar, futureTalks, futureDb).join();
+                futureJep, futureCncf, futureRadar, futureTalks, futureDb, futureAnnouncements).join();
 
         FetchOutcome<Tweet> influencer = futureInfluencer.join();
         FetchOutcome<Tweet> topic = futureTopic.join();
@@ -139,6 +142,7 @@ public class MarketResearchService {
         FetchOutcome<RadarEntry> radar = futureRadar.join();
         FetchOutcome<ConferenceTalk> talks = futureTalks.join();
         FetchOutcome<DbEngineRanking> db = futureDb.join();
+        FetchOutcome<LabAnnouncement> announcements = futureAnnouncements.join();
 
         List<Tweet> rawInfluencer = influencer.items();
         List<Tweet> rawTopic = topic.items();
@@ -159,11 +163,12 @@ public class MarketResearchService {
         List<RadarEntry> rawRadar = radar.items();
         List<ConferenceTalk> rawTalks = talks.items();
         List<DbEngineRanking> rawDb = db.items();
+        List<LabAnnouncement> rawAnnouncements = announcements.items();
         List<SourceFetchReport> sourceFetchReports = Stream.of(
                         influencer.report(), topic.report(), anthropic.report(), hn.report(), gh.report(),
                         rss.report(), reddit.report(), papers.report(), releases.report(), hf.report(), ph.report(),
                         advisories.report(), nvd.report(), packages.report(), jep.report(), cncf.report(),
-                        radar.report(), talks.report(), db.report())
+                        radar.report(), talks.report(), db.report(), announcements.report())
                 .toList();
 
         Set<String> authorityUsernames = Set.copyOf(researchPolicy.authorityUsernames());
@@ -217,6 +222,7 @@ public class MarketResearchService {
                 rawRadar.stream().map(MarketResearchService::canonicalize).toList(),
                 rawTalks.stream().map(MarketResearchService::canonicalize).toList(),
                 rawDb.stream().map(MarketResearchService::canonicalize).toList(),
+                rawAnnouncements,
                 LocalDateTime.now(),
                 rawInfluencer.size() + rawTopic.size() + rawAnthropic.size(),
                 rawHn.size(), rawGh.size(), rawRss.size(), rawReddit.size(),

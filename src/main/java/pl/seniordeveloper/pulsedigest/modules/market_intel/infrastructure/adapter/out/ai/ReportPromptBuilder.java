@@ -230,6 +230,20 @@ public class ReportPromptBuilder {
             ));
         }
 
+        // Official AI-lab announcements (Anthropic, OpenAI, Google Gemini blogs) get a very
+        // high engagement_score so they're guaranteed to survive PromptItemSelector trimming —
+        // this is THE highest-signal source for AI model/product news.
+        for (var ann : research.labAnnouncements()) {
+            String preview = ann.source() + (ann.summary().isBlank() ? "" : " · " + ann.summary());
+            all.add(Map.of(
+                    "source", ann.source(),
+                    "title", ann.title(),
+                    "url", ann.url(),
+                    "engagement_score", 1_000_000,
+                    "text_preview", preview.substring(0, Math.min(300, preview.length()))
+            ));
+        }
+
         for (var db : research.dbEngineRankings()) {
             String preview = "Rank #" + db.rank()
                     + " · Score: " + String.format("%.1f", db.score())
@@ -249,7 +263,7 @@ public class ReportPromptBuilder {
             String json = objectMapper.writeValueAsString(payload);
             log.info("Prompt payload: {} itemów wybranych z {} (tweets={}, hn={}, gh={}, rss={}, reddit={},"
                             + " papers={}, releases={}, hf={}, ph={}, advisories={},"
-                            + " nvd={}, libs={}, jep={}, cncf={}, radar={}, talks={}, db={})",
+                            + " nvd={}, libs={}, jep={}, cncf={}, radar={}, talks={}, db={}, labs={})",
                     payload.size(), all.size(),
                     research.tweets().size(),
                     research.hackerNewsPosts().size(),
@@ -267,7 +281,8 @@ public class ReportPromptBuilder {
                     research.cncfProjectUpdates().size(),
                     research.radarEntries().size(),
                     research.conferenceTalks().size(),
-                    research.dbEngineRankings().size());
+                    research.dbEngineRankings().size(),
+                    research.labAnnouncements().size());
             return "Oto posty z ostatnich 24 godzin:\n\n" + json;
         } catch (JsonProcessingException e) {
             log.error("Błąd serializacji payloadu: {}", e.getMessage());

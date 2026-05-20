@@ -1,7 +1,7 @@
 # 🚀 PulseDigest
 **Architected & Developed by [Dominik](https://www.linkedin.com/in/dominik-sienkiewicz/)** *Principal AI Engineer | Full Stack Architect*
 
-Headless batch application that collects tech news from 17 sources every morning, scores items with GPT-4o, **detects cross-source signals** (the same topic surfacing in Science + Code + Business = 🔴 Critical Trend), **detects recurring trends across the last 7 days** (Supabase-backed history), tracks per-source health, and delivers a tier'd, prioritized digest to your inbox — with editorial lead, critical trends, top picks, signals, weekly trend section, and long-tail sections.
+Headless batch application that collects tech news from 18 sources every morning, scores items with GPT-4o, **detects cross-source signals** (the same topic surfacing in Science + Code + Business = 🔴 Critical Trend), **detects recurring trends across the last 7 days** (Supabase-backed history), tracks per-source health, and delivers a tier'd, prioritized digest to your inbox — with editorial lead, critical trends, top picks, signals, weekly trend section, and long-tail sections.
 
 ![Java 26](https://img.shields.io/badge/Java-26-red?style=for-the-badge&logo=openjdk&logoColor=white)
 ![Spring Boot 4.1](https://img.shields.io/badge/Spring_Boot-4.1.0--SNAPSHOT-green?style=for-the-badge&logo=springboot&logoColor=white)
@@ -34,7 +34,7 @@ YouTube Conferences     ┤
 DB-Engines Ranking      ┘
 ```
 
-1. **Fetch** — 17 sources run in parallel via Virtual Threads (`CompletableFuture`) with per-source deadlines, shared HTTP connect/read timeouts, and automatic retry for 429/5xx responses. Each source filters to the last 24-72h depending on cadence and records a source-health entry.
+1. **Fetch** — 18 sources run in parallel via Virtual Threads (`CompletableFuture`) with per-source deadlines, shared HTTP connect/read timeouts, and automatic retry for 429/5xx responses. Each source filters to the last 24-72h depending on cadence and records a source-health entry.
 2. **Canonicalize URLs** — strip tracking params (`utm_*`, `fbclid`, `gclid`, etc.) right after fetch, before LLM sees anything. Prevents duplicate items from same article via different campaigns and avoids leaking our UTMs to advertisers when readers click.
 3. **Score** — `ReportPromptBuilder` first selects up to 100 items using per-source caps and a **weighted pre-score** (`round(sourceWeight×100) + min(50, engagement/1000)`) to resolve overflow: a low-engagement arXiv paper (pre-score=100) survives over a viral tweet (max pre-score=90). GPT-4o then deduplicates, scores each surviving item 1–10 for a Senior/Principal Engineer + Architect profile, assigns a **category** (topic) and **type** (signal kind), and writes a 1–2 sentence Polish summary with the key number front-loaded.
 4. **Synthesize** — GPT-4o produces an editorial lead (meta-thesis of the day) + top-3 insights + email preheader text.
@@ -64,6 +64,7 @@ DB-Engines Ranking      ┘
 | Tech Radar          | Thoughtworks Technology Radar (quarterly). Rings: Adopt, Trial, Assess, Hold.                                | Quarterly cadence, all entries included |
 | YouTube Conferences | YouTube Data API v3 `search`, 6 tech channels (SpringDeveloper, CNCF, Devoxx, Google Cloud Tech, InfoQ, GOTO Conferences) | API key optional. Last 7 days, sorted by recency |
 | DB-Engines          | DB-Engines.com ranking table, detecting score changes ≥ 5 points                                           | Monthly cadence; significant movers only |
+| AI-lab announcements | Official lab blogs/newsrooms, 5 sources via 3 scrape strategies: **SANITY** — `anthropic.com/news`, `anthropic.com/engineering` (inline Sanity CMS data); **JSONLD** — `claude.com/blog`, `blog.google/.../gemini/` (listing → per-post `datePublished`); **OPENAI_DEV** — `developers.openai.com/blog` (cards inline). | Last 48 h. **Highest-signal source** for AI model/product news — very high engagement_score in LLM prompt so it never gets trimmed. Stateless (no DB). A failing source is skipped; only a total outage marks the source FAILED |
 
 ## Categorization (two dimensions)
 
@@ -230,6 +231,9 @@ defaults, not per-environment knobs.
 | `conference-talks.lookback-days`   | `7`                  | YouTube talks age window                          |
 | `conference-talks.max-results` | `10`                     | Max items per channel                             |
 | `db-engines.min-score-change`  | `5`                      | Min score change to qualify as significant mover  |
+| `lab-announcements.lookback-hours` | `48`                 | Window for new posts on AI-lab blogs (Anthropic, OpenAI, Google) |
+| `lab-announcements.post-fetch-limit` | `15`               | Max post pages fetched per JSONLD source (listings have no dates) |
+| `lab-announcements.sources`    | 5 sources                | Per-source `name` + `strategy` (SANITY/JSONLD/OPENAI_DEV) + `listing-url` |
 
 ## Architecture decision records
 

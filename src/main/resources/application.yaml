@@ -407,3 +407,33 @@ report:
     base-url: https://db-engines.com/en/ranking
     lookback-days: 7
     min-score-change: 5
+
+  lab-announcements:
+    lookback-hours: 48
+    # JSONLD sources have no dates on the listing — we fetch up to this many post pages per source
+    # to read `datePublished` from JSON-LD. Tune up if a lab ships >N posts in the lookback window.
+    post-fetch-limit: 15
+    sources:
+      # SANITY — anthropic.com embeds Sanity CMS data inline (publishedOn + slug + title + summary).
+      - name: "Anthropic News"
+        strategy: SANITY
+        listing-url: https://www.anthropic.com/news
+      - name: "Anthropic Engineering"
+        strategy: SANITY
+        listing-url: https://www.anthropic.com/engineering
+      # JSONLD — listing has post links but no dates; each post page carries datePublished JSON-LD.
+      - name: "Claude Blog"
+        strategy: JSONLD
+        listing-url: https://claude.com/blog
+        article-link-regex: 'href="(/blog/[a-z0-9-]+)"'
+      - name: "Google Gemini Blog"
+        strategy: JSONLD
+        listing-url: https://blog.google/products-and-platforms/products/gemini/
+        article-link-regex: 'href="(https://blog\.google/[a-z0-9/-]{30,}/)"'
+      # OPENAI_DEV — developers.openai.com renders cards with date + title + description inline.
+      - name: "OpenAI Dev Blog"
+        strategy: OPENAI_DEV
+        listing-url: https://developers.openai.com/blog
+    # NOTE: openai.com/news is intentionally absent — it sits behind Cloudflare bot protection
+    # that rejects all server-side requests (HTTP 403). gemini.google/latest-news is also absent —
+    # it is a JS-rendered marketing page with no dated posts; its real news links to blog.google.
