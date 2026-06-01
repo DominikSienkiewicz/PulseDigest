@@ -10,6 +10,8 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Signal;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SignalRank;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceFetchReport;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceFetchStatus;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TechDemandEntry;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TechDemandSignal;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TrendInsight;
 
 import java.time.LocalDate;
@@ -70,6 +72,7 @@ public class ReportEmailBuilder {
                 + buildInsightsSection(insights)
                 + buildCriticalTrendsSection(criticals)
                 + buildTrendsSection(trends)
+                + buildTechDemandSection(research != null ? research.techDemand() : null)
                 + buildItemsSection(items, rankByUrl)
                 + buildFooter(items.size(), research)
                 + "</div></body></html>";
@@ -227,6 +230,65 @@ public class ReportEmailBuilder {
         }
         sb.append("</ul></div>");
         return sb.toString();
+    }
+
+    // Monthly job-market demand pulse (HN "Who is hiring?"). Rendered only when a fresh signal exists.
+    private String buildTechDemandSection(TechDemandSignal demand) {
+        if (demand == null || demand.isEmpty()) {
+            return "";
+        }
+        String ranking = demand.entries().stream()
+                .map(e -> demandChip(e, true))
+                .collect(Collectors.joining(" &middot; "));
+        String stackLine = demand.stackEntries().isEmpty() ? ""
+                : "<p style=\"margin:8px 0 0;color:#0e7490;font-size:13px;line-height:1.7\">"
+                + "<span style=\"color:#155e75;font-weight:600\">Twój stack:</span> "
+                + demand.stackEntries().stream().map(e -> demandChip(e, false))
+                        .collect(Collectors.joining(" &middot; "))
+                + "</p>";
+        String narrative = demand.narrative() != null && !demand.narrative().isBlank()
+                ? "<p style=\"margin:0 0 10px;color:#0f172a;font-size:14px;line-height:1.6;font-style:italic\">"
+                + escapeHtml(demand.narrative()) + "</p>"
+                : "";
+        String vsPrev = demand.previousMonthLabel() != null
+                ? " &middot; vs " + escapeHtml(demand.previousMonthLabel()) : "";
+        return "<div style=\"padding:20px 28px;background:#ecfeff;border-bottom:1px solid #cffafe\">"
+                + "<h2 style=\"color:#155e75;font-size:15px;margin:0 0 10px\">"
+                + "&#128200; Puls rynku &mdash; popyt na technologie"
+                + (demand.monthLabel() != null ? " (" + escapeHtml(demand.monthLabel()) + ")" : "")
+                + "</h2>"
+                + narrative
+                + "<p style=\"margin:0;color:#0e7490;font-size:14px;line-height:1.7\">" + ranking + "</p>"
+                + stackLine
+                + "<p style=\"margin:8px 0 0;color:#64748b;font-size:12px\">"
+                + "na podstawie " + demand.totalPostings() + " ogłoszeń" + vsPrev + " &middot; "
+                + "<a href=\"" + escapeHtml(demand.threadUrl()) + "\" style=\"color:#0891b2;text-decoration:none\">"
+                + "HN Who-is-hiring</a></p>"
+                + "</div>";
+    }
+
+    // Renders "name 26% ▲3" — share as percentage, optional month-over-month delta arrow.
+    private String demandChip(TechDemandEntry entry, boolean showDelta) {
+        return "<strong>" + escapeHtml(entry.name()) + "</strong> " + sharePct(entry.share())
+                + (showDelta ? deltaArrow(entry.deltaPp()) : "");
+    }
+
+    private String sharePct(double share) {
+        if (share <= 0) {
+            return "&mdash;";
+        }
+        long pct = Math.round(share * 100);
+        return pct < 1 ? "&lt;1%" : pct + "%";
+    }
+
+    private String deltaArrow(Double deltaPp) {
+        if (deltaPp == null || Math.abs(deltaPp) < 1.0) {
+            return "";
+        }
+        long rounded = Math.round(Math.abs(deltaPp));
+        return deltaPp > 0
+                ? " <span style=\"color:#16a34a;font-size:12px\">&#9650;" + rounded + "</span>"
+                : " <span style=\"color:#dc2626;font-size:12px\">&#9660;" + rounded + "</span>";
     }
 
     private String buildCriticalTrendsSection(List<Signal> criticals) {

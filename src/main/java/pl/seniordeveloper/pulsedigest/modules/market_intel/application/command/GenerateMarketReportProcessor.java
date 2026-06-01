@@ -21,6 +21,7 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.Email
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.LlmSynthesisPort;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.ReportEnrichmentPort;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.ReportStoragePort;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.TechDemandNarratorPort;
 import pl.seniordeveloper.pulsedigest.shared.async.AsyncQualifiers;
 
 import java.time.Duration;
@@ -46,6 +47,7 @@ public class GenerateMarketReportProcessor {
     private final EmailDeliveryPort emailPort;
     private final Optional<ReportEnrichmentPort> enrichmentPort;
     private final SignalScoringService signalScoringService;
+    private final TechDemandNarratorPort techDemandNarrator;
 
     @Async(AsyncQualifiers.REPORT_EXECUTOR)
     public void process(String jobId) {
@@ -72,6 +74,8 @@ public class GenerateMarketReportProcessor {
                 jobTracker.track(job.error("All data sources returned empty results"));
                 return;
             }
+
+            research = narrateTechDemand(research);
 
             ReportData report = synthesisPort.synthesize(research);
             ReportData cleaned = report.withCanonicalizedUrls();
@@ -115,6 +119,18 @@ public class GenerateMarketReportProcessor {
                 jobTracker.track(job.error(e.getMessage()));
             }
         }
+    }
+
+    /**
+     * Attaches the one-sentence LLM interpretation to the tech-demand pulse, if present. Narrator
+     * failures degrade gracefully (blank narrative) and never abort the pipeline.
+     */
+    private ResearchResult narrateTechDemand(ResearchResult research) {
+        if (research.techDemand() == null) {
+            return research;
+        }
+        String narrative = techDemandNarrator.narrate(research.techDemand());
+        return research.withTechDemand(research.techDemand().withNarrative(narrative));
     }
 
     /**

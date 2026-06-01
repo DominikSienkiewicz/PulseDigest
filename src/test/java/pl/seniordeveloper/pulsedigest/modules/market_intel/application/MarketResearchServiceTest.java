@@ -56,7 +56,7 @@ class MarketResearchServiceTest {
         assertThat(result.redditPosts()).hasSize(1);
         assertThat(result.rawTotalCount()).isEqualTo(27);
         assertThat(result.activeSourceCount()).isEqualTo(17);
-        assertThat(result.sourceFetchReports()).hasSize(20);
+        assertThat(result.sourceFetchReports()).hasSize(21);
         assertThat(result.sourceFetchReports())
                 .allMatch(report -> report.status() == SourceFetchStatus.SUCCESS);
     }
@@ -231,6 +231,12 @@ class MarketResearchServiceTest {
         public List<pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.LabAnnouncement>
                 fetchLabAnnouncements() {
             return List.of();
+        }
+
+        @Override
+        public java.util.Optional<pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TechDemandSignal>
+                fetchTechDemand() {
+            return java.util.Optional.empty();
         }
     }
 }

@@ -17,9 +17,11 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Research
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RssItem;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SecurityAdvisory;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SoftwareRelease;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TechDemandSignal;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Tweet;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Output port for fetching raw intelligence data from external sources.
@@ -64,4 +66,6 @@ public interface MarketIntelligencePort {
     List<DbEngineRanking> fetchDbEngineRankings();
 
     List<LabAnnouncement> fetchLabAnnouncements();
+
+    Optional<TechDemandSignal> fetchTechDemand();
 }

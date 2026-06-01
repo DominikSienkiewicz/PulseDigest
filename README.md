@@ -49,6 +49,7 @@ DB-Engines Ranking      ┘
 |---------------------|-------------------------------------------------------------------------------------|---------------------------------------------|
 | Twitter/X           | ~84 curated accounts + 5 topic queries, last 24 h                                   | Authority accounts bypass keyword filter; others require relevance match |
 | Hacker News         | Algolia `numericFilters=created_at_i>`, keyword query                               | `min-score: 25`, max 15 items               |
+| HN Who-is-hiring    | Algolia `author_whoishiring` story + thread comments; aggregates tech mentions      | Monthly thread, shown only when fresh (`lookback-days: 7`). Feeds the 📈 tech-demand pulse, not the item table |
 | GitHub              | `pushed:>=yesterday`                                                                | Stars desc, configurable query, max 8 repos |
 | RSS                 | 30 feeds — core dev (InfoQ, Spring Blog, Baeldung, DZone ×2, JVM Bloggers, devstyle.pl, TLDR Tech, Pragmatic Engineer, Quastor), security (Niebezpiecznik, Sekurak), official changelogs (OpenAI, Google Blog, JetBrains), AI newsletters (Import AI, Simon Willison, Latent Space, Sebastian Raschka, Andrej Karpathy), community (Lobsters, dev.to AI/Java), PL ecosystem (JVM Advent), cloud (AWS, GCP, Azure), JVM (Inside.java), cloud-native (CNCF Blog) | `pubDate` / `updated` filter, max 10 per feed |
 | Reddit              | `t=day` (top 24 h)                                                                  | 8 subreddits, `min-score: 20`, max 15 per sub |
@@ -101,6 +102,7 @@ The delivered HTML email is a structured digest, not just a link list:
 - **Editorial lead** — 2–3 sentence meta-thesis tying together the day's most important signals (italic, prominent).
 - **🔑 Top insights** — top-3 takeaways extracted from the day.
 - **🔄 Weekly trends** — recurring categories from the last 7 days with LLM-generated narratives ("Trzeci dzień z rzędu CVE…"). Skipped if history is empty or no category passes the `min-occurrences` threshold.
+- **📈 Puls rynku (tech-demand pulse)** — demand ranking from the monthly HN "Who is hiring?" thread, computed **outside** the core item budget. Shows: a one-line **LLM interpretation**; technologies by **share of hiring posts** with month-over-month **▲/▼ delta** (e.g. "Python 26% ▲3 · TypeScript 23% ▼1 · Rust 9% ▲4"); a **"Twój stack"** line with demand for the reader's own JVM/Python-AI core (`tech-demand.priority-technologies`) even when outside the top ranking; and a "vs <prev month>" footnote. The delta is stateless — the adapter also fetches the **previous** month's thread and compares share in percentage points. Shown only in the ~week after a new monthly thread drops (`tech-demand.lookback-days`), then absent — so it never repeats daily. Off when no technology clears `min-mentions`.
 - **🔴 Critical Trends** — items whose LLM-assigned category appears in 3+ distinct source domains (e.g., Science + Code + Business) in the current digest. Red-bordered block with domain labels. Skipped when no CRITICAL signals are present.
 - **⭐ Top picks** — score ≥ 8, white background.
 - **🔌 Signals** — score 5–7, muted `#fafafa` background.
@@ -226,6 +228,13 @@ defaults, not per-environment knobs.
 | `trend.lookback-days`          | `7`                      | History window for trend detection                 |
 | `trend.min-occurrences`        | `2`                      | Minimum category occurrences to qualify as a trend |
 | `trend.max-clusters`           | `5`                      | Max trend clusters shown in email                  |
+| `tech-demand.enabled`          | `true`                   | Toggle the 📈 tech-demand pulse                    |
+| `tech-demand.lookback-days`    | `7`                      | Render only when HN Who-is-hiring thread is this fresh |
+| `tech-demand.max-comments`     | `1000`                   | Cap on hiring posts (comments) analyzed            |
+| `tech-demand.max-technologies` | `8`                      | Top-N technologies shown in the ranking            |
+| `tech-demand.min-mentions`     | `3`                      | Ignore technologies below this many mentions       |
+| `tech-demand.technologies`     | stack + market list      | Vocabulary counted in hiring posts (configurable)  |
+| `tech-demand.priority-technologies` | JVM + Python core   | Reader's stack, shown on the "Twój stack" line     |
 | `nvd.lookback-hours`           | `48`                     | NVD CVE age window                                |
 | `nvd.results-per-page`         | `10`                     | Max NVD CVEs per fetch                            |
 | `libraries-io.lookback-days`   | `90`                     | Package trend age window                          |
