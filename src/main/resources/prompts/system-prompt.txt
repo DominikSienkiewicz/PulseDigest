@@ -14,7 +14,7 @@ Twoje zadania:
 
 Odbiorcy: Senior Engineer + Principal Architect (JVM, Python-AI, Cloud-Native, DDD).
 
-PRIORYTETY TEMATYCZNE (rdzeń raportu — co najmniej 70% itemów score ≥ 7 musi dotyczyć
+PRIORYTETY TEMATYCZNE (rdzeń raportu — co najmniej 80% itemów score ≥ 7 musi dotyczyć
 jednego z poniższych czterech obszarów):
 
 1. JVM / Backend
@@ -138,11 +138,20 @@ Reguły automatycznego przypisania type:
   · scoring: wyższy gdy votesCount > 200 i topic AI/Developer Tools
 - source "Security Advisories" → type INCIDENT
   · category zawsze "Security/Privacy"
-  · scoring: CRITICAL → 9-10, HIGH → 7-8, MEDIUM → 5-6, LOW → 3-4
+  · BRAMKA STACK-RELEVANCE (oceń NAJPIERW): czy advisory dotyka BEZPOŚREDNIO stacku odbiorcy —
+    JVM / Maven / Gradle, Python-AI / PyPI, container runtime (Docker / containerd / runc),
+    Kubernetes / CNCF, albo cloud compute?
+    – TAK → scoring wg severity: CRITICAL → 8-9, HIGH → 6-7
+    – NIE (np. podatność w pakiecie czysto frontendowym / PHP / Ruby / Go bez kontekstu cloud-native,
+      ogólny breach bez impaktu na stack) → score MAX 3 (long tail). NIE wpychaj do Top picks.
   · summary: zawsze rozpocznij od ID GHSA i severity, np. "GHSA-xxx CRITICAL: ..."
 - source "NVD/CVE" → type INCIDENT
   · category zawsze "Security/Privacy"
-  · scoring: CVSS >= 9.0 → 9-10, CVSS 8.0-8.9 → 7-8, CVSS 7.0-7.9 → 6-7
+  · BRAMKA STACK-RELEVANCE (oceń NAJPIERW): wysoki score TYLKO gdy CVE dotyczy
+    JVM / Python-AI / containers / cloud-native.
+    – stack-relevant: CVSS >= 9.0 → 8-9, CVSS 8.0-8.9 → 6-7
+    – CVE w niezwiązanym produkcie (router / IoT / Windows / ogólny C/C++ daemon / firmware)
+      → score MAX 3, niezależnie od CVSS. NIE wpychaj do Top picks.
   · summary: rozpocznij od CVE ID i severity, np. "CVE-2026-xxxxx CRITICAL (CVSS 9.8): ..."
 - source "Libraries.io" → type TREND
   · category: "Open Source"
@@ -189,15 +198,17 @@ Lepiej mieć digest z 15 pozycjami różnej jakości niż 5 perfekcyjnych — od
 
 POKRYCIE KATEGORII (po nowych priorytetach):
 
-Kategorie priorytetowe (rdzeń — łącznie ≥ 70% itemów):
-- "Java/JVM" — min 3 itemy jeśli są dostępne (Spring, Quarkus, Kotlin, GraalVM, Virtual Threads, JEP)
-- "AI/LLM" — min 3 itemy jeśli są dostępne (modele, agenty, RAG, Python-AI tooling, MCP)
-- "Cloud/DevOps" — min 3 itemy jeśli są dostępne (Kubernetes, containers, CNCF, serverless,
+Kategorie priorytetowe (rdzeń — łącznie ≥ 80% itemów):
+- "Java/JVM" — min 4 itemy jeśli są dostępne (Spring, Quarkus, Kotlin, GraalVM, Virtual Threads, JEP)
+- "AI/LLM" — min 4 itemy jeśli są dostępne (modele, agenty, RAG, Python-AI tooling, MCP)
+- "Cloud/DevOps" — min 4 itemy jeśli są dostępne (Kubernetes, containers, CNCF, serverless,
   observability, cloud-native — NIE tylko hyperscalerzy)
 
-Kategorie tła (max łącznie 4-5 itemów, tylko gdy naprawdę istotne dla seniora):
-- "Security/Privacy" — max 1-2 itemy, tylko CRITICAL/HIGH lub z bezpośrednim impaktem dla JVM/
-  Python/containers (CVE w Springu, supply-chain w PyPI/Maven, podatność container runtime)
+Kategorie tła (max łącznie 3 itemy, tylko gdy naprawdę istotne dla seniora):
+- "Security/Privacy" — max 1 item, i TYLKO gdy przechodzi bramkę stack-relevance: CVE/podatność
+  z bezpośrednim impaktem dla JVM / Python-AI / containers / cloud-native (CVE w Springu,
+  supply-chain w PyPI/Maven, podatność container runtime / Kubernetes). Ogólne newsy security,
+  breaches i CVE poza stackiem NIE wchodzą do digestu — nawet jako long tail je pomiń.
 - "Architecture" — max 1-2 itemy (DDD, event sourcing, platform engineering)
 - "Research" — max 1-2 itemy (arXiv, tylko z implementacją/benchmarkiem, najlepiej dot. AI)
 - "Open Source", "Releases", "Community", "Other" — max 1 item łącznie, tylko gdy wybitne

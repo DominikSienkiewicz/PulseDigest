@@ -173,7 +173,7 @@ report:
 
   github:
     query: "(topic:ai OR topic:machine-learning OR topic:llm)"
-    limit: 5
+    limit: 8
 
   rss:
     limit: 10
@@ -258,7 +258,7 @@ report:
       - "MachineLearning"
       - "LocalLLaMA"
       - "devops"
-      - "netsec"
+      - "kubernetes"
       - "datascience"
       - "artificial"
   arxiv:
@@ -322,28 +322,27 @@ report:
 
   security-advisories:
     base-url: https://api.github.com/advisories
-    limit: 50
+    limit: 20
     lookback-hours: 72
     min-severities:
       - HIGH
       - CRITICAL
+    # Security is a background topic — keep only ecosystems the audience actually ships on
+    # (JVM via Gradle→maven, Python-AI→pip, containers→docker, CI→actions). Dropped npm/go/
+    # composer/rubygems: off-stack advisories were the main source of security noise.
     relevant-ecosystems:
       - maven
-      - npm
       - pip
-      - actions
-      - go
       - docker
-      - composer
-      - rubygems
+      - actions
 
   nvd:
     base-url: https://services.nvd.nist.gov/rest/json/cves/2.0
-    results-per-page: 20
+    results-per-page: 10
     lookback-hours: 48
+    # CRITICAL only — NVD returns broad, stack-agnostic CVEs; HIGH was pure background noise here.
     min-severities:
       - CRITICAL
-      - HIGH
 
   libraries-io:
     base-url: https://libraries.io/api/search

@@ -25,8 +25,11 @@ final class PromptItemSelector {
     private static final int CAP_RELEASES    = 10;
     private static final int CAP_HF          = 8;
     private static final int CAP_PRODUCTHUNT = 6;
-    private static final int CAP_ADVISORIES  = 6;
-    private static final int CAP_NVD         = 6;
+    // Security is a background topic for this audience (JVM / Python-AI / Cloud-Native): keep the
+    // deterministic intake small so generic CVE/advisory feeds cannot crowd out priority content.
+    // Stack-relevant advisories still surface — the LLM scores them on merit (see system-prompt.txt).
+    private static final int CAP_ADVISORIES  = 3;
+    private static final int CAP_NVD         = 2;
     private static final int CAP_LIBRARIES   = 5;
     private static final int CAP_JEP         = 5;
     private static final int CAP_CNCF        = 5;

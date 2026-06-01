@@ -12,8 +12,11 @@ public final class SourceWeights {
     private static final Map<String, Double> WEIGHTS = Map.ofEntries(
             Map.entry("arXiv",               1.00),
             Map.entry("GitHub Releases",     0.95),
-            Map.entry("Security Advisories", 0.90),
-            Map.entry("NVD/CVE",             0.90),
+            // Security is a background topic for this audience — generic advisory/CVE feeds are
+            // intentionally down-weighted so they neither flood the pre-LLM prompt nor get promoted
+            // to a high signal rank. Stack-relevant CVEs still surface via their LLM score.
+            Map.entry("Security Advisories", 0.45),
+            Map.entry("NVD/CVE",             0.45),
             Map.entry("GitHub",              0.85),
             Map.entry("Hacker News",         0.80),
             Map.entry("Tech Radar",          0.80),

@@ -49,15 +49,15 @@ DB-Engines Ranking      ┘
 |---------------------|-------------------------------------------------------------------------------------|---------------------------------------------|
 | Twitter/X           | ~84 curated accounts + 5 topic queries, last 24 h                                   | Authority accounts bypass keyword filter; others require relevance match |
 | Hacker News         | Algolia `numericFilters=created_at_i>`, keyword query                               | `min-score: 25`, max 15 items               |
-| GitHub              | `pushed:>=yesterday`                                                                | Stars desc, configurable query, max 5 repos |
+| GitHub              | `pushed:>=yesterday`                                                                | Stars desc, configurable query, max 8 repos |
 | RSS                 | 30 feeds — core dev (InfoQ, Spring Blog, Baeldung, DZone ×2, JVM Bloggers, devstyle.pl, TLDR Tech, Pragmatic Engineer, Quastor), security (Niebezpiecznik, Sekurak), official changelogs (OpenAI, Google Blog, JetBrains), AI newsletters (Import AI, Simon Willison, Latent Space, Sebastian Raschka, Andrej Karpathy), community (Lobsters, dev.to AI/Java), PL ecosystem (JVM Advent), cloud (AWS, GCP, Azure), JVM (Inside.java), cloud-native (CNCF Blog) | `pubDate` / `updated` filter, max 10 per feed |
 | Reddit              | `t=day` (top 24 h)                                                                  | 8 subreddits, `min-score: 20`, max 15 per sub |
 | arXiv               | Categories `cs.AI, cs.LG, cs.CR, cs.DC, cs.PL` + keyword filter                     | Last 48 h, max 20 papers                    |
 | GitHub Releases     | 17 monitored repos (Spring Boot, Spring AI, Quarkus, GraalVM, vLLM, llama.cpp, K8s, OTel…) | Last 72 h, latest release per repo only |
 | Hugging Face Hub    | Public `/api/models?sort=trendingScore`; pipeline filter (text-generation, text-to-image, text-to-speech, image-to-text, ASR, feature-extraction, text-to-video) | `min-likes: 10` OR `min-downloads: 1000`, max 30 trending models |
 | Product Hunt        | GraphQL `posts(order: VOTES)`, topics: AI, Developer Tools, Productivity, Open Source, Tech | `min-votes: 100`, lookback 36 h. Bez tokenu adapter zwraca pustą listę bez crashu |
-| GitHub Advisories   | Public `/advisories?sort=published`, severity HIGH+CRITICAL, ecosystems: maven, npm, pip, actions, go, docker, composer, rubygems | Last 72 h, max 50. Karmi badge `INCIDENT` |
-| NVD/CVE             | Public NVD API 2.0, `cvssV3Severity=CRITICAL&cvssV3Severity=HIGH`                                             | Last 48 h, max 20 CVEs. Complements GHSA with non-GitHub ecosystems |
+| GitHub Advisories   | Public `/advisories?sort=published`, severity HIGH+CRITICAL, ecosystems: maven, pip, docker, actions (stack-relevant only) | Last 72 h, max 20. Karmi badge `INCIDENT`. Off-stack advisories LLM scores ≤3 (long tail) |
+| NVD/CVE             | Public NVD API 2.0, `cvssV3Severity=CRITICAL`                                                                | Last 48 h, max 10 CVEs. Security is background: high score only for JVM/Python-AI/containers/cloud CVEs |
 | Libraries.io        | Public API `?sort=rank`, platforms: maven, npm, pypi                                                       | API key optional; graceful degradation. Last 90 days trending |
 | OpenJDK JEP         | GitHub Commits API on `openjdk/jdk`, parsing JEP IDs + status changes (Candidate, Proposed to Target, Integrated, Delivered) | Last 7 days. Deduplicated by JEP number |
 | CNCF Landscape      | GitHub Commits API on `cncf/landscape`, filtering commits touching `landscape.yml` (sandbox, incubating, graduated, archived) | Last 7 days. Status-change detection |
@@ -72,6 +72,8 @@ Each digest item is classified along **two orthogonal axes**:
 
 **Category** — *what topic area the item belongs to*
 `Java/JVM` · `AI/LLM` · `Cloud/DevOps` · `Security/Privacy` · `Architecture` · `Open Source` · `Research` · `Releases` · `Community` · `Other`
+
+> **Editorial priority:** the four core areas — **JVM/Backend, Python-AI, AI/LLM, Containers & Cloud-Native** — must make up ≥ 80 % of items scored ≥ 7. `Security/Privacy` is a **background** topic, capped at 1 item and only when the CVE/advisory directly hits the audience's stack (Spring/Maven, PyPI, container runtime, Kubernetes/CNCF, cloud compute). Off-stack security is scored ≤ 3 or dropped. This is enforced at three layers: deterministic intake caps (`PromptItemSelector`), down-weighted source credibility (`SourceWeights`), and the LLM scoring rubric (`system-prompt.txt`).
 
 **Type** — *what kind of signal the item carries*
 
@@ -203,7 +205,7 @@ defaults, not per-environment knobs.
 | `hacker-news.min-score`        | `25`                     | Minimum HN points                                  |
 | `hacker-news.limit`            | `15`                     | Max HN items                                       |
 | `github.query`                 | `(topic:ai OR topic:machine-learning OR topic:llm)` | GitHub search query                              |
-| `github.limit`                 | `5`                      | Max GitHub repos                                   |
+| `github.limit`                 | `8`                      | Max GitHub repos                                   |
 | `rss.limit`                    | `10`                     | Max items per RSS feed                             |
 | `reddit.min-score`             | `20`                     | Minimum Reddit upvotes                             |
 | `reddit.limit`                 | `15`                     | Max posts per subreddit                            |
@@ -216,13 +218,13 @@ defaults, not per-environment knobs.
 | `product-hunt.min-votes`       | `100`                    | Min Product Hunt upvotes                           |
 | `product-hunt.lookback-hours`  | `36`                     | Product Hunt launch age window                     |
 | `security-advisories.lookback-hours` | `72`               | Security Advisory age window                       |
-| `security-advisories.limit`    | `50`                     | Max advisories fetched per run                     |
+| `security-advisories.limit`    | `20`                     | Max advisories fetched per run                     |
 | `trend.enabled`                | `true`                   | Toggle trend section in email                      |
 | `trend.lookback-days`          | `7`                      | History window for trend detection                 |
 | `trend.min-occurrences`        | `2`                      | Minimum category occurrences to qualify as a trend |
 | `trend.max-clusters`           | `5`                      | Max trend clusters shown in email                  |
 | `nvd.lookback-hours`           | `48`                     | NVD CVE age window                                |
-| `nvd.results-per-page`         | `20`                     | Max NVD CVEs per fetch                            |
+| `nvd.results-per-page`         | `10`                     | Max NVD CVEs per fetch                            |
 | `libraries-io.lookback-days`   | `90`                     | Package trend age window                          |
 | `libraries-io.limit`           | `20`                     | Max Libraries.io items                            |
 | `open-jdk.lookback-days`       | `7`                      | OpenJDK JEP age window                            |
