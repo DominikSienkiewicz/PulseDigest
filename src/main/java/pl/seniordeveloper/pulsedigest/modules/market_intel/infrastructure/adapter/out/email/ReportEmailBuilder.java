@@ -10,6 +10,8 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Signal;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SignalRank;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceFetchReport;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceFetchStatus;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TechDemandEntry;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TechDemandSignal;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TrendInsight;
 
 import java.time.LocalDate;
@@ -70,6 +72,7 @@ public class ReportEmailBuilder {
                 + buildInsightsSection(insights)
                 + buildCriticalTrendsSection(criticals)
                 + buildTrendsSection(trends)
+                + buildTechDemandSection(research != null ? research.techDemand() : null)
                 + buildItemsSection(items, rankByUrl)
                 + buildFooter(items.size(), research)
                 + "</div></body></html>";
@@ -227,6 +230,31 @@ public class ReportEmailBuilder {
         }
         sb.append("</ul></div>");
         return sb.toString();
+    }
+
+    // Monthly job-market demand pulse (HN "Who is hiring?"). Rendered only when a fresh signal exists.
+    private String buildTechDemandSection(TechDemandSignal demand) {
+        if (demand == null || demand.isEmpty()) {
+            return "";
+        }
+        String ranking = demand.entries().stream()
+                .map(this::demandChip)
+                .collect(Collectors.joining(" &middot; "));
+        return "<div style=\"padding:20px 28px;background:#ecfeff;border-bottom:1px solid #cffafe\">"
+                + "<h2 style=\"color:#155e75;font-size:15px;margin:0 0 10px\">"
+                + "&#128200; Puls rynku &mdash; popyt na technologie"
+                + (demand.monthLabel() != null ? " (" + escapeHtml(demand.monthLabel()) + ")" : "")
+                + "</h2>"
+                + "<p style=\"margin:0 0 4px;color:#0e7490;font-size:14px;line-height:1.7\">" + ranking + "</p>"
+                + "<p style=\"margin:6px 0 0;color:#64748b;font-size:12px\">"
+                + "na podstawie " + demand.totalPostings() + " ogłoszeń &middot; "
+                + "<a href=\"" + escapeHtml(demand.threadUrl()) + "\" style=\"color:#0891b2;text-decoration:none\">"
+                + "HN Who-is-hiring</a></p>"
+                + "</div>";
+    }
+
+    private String demandChip(TechDemandEntry entry) {
+        return "<strong>" + escapeHtml(entry.name()) + "</strong> &times;" + entry.mentions();
     }
 
     private String buildCriticalTrendsSection(List<Signal> criticals) {

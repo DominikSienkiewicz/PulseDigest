@@ -11,6 +11,8 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Signal;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SignalRank;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceDomain;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceFetchReport;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TechDemandEntry;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TechDemandSignal;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TrendInsight;
 
 import java.time.LocalDateTime;
@@ -95,6 +97,32 @@ class ReportEmailBuilderTest {
                 .contains("OpenAI (model LLM)")
                 .contains("Twitter/X API");
         assertThat(builder.buildAlertSubject()).contains("wyczerpany limit");
+    }
+
+    @Test
+    void buildHtmlShowsTechDemandPulseWhenSignalPresent() {
+        TechDemandSignal demand = new TechDemandSignal(
+                "czerwiec 2026",
+                "https://news.ycombinator.com/item?id=999",
+                120,
+                List.of(new TechDemandEntry("kubernetes", 38), new TechDemandEntry("spring", 24)));
+        ResearchResult research = researchWithFailedSource().withTechDemand(demand);
+
+        String html = builder.buildHtml(fullReport(), research);
+
+        assertThat(html)
+                .contains("Puls rynku")
+                .contains("kubernetes")
+                .contains("&times;38")
+                .contains("czerwiec 2026")
+                .contains("na podstawie 120 og");
+    }
+
+    @Test
+    void buildHtmlOmitsTechDemandPulseWhenAbsent() {
+        String html = builder.buildHtml(fullReport(), researchWithFailedSource());
+
+        assertThat(html).doesNotContain("Puls rynku");
     }
 
     private static ReportData fullReport() {

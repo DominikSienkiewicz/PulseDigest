@@ -31,7 +31,8 @@ public record ResearchResult(
         int rawGithubCount,
         int rawRssCount,
         int rawRedditCount,
-        List<SourceFetchReport> sourceFetchReports
+        List<SourceFetchReport> sourceFetchReports,
+        TechDemandSignal techDemand
 ) {
 
     public ResearchResult {
@@ -68,7 +69,7 @@ public record ResearchResult(
                 papers, releases, huggingFaceModels, productHuntPosts, securityAdvisories,
                 nvdVulnerabilities, packageTrends, jepUpdates, cncfProjectUpdates,
                 radarEntries, conferenceTalks, dbEngineRankings, List.of(), collectedAt,
-                rawTweetsCount, rawHackerNewsCount, rawGithubCount, rawRssCount, rawRedditCount, List.of());
+                rawTweetsCount, rawHackerNewsCount, rawGithubCount, rawRssCount, rawRedditCount, List.of(), null);
     }
 
     public ResearchResult(
@@ -102,7 +103,18 @@ public record ResearchResult(
                 nvdVulnerabilities, packageTrends, jepUpdates, cncfProjectUpdates,
                 radarEntries, conferenceTalks, dbEngineRankings, List.of(), collectedAt,
                 rawTweetsCount, rawHackerNewsCount, rawGithubCount, rawRssCount, rawRedditCount,
-                sourceFetchReports);
+                sourceFetchReports, null);
+    }
+
+    /** Copy of this result with the tech-demand pulse attached (other fields unchanged). */
+    public ResearchResult withTechDemand(TechDemandSignal newTechDemand) {
+        return new ResearchResult(
+                tweets, hackerNewsPosts, githubRepos, rssItems, redditPosts,
+                papers, releases, huggingFaceModels, productHuntPosts, securityAdvisories,
+                nvdVulnerabilities, packageTrends, jepUpdates, cncfProjectUpdates,
+                radarEntries, conferenceTalks, dbEngineRankings, labAnnouncements, collectedAt,
+                rawTweetsCount, rawHackerNewsCount, rawGithubCount, rawRssCount, rawRedditCount,
+                sourceFetchReports, newTechDemand);
     }
 
     public boolean isEmpty() {
