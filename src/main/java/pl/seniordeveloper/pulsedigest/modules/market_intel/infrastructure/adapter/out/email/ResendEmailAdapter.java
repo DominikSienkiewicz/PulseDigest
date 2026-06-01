@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.http.ExternalRestClients;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.EmailDeliveryReceipt;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.QuotaAlert;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportData;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ResearchResult;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.EmailDeliveryPort;
@@ -45,9 +46,19 @@ public class ResendEmailAdapter implements EmailDeliveryPort {
                     "Email not configured: RESEND_API_KEY, DIGEST_FROM_EMAIL and DIGEST_TO_EMAIL are required");
         }
 
-        String subject = emailBuilder.buildSubject(report);
-        String html = emailBuilder.buildHtml(report, research);
+        return sendHtml(emailBuilder.buildSubject(report), emailBuilder.buildHtml(report, research));
+    }
 
+    @Override
+    public EmailDeliveryReceipt sendQuotaAlert(QuotaAlert alert) {
+        if (isBlank(cfg.resendApiKey()) || isBlank(cfg.from()) || isBlank(cfg.to())) {
+            throw new IllegalStateException(
+                    "Email not configured: RESEND_API_KEY, DIGEST_FROM_EMAIL and DIGEST_TO_EMAIL are required");
+        }
+        return sendHtml(emailBuilder.buildAlertSubject(), emailBuilder.buildAlertHtml(alert));
+    }
+
+    private EmailDeliveryReceipt sendHtml(String subject, String html) {
         try {
             String body = objectMapper.writeValueAsString(Map.of(
                     "from", cfg.from(),

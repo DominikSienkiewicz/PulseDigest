@@ -11,6 +11,7 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.http.ExternalRestClients;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.http.QuotaErrors;
 import org.springframework.web.util.UriComponentsBuilder;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.HackerNewsPost;
 import pl.seniordeveloper.pulsedigest.shared.async.AsyncQualifiers;
@@ -124,6 +125,7 @@ public class HackerNewsSearchAdapter {
         try {
             return new KeywordOutcome(fetchKeyword(keyword, since), null);
         } catch (Exception e) {
+            QuotaErrors.rethrowIfQuota(e);
             log.warn("HN keyword '{}' fetch failed: {}", keyword, e.getMessage());
             return new KeywordOutcome(List.of(), e);
         }

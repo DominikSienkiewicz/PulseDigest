@@ -7,12 +7,16 @@ import org.springframework.stereotype.Service;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.MarketIntelJobTracker;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.MarketResearchService;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.SignalScoringService;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ApiAccounts;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.EmailDeliveryReceipt;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.PersistedReport;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.QuotaAlert;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.QuotaSignals;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Signal;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportData;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportJob;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ResearchResult;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceFetchReport;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.EmailDeliveryPort;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.LlmSynthesisPort;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.ReportEnrichmentPort;
@@ -21,8 +25,11 @@ import pl.seniordeveloper.pulsedigest.shared.async.AsyncQualifiers;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Asynchronous processor for generating market reports.
@@ -54,12 +61,14 @@ public class GenerateMarketReportProcessor {
         ReportJob job = maybeJob.get().inProgress();
         jobTracker.track(job);
 
+        ResearchResult research = null;
         try {
-            ResearchResult research = researchService.fetchAndFilter();
+            research = researchService.fetchAndFilter();
             log.info("[{}] Research completed: {}", jobId, research.summary());
 
             if (research.isEmpty()) {
                 log.warn("[{}] All data sources returned empty results — skipping synthesis", jobId);
+                maybeSendQuotaAlert(jobId, research, null);
                 jobTracker.track(job.error("All data sources returned empty results"));
                 return;
             }
@@ -99,11 +108,50 @@ public class GenerateMarketReportProcessor {
 
         } catch (Exception e) {
             log.error("[{}] Error during report generation: {}", jobId, e.getMessage(), e);
+            maybeSendQuotaAlert(jobId, research, e);
             if (job.status().name().startsWith("DELIVER")) {
                 jobTracker.track(job.emailFailed(e.getMessage()));
             } else {
                 jobTracker.track(job.error(e.getMessage()));
             }
         }
+    }
+
+    /**
+     * When the digest could not be produced, sends a standalone alert naming the accounts to top up.
+     * Fires only if a quota/rate-limit signature is present — either among the data sources or in the
+     * failure that aborted synthesis (e.g. LLM credits depleted). Never throws: a failed alert must
+     * not mask the original error.
+     */
+    private void maybeSendQuotaAlert(String jobId, ResearchResult research, Throwable cause) {
+        Set<String> accounts = new LinkedHashSet<>();
+        if (cause != null && QuotaSignals.matches(rootMessage(cause))) {
+            accounts.add(ApiAccounts.LLM);
+        }
+        if (research != null) {
+            for (SourceFetchReport report : research.sourceFetchReports()) {
+                if (report.isQuotaExhausted()) {
+                    accounts.add(ApiAccounts.label(report.sourceName()));
+                }
+            }
+        }
+        if (accounts.isEmpty()) {
+            return;
+        }
+        try {
+            QuotaAlert alert = new QuotaAlert(new ArrayList<>(accounts), cause != null ? rootMessage(cause) : null);
+            EmailDeliveryReceipt receipt = emailPort.sendQuotaAlert(alert);
+            log.warn("[{}] Quota alert sent for {} account(s) via {}", jobId, accounts.size(), receipt.provider());
+        } catch (Exception alertFailure) {
+            log.error("[{}] Failed to send quota alert: {}", jobId, alertFailure.getMessage());
+        }
+    }
+
+    private static String rootMessage(Throwable throwable) {
+        Throwable current = throwable;
+        while (current.getCause() != null) {
+            current = current.getCause();
+        }
+        return current.getMessage() != null ? current.getMessage() : current.getClass().getSimpleName();
     }
 }

@@ -3,6 +3,7 @@ package pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapt
 import org.junit.jupiter.api.Test;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.DigestItem;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.HackerNewsPost;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.QuotaAlert;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportData;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ResearchResult;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RssItem;
@@ -57,6 +58,43 @@ class ReportEmailBuilderTest {
                 .contains("Wybrano 0 z 0 item")
                 .doesNotContain("Top insights dnia")
                 .doesNotContain("Top picks");
+    }
+
+    @Test
+    void buildHtmlShowsExhaustedLimitBannerWhenSourceRateLimited() {
+        ResearchResult research = new ResearchResult(
+                List.of(), List.of(new HackerNewsPost("HN", "https://news.example/1", 1)),
+                List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(),
+                List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(),
+                LocalDateTime.parse("2026-05-14T10:00:00"), 0, 1, 0, 0, 0,
+                List.of(SourceFetchReport.failed("Twitter/X topic", 12, "429 Too Many Requests")));
+
+        String html = builder.buildHtml(fullReport(), research);
+
+        assertThat(html)
+                .contains("Wyczerpane limity API")
+                .contains("Twitter/X API")
+                .contains("doładuj");
+    }
+
+    @Test
+    void buildHtmlOmitsBannerWhenOnlyNonQuotaFailures() {
+        String html = builder.buildHtml(fullReport(), researchWithFailedSource());
+
+        assertThat(html).doesNotContain("Wyczerpane limity API");
+    }
+
+    @Test
+    void buildAlertHtmlNamesAccountsToTopUp() {
+        QuotaAlert alert = new QuotaAlert(List.of("OpenAI (model LLM)", "Twitter/X API"), "429 Too Many Requests");
+
+        String html = builder.buildAlertHtml(alert);
+
+        assertThat(html)
+                .contains("Digest nie powstał")
+                .contains("OpenAI (model LLM)")
+                .contains("Twitter/X API");
+        assertThat(builder.buildAlertSubject()).contains("wyczerpany limit");
     }
 
     private static ReportData fullReport() {

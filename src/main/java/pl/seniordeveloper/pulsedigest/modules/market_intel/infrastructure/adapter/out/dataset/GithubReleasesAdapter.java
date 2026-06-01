@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.http.ExternalRestClients;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.http.QuotaErrors;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SoftwareRelease;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.GithubReleasesProperties;
 
@@ -52,6 +53,7 @@ public class GithubReleasesAdapter {
             try {
                 result.addAll(fetchReleasesForRepo(repo));
             } catch (Exception e) {
+                QuotaErrors.rethrowIfQuota(e);
                 failed++;
                 lastError = e;
                 log.warn("GitHub Releases fetch failed for {}: {}", repo, e.getMessage());

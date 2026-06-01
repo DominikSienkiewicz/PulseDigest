@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.http.ExternalRestClients;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.http.QuotaErrors;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RedditPost;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.RedditProperties;
 
@@ -43,6 +44,7 @@ public class RedditSearchAdapter {
             try {
                 result.addAll(fetchSubreddit(subreddit, cfg.limit(), cfg.minScore()));
             } catch (Exception e) {
+                QuotaErrors.rethrowIfQuota(e);
                 failed++;
                 lastError = e;
                 log.warn("Błąd pobierania r/{}: {}", subreddit, e.getMessage());

@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.http.ExternalRestClients;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.http.QuotaErrors;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ConferenceTalk;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ConferenceTalksProperties;
 
@@ -69,6 +70,7 @@ public class ConferenceTalksAdapter {
                 }
                 allTalks.addAll(parseSearchResults(json, channel.channelName(), channel.conferenceName()));
             } catch (Exception e) {
+                QuotaErrors.rethrowIfQuota(e);
                 failed++;
                 lastError = e;
                 log.warn("Conference Talks fetch failed for {}: {}", channel.conferenceName(), e.getMessage());

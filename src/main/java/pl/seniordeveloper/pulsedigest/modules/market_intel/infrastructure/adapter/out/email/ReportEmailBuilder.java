@@ -1,11 +1,14 @@
 package pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapter.out.email;
 
 import org.springframework.stereotype.Component;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ApiAccounts;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.DigestItem;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.QuotaAlert;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportData;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ResearchResult;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Signal;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SignalRank;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceFetchReport;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceFetchStatus;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TrendInsight;
 
@@ -48,6 +51,10 @@ public class ReportEmailBuilder {
         Map<String, SignalRank> rankByUrl = signals.stream()
                 .collect(Collectors.toMap(s -> s.item().url(), Signal::rank, (a, b) -> a));
 
+        List<SourceFetchReport> exhausted = research != null
+                ? research.sourceFetchReports().stream().filter(SourceFetchReport::isQuotaExhausted).toList()
+                : List.of();
+
         return "<!DOCTYPE html>"
                 + "<html lang=\"pl\"><head><meta charset=\"utf-8\">"
                 + "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
@@ -58,6 +65,7 @@ public class ReportEmailBuilder {
                 + "<div style=\"max-width:720px;margin:0 auto;background:#fff;"
                 + "border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.1)\">"
                 + buildHeader(today)
+                + buildQuotaBanner(exhausted)
                 + buildEditorialSection(editorial)
                 + buildInsightsSection(insights)
                 + buildCriticalTrendsSection(criticals)
@@ -82,6 +90,76 @@ public class ReportEmailBuilder {
                 + "<p style=\"color:#94a3b8;margin:4px 0 0;font-size:14px\">"
                 + today + " &middot; powered by GPT-4o</p>"
                 + "</div>";
+    }
+
+    // Top-of-digest banner: names every API account whose quota/rate limit was exhausted this run,
+    // so the recipient knows which one to top up to get full results. Renders nothing when all good.
+    private String buildQuotaBanner(List<SourceFetchReport> exhausted) {
+        if (exhausted == null || exhausted.isEmpty()) {
+            return "";
+        }
+        List<String> accounts = exhausted.stream()
+                .map(r -> accountLabel(r.sourceName()))
+                .distinct()
+                .toList();
+        StringBuilder sb = new StringBuilder();
+        sb.append("<div style=\"padding:16px 28px;background:#fffbeb;"
+                + "border-bottom:1px solid #fde68a;border-left:4px solid #d97706\">");
+        sb.append("<h2 style=\"color:#92400e;font-size:15px;margin:0 0 6px\">")
+                .append("&#9888;&#65039; Wyczerpane limity API &mdash; doładuj konto, by mieć pełne wyniki</h2>");
+        sb.append("<p style=\"margin:0 0 8px;color:#92400e;font-size:13px;line-height:1.5\">")
+                .append("Poniższe źródła nie zwróciły danych w tym wydaniu z powodu wyczerpanego limitu/kredytów. ")
+                .append("Digest jest niepełny do czasu doładowania.</p>");
+        sb.append("<ul style=\"margin:0;padding-left:20px;color:#78350f;font-size:13px;line-height:1.7\">");
+        for (String account : accounts) {
+            sb.append("<li><strong>").append(escapeHtml(account)).append("</strong></li>");
+        }
+        sb.append("</ul></div>");
+        return sb.toString();
+    }
+
+    // Maps an internal source name to a human-readable "account to top up" label.
+    private String accountLabel(String sourceName) {
+        return ApiAccounts.label(sourceName);
+    }
+
+    /** Subject for the standalone alert email sent when the digest could not be produced at all. */
+    public String buildAlertSubject() {
+        return "⚠️ PulseDigest wstrzymany — wyczerpany limit API";
+    }
+
+    /**
+     * Standalone alert email body — used when no digest exists (e.g. LLM credits depleted or every
+     * data source rate-limited), so the recipient still learns by email which account to top up.
+     */
+    public String buildAlertHtml(QuotaAlert alert) {
+        String today = LocalDate.now().format(DATE_FMT);
+        StringBuilder list = new StringBuilder();
+        for (String account : alert.exhaustedAccounts()) {
+            list.append("<li><strong>").append(escapeHtml(account)).append("</strong></li>");
+        }
+        String detail = alert.detail() != null && !alert.detail().isBlank()
+                ? "<p style=\"margin:14px 0 0;color:#9ca3af;font-size:12px;font-family:monospace;"
+                  + "word-break:break-word\">" + escapeHtml(alert.detail()) + "</p>"
+                : "";
+        return "<!DOCTYPE html>"
+                + "<html lang=\"pl\"><head><meta charset=\"utf-8\">"
+                + "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
+                + "<title>PulseDigest — alert limitu</title></head>"
+                + "<body style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',"
+                + "sans-serif;background:#f9fafb;margin:0;padding:20px\">"
+                + "<div style=\"max-width:560px;margin:0 auto;background:#fff;border-radius:12px;"
+                + "overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.1)\">"
+                + "<div style=\"background:#b91c1c;padding:22px 28px\">"
+                + "<h1 style=\"color:#fff;margin:0;font-size:20px\">&#9888;&#65039; Digest nie powstał</h1>"
+                + "<p style=\"color:#fecaca;margin:4px 0 0;font-size:13px\">" + today + "</p></div>"
+                + "<div style=\"padding:22px 28px;color:#0f172a;font-size:14px;line-height:1.6\">"
+                + "<p style=\"margin:0 0 12px\">Dzisiejszy PulseDigest nie został wygenerowany, ponieważ "
+                + "wyczerpał się limit/kredyty następujących kont. Doładuj je, aby przywrócić pełne raporty:</p>"
+                + "<ul style=\"margin:0;padding-left:20px;color:#7f1d1d;font-size:14px;line-height:1.8\">"
+                + list + "</ul>"
+                + detail
+                + "</div></div></body></html>";
     }
 
     private String buildEditorialSection(String editorial) {

@@ -97,6 +97,7 @@ Both fields are LLM-assigned. The email renders `type` as a colored badge (seman
 The delivered HTML email is a structured digest, not just a link list:
 
 - **Hidden preheader** — 60–90 char preview text shown in inbox snippet (Gmail/Apple Mail).
+- **⚠️ Exhausted-limits banner** — amber block at the very top, shown only when one or more API accounts hit their quota / rate limit this run (e.g. depleted X API credits, GitHub/YouTube rate limit). Names each account to top up so the recipient knows the digest is partial. Absent when every source succeeded. Quota detection (`QuotaSignals` / `QuotaErrors`) classifies failures by HTTP 402/429/403-quota and provider wording; generic transient failures stay in the footer's source-health line instead.
 - **Editorial lead** — 2–3 sentence meta-thesis tying together the day's most important signals (italic, prominent).
 - **🔑 Top insights** — top-3 takeaways extracted from the day.
 - **🔄 Weekly trends** — recurring categories from the last 7 days with LLM-generated narratives ("Trzeci dzień z rzędu CVE…"). Skipped if history is empty or no category passes the `min-occurrences` threshold.
@@ -106,6 +107,8 @@ The delivered HTML email is a structured digest, not just a link list:
 - **Long tail** — score < 5, lightest `#f9fafb` background.
 
 All three item tiers render an identical full table: **article link + 1–2 sentence Polish summary · category badge · type badge · source + engagement (❤/pkt/★/↑) · color-coded score**. The background shade is the only visual distinction — every tier gives enough context to decide whether to click.
+
+> **Standalone quota-alert email.** When the digest cannot be produced **at all** — the LLM provider ran out of credits, or every data source was rate-limited so research came back empty — there is no digest to attach the banner to. In that case a separate minimal alert email (red header, "Digest nie powstał") is sent instead, listing the accounts to top up (including `OpenAI (model LLM)`). Sending the alert never masks the original failure: if it too fails, the job error is preserved.
 - **Footer** — transparency block: "selected N of M items · K sources · source warnings · 24h window".
 
 ## Tech stack

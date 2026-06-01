@@ -4,13 +4,17 @@ import org.junit.jupiter.api.Test;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.MarketIntelJobTracker;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.MarketResearchService;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.SignalScoringService;
+import org.mockito.ArgumentCaptor;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ApiAccounts;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.DigestItem;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.EmailDeliveryReceipt;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.HackerNewsPost;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.QuotaAlert;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportData;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportJob;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportJobStatus;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ResearchResult;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceFetchReport;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.EmailDeliveryPort;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.LlmSynthesisPort;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.ReportStoragePort;
@@ -20,7 +24,9 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -69,6 +75,59 @@ class GenerateMarketReportProcessorTest {
         assertThat(job.status()).isEqualTo(ReportJobStatus.EMAIL_FAILED);
         assertThat(job.report()).isNotNull();
         assertThat(job.error()).contains("resend unavailable");
+    }
+
+    @Test
+    void sendsQuotaAlertNamingLlmWhenSynthesisFailsOnExhaustedCredits() {
+        String jobId = "job-llm-quota";
+        ResearchResult research = sampleResearch();
+        jobTracker.track(ReportJob.pending(jobId));
+        when(researchService.fetchAndFilter()).thenReturn(research);
+        when(synthesisPort.synthesize(research))
+                .thenThrow(new RuntimeException("429 Too Many Requests: insufficient_quota"));
+
+        processor().process(jobId);
+
+        ArgumentCaptor<QuotaAlert> captor = ArgumentCaptor.forClass(QuotaAlert.class);
+        verify(emailPort).sendQuotaAlert(captor.capture());
+        assertThat(captor.getValue().exhaustedAccounts()).contains(ApiAccounts.LLM);
+
+        ReportJob job = jobTracker.getJob(jobId).orElseThrow();
+        assertThat(job.status()).isEqualTo(ReportJobStatus.ERROR);
+    }
+
+    @Test
+    void doesNotSendQuotaAlertOnOrdinaryDeliveryFailure() {
+        String jobId = "job-plain-failure";
+        ResearchResult research = sampleResearch();
+        jobTracker.track(ReportJob.pending(jobId));
+        when(researchService.fetchAndFilter()).thenReturn(research);
+        when(synthesisPort.synthesize(research)).thenReturn(sampleReport());
+        when(emailPort.send(any(), any())).thenThrow(new IllegalStateException("resend unavailable"));
+
+        processor().process(jobId);
+
+        verify(emailPort, never()).sendQuotaAlert(any());
+    }
+
+    @Test
+    void sendsQuotaAlertWhenAllSourcesEmptyAndOneIsRateLimited() {
+        String jobId = "job-empty-ratelimited";
+        jobTracker.track(ReportJob.pending(jobId));
+        ResearchResult emptyButRateLimited = new ResearchResult(
+                List.of(), List.of(), List.of(), List.of(), List.of(),
+                List.of(), List.of(), List.of(), List.of(), List.of(),
+                List.of(), List.of(), List.of(), List.of(), List.of(),
+                List.of(), List.of(),
+                LocalDateTime.now(), 0, 0, 0, 0, 0,
+                List.of(SourceFetchReport.failed("Twitter/X topic", 12L, "429 Too Many Requests")));
+        when(researchService.fetchAndFilter()).thenReturn(emptyButRateLimited);
+
+        processor().process(jobId);
+
+        ArgumentCaptor<QuotaAlert> captor = ArgumentCaptor.forClass(QuotaAlert.class);
+        verify(emailPort).sendQuotaAlert(captor.capture());
+        assertThat(captor.getValue().exhaustedAccounts()).contains("Twitter/X API");
     }
 
     private GenerateMarketReportProcessor processor() {
