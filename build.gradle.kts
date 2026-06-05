@@ -64,7 +64,7 @@ dependencies {
     runtimeOnly("org.postgresql:postgresql")
 
     // ── Local dev: load .env at startup (parity with GH Actions secrets) ─────
-    implementation("me.paulschwarz:spring-dotenv:4.0.0")
+    implementation("me.paulschwarz:spring-dotenv:5.1.0")
 
     // ── AI (Spring AI OpenAI) ─────────────────────────────────────────────────
     implementation("org.springframework.ai:spring-ai-starter-model-openai:$springAiVersion")
