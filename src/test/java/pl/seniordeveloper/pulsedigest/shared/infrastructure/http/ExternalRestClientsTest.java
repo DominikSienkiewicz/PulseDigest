@@ -8,6 +8,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.client.RestClient;
 
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
@@ -67,6 +71,39 @@ class ExternalRestClientsTest {
         String body = client.get().uri("/ok").retrieve().body(String.class);
         assertThat(body).isEqualTo("hello");
         assertThat(retryCounterTotal()).isZero();
+    }
+
+    @Test
+    void parsesRetryAfterDeltaSeconds() {
+        assertThat(ExternalRestClients.parseRetryAfterMillis("2")).isEqualTo(2000L);
+        assertThat(ExternalRestClients.parseRetryAfterMillis("0")).isZero();
+    }
+
+    @Test
+    void parseRetryAfterReturnsNegativeForMissingOrInvalid() {
+        assertThat(ExternalRestClients.parseRetryAfterMillis(null)).isNegative();
+        assertThat(ExternalRestClients.parseRetryAfterMillis("   ")).isNegative();
+        assertThat(ExternalRestClients.parseRetryAfterMillis("soon")).isNegative();
+    }
+
+    @Test
+    void parsesRetryAfterHttpDateInTheFuture() {
+        String future = DateTimeFormatter.RFC_1123_DATE_TIME.format(
+                ZonedDateTime.now(ZoneOffset.UTC).plusSeconds(30));
+
+        long millis = ExternalRestClients.parseRetryAfterMillis(future);
+
+        assertThat(millis).isBetween(25_000L, 31_000L);
+    }
+
+    @Test
+    void honorsRetryAfterHeaderOnThrottledResponse() {
+        wireMock.stubFor(get(urlEqualTo("/retry-after"))
+                .willReturn(aResponse().withStatus(429).withHeader("Retry-After", "0")));
+
+        assertThatRequestCompletes("/retry-after");
+
+        assertThat(retryCounterTotal()).isGreaterThan(0.0);
     }
 
     private void assertThatRequestCompletes(String path) {

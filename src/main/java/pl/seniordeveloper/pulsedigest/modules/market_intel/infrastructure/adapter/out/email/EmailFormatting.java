@@ -25,6 +25,25 @@ final class EmailFormatting {
                 .replace("\"", "&quot;");
     }
 
+    /**
+     * Returns an HTML-attribute-safe href for a (potentially attacker-influenced) URL. Only absolute
+     * {@code http}/{@code https} URLs are allowed through; anything else — {@code javascript:},
+     * {@code data:}, {@code mailto:}, relative or blank — collapses to {@code "#"} so a crafted scraped
+     * URL cannot become a clickable script/redirect in the delivered email. The allowed URL is still
+     * HTML-escaped to neutralise attribute breakout.
+     */
+    static String safeHref(String url) {
+        if (url == null || url.isBlank()) {
+            return "#";
+        }
+        String trimmed = url.strip();
+        String lower = trimmed.toLowerCase(Locale.ROOT);
+        if (lower.startsWith("http://") || lower.startsWith("https://")) {
+            return escapeHtml(trimmed);
+        }
+        return "#";
+    }
+
     static String[] typeBadgeColors(String type) {
         return switch (type) {
             case "RELEASE"      -> new String[]{"#ede9fe", "#6d28d9"};

@@ -29,6 +29,33 @@ class EmailFormattingTest {
     }
 
     @Test
+    void safeHrefAllowsHttpAndHttpsUrls() {
+        assertThat(EmailFormatting.safeHref("https://example.com/a?b=1")).isEqualTo("https://example.com/a?b=1");
+        assertThat(EmailFormatting.safeHref("http://example.com")).isEqualTo("http://example.com");
+    }
+
+    @Test
+    void safeHrefRejectsDangerousSchemes() {
+        assertThat(EmailFormatting.safeHref("javascript:alert(1)")).isEqualTo("#");
+        assertThat(EmailFormatting.safeHref("JavaScript:alert(1)")).isEqualTo("#");
+        assertThat(EmailFormatting.safeHref("data:text/html,<script>")).isEqualTo("#");
+        assertThat(EmailFormatting.safeHref(" vbscript:msgbox ")).isEqualTo("#");
+        assertThat(EmailFormatting.safeHref("mailto:a@b.com")).isEqualTo("#");
+    }
+
+    @Test
+    void safeHrefEscapesHtmlInOtherwiseValidUrl() {
+        assertThat(EmailFormatting.safeHref("https://e.com/?q=\"><img>"))
+                .isEqualTo("https://e.com/?q=&quot;&gt;&lt;img&gt;");
+    }
+
+    @Test
+    void safeHrefReturnsHashForNullOrBlank() {
+        assertThat(EmailFormatting.safeHref(null)).isEqualTo("#");
+        assertThat(EmailFormatting.safeHref("   ")).isEqualTo("#");
+    }
+
+    @Test
     void formatNumberRendersThousandsWithOneDecimal() {
         assertThat(EmailFormatting.formatNumber(1500)).isEqualTo("1.5k");
     }

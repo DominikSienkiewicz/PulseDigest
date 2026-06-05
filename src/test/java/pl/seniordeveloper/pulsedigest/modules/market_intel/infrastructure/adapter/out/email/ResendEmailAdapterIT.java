@@ -81,7 +81,8 @@ class ResendEmailAdapterIT {
     }
 
     private ResendEmailAdapter adapter(EmailProperties emailProperties) throws Exception {
-        ResendEmailAdapter adapter = new ResendEmailAdapter(new ObjectMapper(), new ReportEmailBuilder(), emailProperties);
+        ResendEmailAdapter adapter = new ResendEmailAdapter(
+                new ObjectMapper(), new ReportEmailBuilder(), new AlertEmailBuilder(), emailProperties);
         Field field = ResendEmailAdapter.class.getDeclaredField("resendClient");
         field.setAccessible(true);
         field.set(adapter, RestClient.builder()

@@ -113,6 +113,45 @@ class GenerateMarketReportProcessorTest {
     }
 
     @Test
+    void sendsFailureAlertWhenSynthesisFailsWithoutQuotaSignal() {
+        String jobId = "job-generic-failure";
+        ResearchResult research = sampleResearch();
+        jobTracker.track(ReportJob.pending(jobId));
+        when(researchService.fetchAndFilter()).thenReturn(research);
+        when(synthesisPort.synthesize(research)).thenThrow(new RuntimeException("unexpected boom"));
+
+        processor().process(jobId);
+
+        ArgumentCaptor<QuotaAlert> captor = ArgumentCaptor.forClass(QuotaAlert.class);
+        verify(emailPort).sendQuotaAlert(captor.capture());
+        assertThat(captor.getValue().detail()).contains("unexpected boom");
+
+        ReportJob job = jobTracker.getJob(jobId).orElseThrow();
+        assertThat(job.status()).isEqualTo(ReportJobStatus.ERROR);
+    }
+
+    @Test
+    void sendsFailureAlertWhenAllSourcesEmptyEvenWithoutQuotaSignal() {
+        String jobId = "job-empty-noquota";
+        jobTracker.track(ReportJob.pending(jobId));
+        ResearchResult emptyNonQuota = new ResearchResult(
+                List.of(), List.of(), List.of(), List.of(), List.of(),
+                List.of(), List.of(), List.of(), List.of(), List.of(),
+                List.of(), List.of(), List.of(), List.of(), List.of(),
+                List.of(), List.of(),
+                LocalDateTime.now(), 0, 0, 0, 0, 0,
+                List.of(SourceFetchReport.failed("RSS", 12L, "connection timeout")));
+        when(researchService.fetchAndFilter()).thenReturn(emptyNonQuota);
+
+        processor().process(jobId);
+
+        verify(emailPort).sendQuotaAlert(any());
+
+        ReportJob job = jobTracker.getJob(jobId).orElseThrow();
+        assertThat(job.status()).isEqualTo(ReportJobStatus.ERROR);
+    }
+
+    @Test
     void sendsQuotaAlertWhenAllSourcesEmptyAndOneIsRateLimited() {
         String jobId = "job-empty-ratelimited";
         jobTracker.track(ReportJob.pending(jobId));

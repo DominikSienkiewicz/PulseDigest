@@ -3,7 +3,6 @@ package pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapt
 import org.springframework.stereotype.Component;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ApiAccounts;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.DigestItem;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.QuotaAlert;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportData;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ResearchResult;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Signal;
@@ -23,6 +22,7 @@ import java.util.stream.Collectors;
 
 import static pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapter.out.email.EmailFormatting.escapeHtml;
 import static pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapter.out.email.EmailFormatting.formatEngagement;
+import static pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapter.out.email.EmailFormatting.safeHref;
 import static pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapter.out.email.EmailFormatting.typeBadge;
 
 @Component
@@ -126,45 +126,6 @@ public class ReportEmailBuilder {
         return ApiAccounts.label(sourceName);
     }
 
-    /** Subject for the standalone alert email sent when the digest could not be produced at all. */
-    public String buildAlertSubject() {
-        return "⚠️ PulseDigest wstrzymany — wyczerpany limit API";
-    }
-
-    /**
-     * Standalone alert email body — used when no digest exists (e.g. LLM credits depleted or every
-     * data source rate-limited), so the recipient still learns by email which account to top up.
-     */
-    public String buildAlertHtml(QuotaAlert alert) {
-        String today = LocalDate.now().format(DATE_FMT);
-        StringBuilder list = new StringBuilder();
-        for (String account : alert.exhaustedAccounts()) {
-            list.append("<li><strong>").append(escapeHtml(account)).append("</strong></li>");
-        }
-        String detail = alert.detail() != null && !alert.detail().isBlank()
-                ? "<p style=\"margin:14px 0 0;color:#9ca3af;font-size:12px;font-family:monospace;"
-                  + "word-break:break-word\">" + escapeHtml(alert.detail()) + "</p>"
-                : "";
-        return "<!DOCTYPE html>"
-                + "<html lang=\"pl\"><head><meta charset=\"utf-8\">"
-                + "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
-                + "<title>PulseDigest — alert limitu</title></head>"
-                + "<body style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',"
-                + "sans-serif;background:#f9fafb;margin:0;padding:20px\">"
-                + "<div style=\"max-width:560px;margin:0 auto;background:#fff;border-radius:12px;"
-                + "overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.1)\">"
-                + "<div style=\"background:#b91c1c;padding:22px 28px\">"
-                + "<h1 style=\"color:#fff;margin:0;font-size:20px\">&#9888;&#65039; Digest nie powstał</h1>"
-                + "<p style=\"color:#fecaca;margin:4px 0 0;font-size:13px\">" + today + "</p></div>"
-                + "<div style=\"padding:22px 28px;color:#0f172a;font-size:14px;line-height:1.6\">"
-                + "<p style=\"margin:0 0 12px\">Dzisiejszy PulseDigest nie został wygenerowany, ponieważ "
-                + "wyczerpał się limit/kredyty następujących kont. Doładuj je, aby przywrócić pełne raporty:</p>"
-                + "<ul style=\"margin:0;padding-left:20px;color:#7f1d1d;font-size:14px;line-height:1.8\">"
-                + list + "</ul>"
-                + detail
-                + "</div></div></body></html>";
-    }
-
     private String buildEditorialSection(String editorial) {
         if (editorial == null || editorial.isBlank()) {
             return "";
@@ -262,7 +223,7 @@ public class ReportEmailBuilder {
                 + stackLine
                 + "<p style=\"margin:8px 0 0;color:#64748b;font-size:12px\">"
                 + "na podstawie " + demand.totalPostings() + " ogłoszeń" + vsPrev + " &middot; "
-                + "<a href=\"" + escapeHtml(demand.threadUrl()) + "\" style=\"color:#0891b2;text-decoration:none\">"
+                + "<a href=\"" + safeHref(demand.threadUrl()) + "\" style=\"color:#0891b2;text-decoration:none\">"
                 + "HN Who-is-hiring</a></p>"
                 + "</div>";
     }
@@ -315,7 +276,7 @@ public class ReportEmailBuilder {
                     : "<div style=\"color:#991b1b;font-size:12px;margin-top:3px\">"
                     + escapeHtml(it.source()) + "</div>";
             sb.append("<li style=\"margin-bottom:10px\">")
-                    .append("<a href=\"").append(escapeHtml(it.url()))
+                    .append("<a href=\"").append(safeHref(it.url()))
                     .append("\" style=\"color:#b91c1c;font-weight:600;text-decoration:none;font-size:14px\">")
                     .append(escapeHtml(it.title())).append("</a>")
                     .append(domainLabel)
@@ -432,7 +393,7 @@ public class ReportEmailBuilder {
         String scoreColor = item.score() >= 7 ? "#16a34a"
                 : item.score() >= 4 ? "#ca8a04"
                   : "#dc2626";
-        String safeUrl = escapeHtml(item.url());
+        String safeUrl = safeHref(item.url());
         String rankPrefix = rank != null ? rankEmoji(rank) : "";
         String safeTitle = rankPrefix + escapeHtml(item.title());
         String safeSummary = escapeHtml(item.summary());

@@ -2,7 +2,6 @@ package pl.seniordeveloper.pulsedigest.modules.market_intel.application.command;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.MarketIntelJobTracker;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.MarketResearchService;
@@ -15,14 +14,15 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.QuotaSig
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Signal;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportData;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportJob;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportJobStatus;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ResearchResult;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceFetchReport;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceFetchStatus;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.EmailDeliveryPort;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.LlmSynthesisPort;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.ReportEnrichmentPort;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.ReportStoragePort;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.TechDemandNarratorPort;
-import pl.seniordeveloper.pulsedigest.shared.async.AsyncQualifiers;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -31,9 +31,12 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
- * Asynchronous processor for generating market reports.
+ * Runs the end-to-end market report pipeline synchronously: research → synthesis → enrichment →
+ * scoring → persistence → email delivery. Each terminal outcome (DELIVERED / EMAIL_FAILED / ERROR)
+ * is recorded in the job tracker so the caller can map it to a process exit code.
  */
 @Slf4j
 @RequiredArgsConstructor
@@ -49,7 +52,6 @@ public class GenerateMarketReportProcessor {
     private final SignalScoringService signalScoringService;
     private final TechDemandNarratorPort techDemandNarrator;
 
-    @Async(AsyncQualifiers.REPORT_EXECUTOR)
     public void process(String jobId) {
         log.info("=== [{}] Starting Market Intelligence Pipeline ===", jobId);
         Instant start = Instant.now();
@@ -67,11 +69,13 @@ public class GenerateMarketReportProcessor {
         try {
             research = researchService.fetchAndFilter();
             log.info("[{}] Research completed: {}", jobId, research.summary());
+            warnOnDegradedSources(jobId, research);
 
             if (research.isEmpty()) {
                 log.warn("[{}] All data sources returned empty results — skipping synthesis", jobId);
-                maybeSendQuotaAlert(jobId, research, null);
                 jobTracker.track(job.error("All data sources returned empty results"));
+                sendFailureNotification(jobId, research, null,
+                        "Wszystkie źródła danych zwróciły pusty wynik w oknie 24h");
                 return;
             }
 
@@ -107,16 +111,21 @@ public class GenerateMarketReportProcessor {
             job = job.delivering();
             jobTracker.track(job);
             EmailDeliveryReceipt receipt = emailPort.send(finalReport, research);
-            jobTracker.track(job.delivered());
+            job = job.delivered();
+            jobTracker.track(job);
             log.info("[{}] Email delivered via {}: {}", jobId, receipt.provider(), receipt.responseBody());
 
         } catch (Exception e) {
             log.error("[{}] Error during report generation: {}", jobId, e.getMessage(), e);
-            maybeSendQuotaAlert(jobId, research, e);
-            if (job.status().name().startsWith("DELIVER")) {
+            if (job.status() == ReportJobStatus.DELIVERING) {
+                // The email channel itself failed — the report is already persisted. Don't attempt to
+                // notify through the same (broken) channel; the CI-level failure alert covers this case.
                 jobTracker.track(job.emailFailed(e.getMessage()));
             } else {
+                // Failure before delivery — the email channel is healthy, so notify unconditionally
+                // instead of letting a broken run end silently.
                 jobTracker.track(job.error(e.getMessage()));
+                sendFailureNotification(jobId, research, e, null);
             }
         }
     }
@@ -134,12 +143,13 @@ public class GenerateMarketReportProcessor {
     }
 
     /**
-     * When the digest could not be produced, sends a standalone alert naming the accounts to top up.
-     * Fires only if a quota/rate-limit signature is present — either among the data sources or in the
-     * failure that aborted synthesis (e.g. LLM credits depleted). Never throws: a failed alert must
-     * not mask the original error.
+     * Sends a standalone failure-alert email when the digest could not be produced (before delivery).
+     * Always fires on a pre-delivery failure so a broken run is never silent. When a quota/rate-limit
+     * signature is detected — among the data sources or in the aborting cause (e.g. LLM credits
+     * depleted) — the named accounts to top up are attached; otherwise the alert carries the failure
+     * reason only. Never throws: a failed alert must not mask the original error.
      */
-    private void maybeSendQuotaAlert(String jobId, ResearchResult research, Throwable cause) {
+    private void sendFailureNotification(String jobId, ResearchResult research, Throwable cause, String reason) {
         Set<String> accounts = new LinkedHashSet<>();
         if (cause != null && QuotaSignals.matches(rootMessage(cause))) {
             accounts.add(ApiAccounts.LLM);
@@ -151,16 +161,32 @@ public class GenerateMarketReportProcessor {
                 }
             }
         }
-        if (accounts.isEmpty()) {
+        String detail = cause != null ? rootMessage(cause) : reason;
+        try {
+            QuotaAlert alert = new QuotaAlert(new ArrayList<>(accounts), detail);
+            EmailDeliveryReceipt receipt = emailPort.sendQuotaAlert(alert);
+            log.warn("[{}] Failure alert sent ({} account(s) to top up) via {}",
+                    jobId, accounts.size(), receipt.provider());
+        } catch (Exception alertFailure) {
+            log.error("[{}] Failed to send failure alert: {}", jobId, alertFailure.getMessage());
+        }
+    }
+
+    /**
+     * Logs a WARN when one or more sources failed this run, so a degraded digest (e.g. 15 of 18
+     * sources down but one returned data) is visible in the logs rather than shipping silently as if
+     * the run had been healthy.
+     */
+    private void warnOnDegradedSources(String jobId, ResearchResult research) {
+        List<SourceFetchReport> failed = research.sourceFetchReports().stream()
+                .filter(r -> r.status() == SourceFetchStatus.FAILED)
+                .toList();
+        if (failed.isEmpty()) {
             return;
         }
-        try {
-            QuotaAlert alert = new QuotaAlert(new ArrayList<>(accounts), cause != null ? rootMessage(cause) : null);
-            EmailDeliveryReceipt receipt = emailPort.sendQuotaAlert(alert);
-            log.warn("[{}] Quota alert sent for {} account(s) via {}", jobId, accounts.size(), receipt.provider());
-        } catch (Exception alertFailure) {
-            log.error("[{}] Failed to send quota alert: {}", jobId, alertFailure.getMessage());
-        }
+        log.warn("[{}] Degraded run: {}/{} sources failed — {}", jobId, failed.size(),
+                research.sourceFetchReports().size(),
+                failed.stream().map(SourceFetchReport::sourceName).collect(Collectors.joining(", ")));
     }
 
     private static String rootMessage(Throwable throwable) {

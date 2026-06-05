@@ -27,6 +27,7 @@ public class ResendEmailAdapter implements EmailDeliveryPort {
 
     private final ObjectMapper objectMapper;
     private final ReportEmailBuilder emailBuilder;
+    private final AlertEmailBuilder alertBuilder;
     private final EmailProperties cfg;
     private RestClient resendClient;
 
@@ -55,7 +56,7 @@ public class ResendEmailAdapter implements EmailDeliveryPort {
             throw new IllegalStateException(
                     "Email not configured: RESEND_API_KEY, DIGEST_FROM_EMAIL and DIGEST_TO_EMAIL are required");
         }
-        return sendHtml(emailBuilder.buildAlertSubject(), emailBuilder.buildAlertHtml(alert));
+        return sendHtml(alertBuilder.buildSubject(), alertBuilder.buildHtml(alert));
     }
 
     private EmailDeliveryReceipt sendHtml(String subject, String html) {

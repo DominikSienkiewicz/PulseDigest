@@ -1,6 +1,7 @@
 package pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapter.out.ai;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -66,7 +67,9 @@ public class GptSynthesisAdapter implements LlmSynthesisPort {
                     .retrieve()
                     .body(String.class);
 
-            String jsonContent = extractContent(rawResponse);
+            OpenAiResponse response = objectMapper.readValue(rawResponse, OpenAiResponse.class);
+            logUsage(response.usage());
+            String jsonContent = extractContent(response);
             ReportData report = objectMapper.readValue(jsonContent, ReportData.class);
             log.info("Digest wygenerowany | {} insights | {} itemów",
                     report.topInsights() != null ? report.topInsights().size() : 0,
@@ -97,12 +100,27 @@ public class GptSynthesisAdapter implements LlmSynthesisPort {
         return objectMapper.writeValueAsString(request);
     }
 
-    private String extractContent(String json) throws Exception {
-        OpenAiResponse response = objectMapper.readValue(json, OpenAiResponse.class);
+    private String extractContent(OpenAiResponse response) {
         if (response.choices() == null || response.choices().isEmpty()) {
             throw new LlmSynthesisException("OpenAI returned empty choices[]");
         }
-        return response.choices().getFirst().message().content();
+        Choice choice = response.choices().getFirst();
+        if ("length".equals(choice.finishReason())) {
+            // The model hit max_tokens mid-output: json_object mode does NOT guarantee well-formed
+            // JSON on truncation, so fail fast with an actionable message instead of a cryptic parse error.
+            throw new LlmSynthesisException(
+                    "OpenAI response truncated at the token cap (finish_reason=length) — "
+                    + "increase max_tokens or reduce the number of items sent for scoring");
+        }
+        return choice.message().content();
+    }
+
+    private void logUsage(Usage usage) {
+        if (usage == null) {
+            return;
+        }
+        log.info("OpenAI usage: prompt={} completion={} total={} tokens (max_tokens cap={})",
+                usage.promptTokens(), usage.completionTokens(), usage.totalTokens(), MAX_TOKENS);
     }
 
     // -------------------------------------------------------------------------
@@ -110,14 +128,21 @@ public class GptSynthesisAdapter implements LlmSynthesisPort {
     // -------------------------------------------------------------------------
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    private record OpenAiResponse(List<Choice> choices) {
+    private record OpenAiResponse(List<Choice> choices, Usage usage) {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    private record Choice(Message message) {
+    private record Choice(Message message, @JsonProperty("finish_reason") String finishReason) {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     private record Message(String content) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private record Usage(
+            @JsonProperty("prompt_tokens") Integer promptTokens,
+            @JsonProperty("completion_tokens") Integer completionTokens,
+            @JsonProperty("total_tokens") Integer totalTokens) {
     }
 }

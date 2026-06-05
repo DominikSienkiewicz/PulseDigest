@@ -1,0 +1,21 @@
+version: 2
+updates:
+  # Keep the GitHub Actions used by the workflows pinned and up to date.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "ci"
+
+  # Keep test/tooling libraries current. Spring Boot / Spring AI are intentionally on pre-release
+  # SNAPSHOTs (bleeding-edge showcase), so they are excluded — bumping them is a deliberate manual act.
+  - package-ecosystem: gradle
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "build"
+    ignore:
+      - dependency-name: "org.springframework.boot*"
+      - dependency-name: "org.springframework.ai*"

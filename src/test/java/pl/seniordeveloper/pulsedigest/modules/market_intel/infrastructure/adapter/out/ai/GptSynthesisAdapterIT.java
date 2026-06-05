@@ -93,6 +93,24 @@ class GptSynthesisAdapterIT {
                 .hasMessageContaining("OpenAI synthesis failed");
     }
 
+    @Test
+    void synthesizeFailsClearlyWhenResponseTruncatedAtTokenCap() throws Exception {
+        String truncated = new ObjectMapper().writeValueAsString(Map.of(
+                "choices", List.of(Map.of(
+                        "message", Map.of("content", "{\"items\":[{\"title\":\"half"),
+                        "finish_reason", "length")),
+                "usage", Map.of("prompt_tokens", 5000, "completion_tokens", 10000, "total_tokens", 15000)));
+        wireMock.stubFor(post(urlPathEqualTo("/chat/completions"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(truncated)));
+
+        assertThatThrownBy(() -> adapter.synthesize(emptyResearch()))
+                .isInstanceOf(LlmSynthesisException.class)
+                .hasMessageContaining("finish_reason=length");
+    }
+
     private static ResearchResult emptyResearch() {
         return new ResearchResult(
                 List.of(),

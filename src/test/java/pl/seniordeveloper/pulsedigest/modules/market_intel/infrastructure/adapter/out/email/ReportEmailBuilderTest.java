@@ -3,7 +3,6 @@ package pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapt
 import org.junit.jupiter.api.Test;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.DigestItem;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.HackerNewsPost;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.QuotaAlert;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportData;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ResearchResult;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RssItem;
@@ -84,19 +83,6 @@ class ReportEmailBuilderTest {
         String html = builder.buildHtml(fullReport(), researchWithFailedSource());
 
         assertThat(html).doesNotContain("Wyczerpane limity API");
-    }
-
-    @Test
-    void buildAlertHtmlNamesAccountsToTopUp() {
-        QuotaAlert alert = new QuotaAlert(List.of("OpenAI (model LLM)", "Twitter/X API"), "429 Too Many Requests");
-
-        String html = builder.buildAlertHtml(alert);
-
-        assertThat(html)
-                .contains("Digest nie powstał")
-                .contains("OpenAI (model LLM)")
-                .contains("Twitter/X API");
-        assertThat(builder.buildAlertSubject()).contains("wyczerpany limit");
     }
 
     @Test

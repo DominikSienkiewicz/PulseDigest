@@ -31,7 +31,12 @@ jobs:
   digest:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
+    # Never run two digests at once (a manual dispatch overlapping the scheduled run would
+    # otherwise double-send the email and double-spend OpenAI credits).
+    concurrency:
+      group: pulsedigest-digest
+      cancel-in-progress: false
 
     steps:
       - uses: actions/checkout@v4.2.2
@@ -67,8 +72,10 @@ jobs:
           fi
           echo "All required secrets are configured."
 
-      - name: Build JAR
-        run: ./gradlew bootJar -x test --no-daemon
+      # Run the full gate (tests + Checkstyle + ArchUnit + coverage) before building the JAR, so a
+      # broken pre-release SNAPSHOT dependency is caught here instead of shipping into the digest.
+      - name: Verify build and build JAR
+        run: ./gradlew check bootJar --no-daemon
 
       - name: Run digest
         run: java --enable-preview -jar build/libs/app.jar 2>&1 | tee digest.log
@@ -93,3 +100,31 @@ jobs:
           path: digest.log
           retention-days: 14
           if-no-files-found: ignore
+
+      # Reliable backstop: emails the recipient when the daily run fails for ANY reason — including a
+      # crash or an EMAIL_FAILED state where the app itself could not send its own failure alert. So a
+      # broken digest is never silent.
+      - name: Notify on failure
+        if: failure()
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          DIGEST_FROM_EMAIL: ${{ secrets.DIGEST_FROM_EMAIL }}
+          DIGEST_TO_EMAIL: ${{ secrets.DIGEST_TO_EMAIL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ -z "$RESEND_API_KEY" ] || [ -z "$DIGEST_FROM_EMAIL" ] || [ -z "$DIGEST_TO_EMAIL" ]; then
+            echo "Resend not configured — skipping failure email"
+            exit 0
+          fi
+          payload=$(jq -nc \
+            --arg from "$DIGEST_FROM_EMAIL" \
+            --arg to "$DIGEST_TO_EMAIL" \
+            --arg url "$RUN_URL" \
+            '{from:$from, to:[$to],
+              subject:"⚠️ PulseDigest: dzienny run NIE powiódł się",
+              html:("<p>Dzisiejszy GitHub Actions run PulseDigest zakończył się błędem — digest mógł nie dotrzeć.</p><p><a href=\"" + $url + "\">Zobacz logi uruchomienia</a></p>")}')
+          curl -sS -X POST https://api.resend.com/emails \
+            -H "Authorization: Bearer $RESEND_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "$payload" \
+            || echo "Failure-notification email could not be sent"

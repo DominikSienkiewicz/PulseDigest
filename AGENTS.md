@@ -191,10 +191,9 @@ Prefer Java `record`s for immutable DTOs and Value Objects over any Lombok annot
 
 ## Concurrency
 
-- All external I/O (Twitter, HackerNews, GitHub) runs via `CompletableFuture.supplyAsync()` on the `dataFetchExecutor` (
-  Virtual Thread executor).
-- Report generation runs on the `reportTaskExecutor` (ThreadPool, 2 threads — prevents concurrent LLM calls).
-- Both executors are configured in `AsyncConfig`.
+- All external I/O (Twitter, HackerNews, GitHub) runs via `CompletableFuture.supplyAsync()` on the `dataFetchExecutor`
+  (Virtual Thread executor), configured in `AsyncConfig`.
+- The report pipeline itself runs **synchronously** on the application-runner thread (`DigestRunner` → `GenerateMarketReportService` → `GenerateMarketReportProcessor`). A single-shot batch needs no report executor; the synchronous flow lets the terminal job status map deterministically to the process exit code (0 only on `DELIVERED`).
 
 ---
 
