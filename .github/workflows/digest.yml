@@ -5,9 +5,11 @@ on:
   push:
     branches:
       - main
-  schedule:
-    # 04:00 UTC = 06:00 CEST (lato) / 05:00 CET (zima)
-    - cron: '0 4 * * *'
+  # Codzienne automatyczne generowanie i wysyłanie digestu jest TYMCZASOWO WYŁĄCZONE.
+  # Aby je przywrócić, odkomentuj poniższy blok `schedule`.
+  # schedule:
+  #   # 04:00 UTC = 06:00 CEST (lato) / 05:00 CET (zima)
+  #   - cron: '0 4 * * *'
   workflow_dispatch:
 
 jobs:

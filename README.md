@@ -185,7 +185,7 @@ The `reports` table is created automatically on first run via `spring.sql.init.m
 
 ## GitHub Actions
 
-The workflow at [`.github/workflows/digest.yml`](.github/workflows/digest.yml) runs `./gradlew check` on `push`/`pull_request`. The digest job runs daily at **04:00 UTC** (06:00 CEST / 05:00 CET) and can also be triggered manually via `workflow_dispatch`.
+The workflow at [`.github/workflows/digest.yml`](.github/workflows/digest.yml) runs `./gradlew check` on `push`/`pull_request`. The digest job is **currently disabled on a schedule** — automatic daily generation and sending is turned off (the `schedule` cron is commented out in the workflow). The digest can still be triggered manually via `workflow_dispatch`. To restore the daily run, uncomment the `schedule` block (it ran daily at **04:00 UTC** = 06:00 CEST / 05:00 CET).
 
 The daily job is hardened against silent failure: it runs the full `./gradlew check` gate **before** building the JAR (so a broken pre-release SNAPSHOT is caught instead of shipping into the digest), a job-level `concurrency` guard prevents a manual dispatch from overlapping the scheduled run (no double-send / double-spend of OpenAI credits), and an `if: failure()` step emails the recipient via Resend whenever the run fails for **any** reason — including a crash or `EMAIL_FAILED` where the app itself couldn't send its own alert. [`.github/dependabot.yml`](.github/dependabot.yml) keeps the Actions and test/tooling dependencies current (Spring Boot / Spring AI SNAPSHOTs are intentionally excluded).
 
