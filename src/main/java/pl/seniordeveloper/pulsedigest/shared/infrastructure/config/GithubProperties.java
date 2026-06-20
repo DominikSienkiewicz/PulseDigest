@@ -9,6 +9,7 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 public record GithubProperties(
         @NotBlank String query,
-        @Min(1) int limit
+        @Min(1) int limit,
+        @Min(0) int lookbackDays
 ) {
 }

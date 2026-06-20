@@ -70,7 +70,8 @@ public class HackerNewsSearchAdapter {
 
         log.info("Rozpoczynam przeszukiwanie Hacker News dla {} keywords", props.keywords().size());
 
-        long since = Instant.now().minusSeconds(86_400).getEpochSecond();
+        int lookbackHours = props.lookbackHours() > 0 ? props.lookbackHours() : 24;
+        long since = Instant.now().minusSeconds(lookbackHours * 3600L).getEpochSecond();
 
         // Per-keyword resilience: if one keyword fails, keep going. If ALL fail, throw so the
         // source is marked FAILED by MarketResearchService.fetchSource.

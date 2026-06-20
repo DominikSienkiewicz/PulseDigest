@@ -102,7 +102,8 @@ public class RssFeedAdapter {
             nodes = doc.getElementsByTagName("entry");
         }
 
-        ZonedDateTime cutoff = ZonedDateTime.now().minusHours(24);
+        int lookbackHours = cfg.lookbackHours() > 0 ? cfg.lookbackHours() : 24;
+        ZonedDateTime cutoff = ZonedDateTime.now().minusHours(lookbackHours);
         List<RssItem> items = new ArrayList<>();
         for (int i = 0; i < nodes.getLength() && items.size() < limit; i++) {
             Element el = (Element) nodes.item(i);
@@ -114,7 +115,7 @@ public class RssFeedAdapter {
             if (title.isBlank() || url.isBlank()) {
                 continue;
             }
-            if (!isWithin24h(dateRaw, cutoff)) {
+            if (!isWithinWindow(dateRaw, cutoff)) {
                 continue;
             }
             items.add(new RssItem(title, url, truncate(desc, 300), feedName));
@@ -158,9 +159,10 @@ public class RssFeedAdapter {
     }
 
     /**
-     * Returns true when the item's date is within the last 24 h, or when the date is missing/unparseable.
+     * Returns true when the item's date is after the cutoff (within the configured lookback window),
+     * or when the date is missing/unparseable.
      */
-    private boolean isWithin24h(String dateRaw, ZonedDateTime cutoff) {
+    private boolean isWithinWindow(String dateRaw, ZonedDateTime cutoff) {
         if (dateRaw == null || dateRaw.isBlank()) {
             return true;
         }

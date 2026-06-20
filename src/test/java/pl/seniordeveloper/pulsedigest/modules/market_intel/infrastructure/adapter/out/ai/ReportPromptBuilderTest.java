@@ -20,12 +20,14 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RssItem;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SecurityAdvisory;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SoftwareRelease;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Tweet;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.DedupProperties;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -33,9 +35,15 @@ class ReportPromptBuilderTest {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    /** Builds a prompt builder whose cross-edition dedup sees {@code publishedUrls} as already sent. */
+    private ReportPromptBuilder builder(Set<String> publishedUrls) {
+        return new ReportPromptBuilder(objectMapper, lookbackDays -> publishedUrls,
+                new DedupProperties(true, 10));
+    }
+
     @Test
     void buildUserPromptSerializesAllSupportedSources() throws Exception {
-        ReportPromptBuilder builder = new ReportPromptBuilder(objectMapper);
+        ReportPromptBuilder builder = builder(Set.of());
 
         List<Map<String, Object>> payload = payload(builder.buildUserPrompt(researchWithEverySource()));
 
@@ -69,7 +77,7 @@ class ReportPromptBuilderTest {
 
     @Test
     void buildUserPromptHandlesMissingOptionalFields() throws Exception {
-        ReportPromptBuilder builder = new ReportPromptBuilder(objectMapper);
+        ReportPromptBuilder builder = builder(Set.of());
 
         List<Map<String, Object>> payload = payload(builder.buildUserPrompt(researchWithNullOptionalFields()));
 
@@ -93,11 +101,24 @@ class ReportPromptBuilderTest {
                 throw JsonMappingException.fromUnexpectedIOE(new IOException("boom"));
             }
         };
-        ReportPromptBuilder builder = new ReportPromptBuilder(failingMapper);
+        ReportPromptBuilder builder = new ReportPromptBuilder(failingMapper, lookbackDays -> Set.of(),
+                new DedupProperties(true, 10));
 
         String prompt = builder.buildUserPrompt(researchWithEverySource());
 
         assertThat(prompt).endsWith("[]");
+    }
+
+    @Test
+    void buildUserPromptDropsItemsAlreadyPublishedInRecentEditions() throws Exception {
+        // The Hacker News item's URL was published in a recent edition → cross-edition dedup drops it.
+        List<Map<String, Object>> payload =
+                payload(builder(Set.of("https://news.example/hn")).buildUserPrompt(researchWithEverySource()));
+
+        assertThat(payload).hasSize(13);   // 14 sources minus the already-published HN item
+        assertThat(payload)
+                .extracting(item -> item.get("url"))
+                .doesNotContain("https://news.example/hn");
     }
 
     @Test

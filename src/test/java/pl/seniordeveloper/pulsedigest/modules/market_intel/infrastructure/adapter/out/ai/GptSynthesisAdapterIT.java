@@ -151,7 +151,8 @@ class GptSynthesisAdapterIT {
     private static final class StubPromptBuilder extends ReportPromptBuilder {
 
         private StubPromptBuilder() {
-            super(new ObjectMapper());
+            super(new ObjectMapper(), lookbackDays -> java.util.Set.of(),
+                    new pl.seniordeveloper.pulsedigest.shared.infrastructure.config.DedupProperties(false, 10));
         }
 
         @Override

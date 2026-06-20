@@ -106,12 +106,39 @@ class RssFeedAdapterIT {
         assertThat(adapter("/blank").fetchAll()).isEmpty();
     }
 
+    @Test
+    void includesItemsWithinConfiguredLookbackWindow() throws Exception {
+        String date40hAgo = ZonedDateTime.now(ZoneOffset.UTC).minusHours(40)
+                .format(DateTimeFormatter.RFC_1123_DATE_TIME);
+        wireMock.stubFor(get(urlPathEqualTo("/window"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/rss+xml")
+                        .withBody("""
+                                <rss><channel>
+                                  <item>
+                                    <title>40h old item</title>
+                                    <link>https://example.com/40h</link>
+                                    <description>d</description>
+                                    <pubDate>%s</pubDate>
+                                  </item>
+                                </channel></rss>
+                                """.formatted(date40hAgo))));
+
+        List<RssItem> items = adapter("/window").fetchAll();
+
+        // 40h-old item is outside the old hardcoded 24h window but inside the configured 80h window.
+        assertThat(items).hasSize(1);
+        assertThat(items.getFirst().title()).isEqualTo("40h old item");
+    }
+
     private RssFeedAdapter adapter(String path) throws Exception {
         RssProperties rss = new RssProperties(
                 5,
                 List.of(new RssProperties.FeedConfig(
                         "Test Feed",
-                        "http://localhost:" + wireMock.port() + path)));
+                        "http://localhost:" + wireMock.port() + path)),
+                80);
         RssFeedAdapter adapter = new RssFeedAdapter(rss);
         Field restClientField = RssFeedAdapter.class.getDeclaredField("restClient");
         restClientField.setAccessible(true);

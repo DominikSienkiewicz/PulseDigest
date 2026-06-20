@@ -10,12 +10,16 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ResearchResult;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.PublishedUrlsPort;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.DedupProperties;
+import pl.seniordeveloper.pulsedigest.shared.util.UrlCanonicalizer;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -23,6 +27,8 @@ import java.util.Map;
 public class ReportPromptBuilder {
 
     private final ObjectMapper objectMapper;
+    private final PublishedUrlsPort publishedUrlsPort;
+    private final DedupProperties dedupProperties;
 
     @Value("classpath:prompts/system-prompt.txt")
     private Resource systemPromptResource;
@@ -219,6 +225,7 @@ public class ReportPromptBuilder {
             ));
         }
 
+        all = filterAlreadyPublished(all);
         List<Map<String, Object>> payload = PromptItemSelector.selectTopItems(all);
 
         try {
@@ -242,11 +249,36 @@ public class ReportPromptBuilder {
                     research.radarEntries().size(),
                     research.conferenceTalks().size(),
                     research.labAnnouncements().size());
-            return "Oto posty z ostatnich 24 godzin:\n\n" + json;
+            return "Oto posty z ostatnich kilku dni:\n\n" + json;
         } catch (JsonProcessingException e) {
             log.error("Błąd serializacji payloadu: {}", e.getMessage());
-            return "Oto posty z ostatnich 24 godzin:\n\n[]";
+            return "Oto posty z ostatnich kilku dni:\n\n[]";
         }
+    }
+
+    // Cross-edition dedup: drops items whose canonical URL already appeared in a recent edition, so the
+    // widened Mon/Wed/Fri lookback windows don't re-surface the same item across consecutive runs. Filters
+    // the unified payload by URL, so every source is covered uniformly — including tweets, whose URL is
+    // synthesized above even though the Tweet record has none.
+    private List<Map<String, Object>> filterAlreadyPublished(List<Map<String, Object>> all) {
+        if (!dedupProperties.enabled()) {
+            return all;
+        }
+        Set<String> publishedUrls = publishedUrlsPort.recentlyPublishedUrls(dedupProperties.lookbackDays());
+        if (publishedUrls.isEmpty()) {
+            return all;
+        }
+        List<Map<String, Object>> fresh = all.stream()
+                .filter(item -> {
+                    Object url = item.get("url");
+                    return !(url instanceof String s) || !publishedUrls.contains(UrlCanonicalizer.canonicalize(s));
+                })
+                .toList();
+        int dropped = all.size() - fresh.size();
+        if (dropped > 0) {
+            log.info("Cross-edition dedup: pominięto {} itemów już opublikowanych w ostatnich wydaniach", dropped);
+        }
+        return fresh;
     }
 
     /**

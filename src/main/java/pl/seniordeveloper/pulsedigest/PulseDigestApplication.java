@@ -9,6 +9,7 @@ import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.TechDemandPro
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ArxivProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.CncfLandscapeProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ConferenceTalksProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.DedupProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.EmailProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.GithubProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.GithubReleasesProperties;
@@ -47,7 +48,8 @@ import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.TwitterProper
         TechnologyRadarProperties.class,
         ConferenceTalksProperties.class,
         LabAnnouncementsProperties.class,
-        TechDemandProperties.class
+        TechDemandProperties.class,
+        DedupProperties.class
 })
 public final class PulseDigestApplication {
 

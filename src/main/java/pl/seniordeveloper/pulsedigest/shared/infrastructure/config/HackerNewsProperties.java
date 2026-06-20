@@ -14,6 +14,7 @@ public record HackerNewsProperties(
         @NotBlank String baseUrl,
         @NotEmpty List<@NotBlank String> keywords,
         @Min(1) int limit,
-        @Min(0) int minScore
+        @Min(0) int minScore,
+        @Min(0) int lookbackHours
 ) {
 }

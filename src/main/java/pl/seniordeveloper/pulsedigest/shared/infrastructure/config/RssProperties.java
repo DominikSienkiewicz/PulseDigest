@@ -13,7 +13,8 @@ import java.util.List;
 @Validated
 public record RssProperties(
         @Min(1) int limit,
-        @Valid @NotEmpty List<FeedConfig> feeds
+        @Valid @NotEmpty List<FeedConfig> feeds,
+        @Min(0) int lookbackHours
 ) {
 
     public record FeedConfig(@NotBlank String name, @NotBlank String url) {

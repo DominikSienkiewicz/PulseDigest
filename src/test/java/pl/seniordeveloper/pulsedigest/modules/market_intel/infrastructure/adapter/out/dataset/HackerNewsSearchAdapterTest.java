@@ -39,7 +39,8 @@ class HackerNewsSearchAdapterTest {
                         "https://hn.algolia.com/api/v1/search",
                         List.of("ai", "java"),
                         15,
-                        25
+                        25,
+                        80
                 );
         adapter = new HackerNewsSearchAdapter(new ObjectMapper(), props);
         adapter.init();
@@ -99,7 +100,8 @@ class HackerNewsSearchAdapterTest {
                     "https://hn.algolia.com/api/v1/search",
                     List.of("ai", "java"),
                     15,
-                    25
+                    25,
+                    80
             );
         }
 

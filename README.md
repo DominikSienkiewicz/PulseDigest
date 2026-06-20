@@ -25,15 +25,15 @@ GitHub Releases         ┤                                            │   Sup
 Hugging Face Hub        ├─► MarketResearchService ─► GPT-4o synth ──┤   narratives)      ├─► Supabase save
 Product Hunt            ┤   (parallel fetch,         (score 1-10,    │                    │   ↓
 GitHub Advisories       ┤    URL canonicalization,    category, type,│                    │   Resend email
-OpenJDK JEP             ┤    last 24-72 h)            editorial, PL)  └────────────────────┘
+OpenJDK JEP             ┤    2-10 day window)         editorial, PL)  └────────────────────┘
 CNCF Landscape          ┤
 Tech Radar              ┤
 YouTube Conferences     ┘
 ```
 
-1. **Fetch** — 15 sources run in parallel via Virtual Threads (`CompletableFuture`) with per-source deadlines, shared HTTP connect/read timeouts, and automatic retry for 429/5xx responses (honoring the server's `Retry-After` header, with jitter so parallel fetches don't retry in lock-step). Each source filters to the last 24-72h depending on cadence and records a source-health entry.
+1. **Fetch** — 15 sources run in parallel via Virtual Threads (`CompletableFuture`) with per-source deadlines, shared HTTP connect/read timeouts, and automatic retry for 429/5xx responses (honoring the server's `Retry-After` header, with jitter so parallel fetches don't retry in lock-step). Each source filters to its **configured lookback window** (≈80h for fresh news, up to 10 days for slow sources), sized so nothing slips between the Mon/Wed/Fri runs; it records a source-health entry. Every lookback is config-driven (no hidden hardcoded 24h windows).
 2. **Canonicalize URLs** — strip tracking params (`utm_*`, `fbclid`, `gclid`, etc.) right after fetch, before LLM sees anything. Prevents duplicate items from same article via different campaigns and avoids leaking our UTMs to advertisers when readers click.
-3. **Score** — `ReportPromptBuilder` first selects up to 100 items using per-source caps and a **weighted pre-score** (`round(sourceWeight×100) + min(50, engagement/1000)`) to resolve overflow: a low-engagement GitHub Releases item (pre-score=95) survives over a viral tweet (max pre-score=90). Source weights are tuned to the reader's profile — usable tools/launches (Product Hunt, Hugging Face) and stack releases rank above research papers (arXiv demoted). GPT-4o then deduplicates, scores each surviving item 1–10 for an AI-native architect profile (returning **only score ≥ 6** — quality over quantity), assigns a **category** (topic) and **type** (signal kind, incl. `PROMOTION` for deals), and writes a 1–2 sentence Polish summary plus a one-sentence **`why_it_matters`** action line.
+3. **Score** — `ReportPromptBuilder` first applies **cross-edition dedup** (drops any item whose canonical URL already appeared in an edition from the last `dedup.lookback-days` days, read from the `reports` table — so the wider lookback windows don't re-surface the same item across the Mon/Wed/Fri cadence; covers every source incl. tweets), then selects up to 100 items using per-source caps and a **weighted pre-score** (`round(sourceWeight×100) + min(50, engagement/1000)`) to resolve overflow: a low-engagement GitHub Releases item (pre-score=95) survives over a viral tweet (max pre-score=90). Source weights are tuned to the reader's profile — usable tools/launches (Product Hunt, Hugging Face) and stack releases rank above research papers (arXiv demoted). GPT-4o then deduplicates, scores each surviving item 1–10 for an AI-native architect profile (returning **only score ≥ 6** — quality over quantity), assigns a **category** (topic) and **type** (signal kind, incl. `PROMOTION` for deals), and writes a 1–2 sentence Polish summary plus a one-sentence **`why_it_matters`** action line.
 4. **Synthesize** — GPT-4o produces an editorial lead (meta-thesis of the day) + top-3 insights + email preheader text. Token `usage` is logged per call for cost visibility; a response truncated at the token cap (`finish_reason=length`) fails fast with an actionable error instead of a cryptic JSON-parse failure. The system prompt instructs the model to treat all scraped item text as untrusted data, never as instructions (prompt-injection defense).
 5. **Trend enrichment** — `trend_analytics` module reads the last 7 days of reports from Supabase (JSONB query), counts recurring categories with frequency analysis, runs **one batched GPT-4o-mini call** to generate 1-sentence narratives ("trzeci dzień z rzędu CVE w popularnych narzędziach"), and adds them to the report. Graceful — if history is empty or LLM fails, mail still ships without the trend section.
 6. **Signal scoring** — `SignalScoringService` groups items by LLM-assigned category, resolves each source to a domain type (`SCIENCE` / `CODE` / `BUSINESS` / `SOCIAL` / `SECURITY`), and computes a deterministic score: `round(sourceWeight × 100) + min(50, engagement / 1000)`. Categories that surface across **3+ distinct source domains** in the same digest receive a +50 cross-source bonus and are promoted to 🔴 **CRITICAL**. Every item is wrapped in a `Signal` with rank `CRITICAL → STRONG → MODERATE → WEAK`. Output: `List<Signal>` sorted by rank then score descending.
@@ -44,22 +44,22 @@ YouTube Conferences     ┘
 
 | Source              | Filter                                                                              | Notes                                       |
 |---------------------|-------------------------------------------------------------------------------------|---------------------------------------------|
-| Twitter/X           | 24 CV-curated accounts (3 batches of 8) + 4 topic queries, last 2 days, `max_results: 30` | Per-run call budget `twitter.max-calls-per-run: 10` hard-caps spend (~8 calls/run); authority accounts bypass keyword filter, others require relevance match. Optional server-side `min_faves` floor (off by default — tier-dependent operator) |
-| Hacker News         | Algolia `numericFilters=created_at_i>`, keyword query                               | `min-score: 25`, max 15 items               |
+| Twitter/X           | 24 CV-curated accounts (3 batches of 8) + 4 topic queries, last 4 days, `max_results: 30` | Per-run call budget `twitter.max-calls-per-run: 10` hard-caps spend (~8 calls/run); authority accounts bypass keyword filter, others require relevance match. Optional server-side `min_faves` floor (off by default — tier-dependent operator) |
+| Hacker News         | Algolia `numericFilters=created_at_i>` (config `lookback-hours`), keyword query     | `min-score: 25`, `lookback-hours: 80`, max 15 items |
 | HN Who-is-hiring    | Algolia `author_whoishiring` story + thread comments; aggregates tech mentions      | Monthly thread, shown only when fresh (`lookback-days: 7`). Feeds the 📈 tech-demand pulse, not the item table |
-| GitHub              | `pushed:>=yesterday`                                                                | Stars desc, configurable query, max 8 repos |
-| RSS                 | 30 feeds — core dev (InfoQ, Spring Blog, Baeldung, DZone ×2, JVM Bloggers, devstyle.pl, TLDR Tech, Pragmatic Engineer, Quastor), security (Niebezpiecznik, Sekurak), official changelogs (OpenAI, Google Blog, JetBrains), AI newsletters (Import AI, Simon Willison, Latent Space, Sebastian Raschka, Andrej Karpathy), community (Lobsters, dev.to AI/Java), PL ecosystem (JVM Advent), cloud (AWS, GCP, Azure), JVM (Inside.java), cloud-native (CNCF Blog) | `pubDate` / `updated` filter, max 10 per feed |
+| GitHub              | `pushed:>=` (config `lookback-days`)                                                | Stars desc, `lookback-days: 4`, max 8 repos |
+| RSS                 | 30 feeds — core dev (InfoQ, Spring Blog, Baeldung, DZone ×2, JVM Bloggers, devstyle.pl, TLDR Tech, Pragmatic Engineer, Quastor), security (Niebezpiecznik, Sekurak), official changelogs (OpenAI, Google Blog, JetBrains), AI newsletters (Import AI, Simon Willison, Latent Space, Sebastian Raschka, Andrej Karpathy), community (Lobsters, dev.to AI/Java), PL ecosystem (JVM Advent), cloud (AWS, GCP, Azure), JVM (Inside.java), cloud-native (CNCF Blog) | `pubDate` / `updated` filter (`lookback-hours: 80`), max 10 per feed |
 | Reddit              | `t=day` (top 24 h)                                                                  | 8 subreddits, `min-score: 20`, max 15 per sub |
-| arXiv               | Categories `cs.AI, cs.LG, cs.CR, cs.DC, cs.PL` + keyword filter                     | Last 48 h, max 20 papers                    |
-| GitHub Releases     | 17 monitored repos (Spring Boot, Spring AI, Quarkus, GraalVM, vLLM, llama.cpp, K8s, OTel…) | Last 72 h, latest release per repo only |
+| arXiv               | Categories `cs.AI, cs.LG, cs.CR, cs.DC, cs.PL` + keyword filter                     | Last 80 h, max 20 papers                    |
+| GitHub Releases     | 17 monitored repos (Spring Boot, Spring AI, Quarkus, GraalVM, vLLM, llama.cpp, K8s, OTel…) | Last 80 h, latest release per repo only |
 | Hugging Face Hub    | Public `/api/models?sort=trendingScore`; pipeline filter (text-generation, text-to-image, text-to-speech, image-to-text, ASR, feature-extraction, text-to-video) | `min-likes: 10` OR `min-downloads: 1000`, max 30 trending models |
-| Product Hunt        | GraphQL `posts(order: VOTES)`, topics: AI, Developer Tools, Productivity, Open Source, Tech | `min-votes: 100`, lookback 36 h. Bez tokenu adapter zwraca pustą listę bez crashu |
+| Product Hunt        | GraphQL `posts(order: VOTES)`, topics: AI, Developer Tools, Productivity, Open Source, Tech | `min-votes: 100`, lookback 80 h. Bez tokenu adapter zwraca pustą listę bez crashu |
 | GitHub Advisories   | Public `/advisories?sort=published`, severity HIGH+CRITICAL, ecosystems: maven, pip, docker, actions (stack-relevant only) | Last 72 h, max 20. Karmi badge `INCIDENT`. Off-stack advisories LLM scores ≤3 (long tail). Source weight demoted to `0.30` (background topic) |
-| OpenJDK JEP         | GitHub Commits API on `openjdk/jdk`, parsing JEP IDs + status changes (Candidate, Proposed to Target, Integrated, Delivered) | Last 7 days. Deduplicated by JEP number |
+| OpenJDK JEP         | GitHub Commits API on `openjdk/jdk`, parsing JEP IDs + status changes (Candidate, Proposed to Target, Integrated, Delivered) | Last 10 days. Deduplicated by JEP number |
 | CNCF Landscape      | GitHub Commits API on `cncf/landscape`, filtering commits touching `landscape.yml` (sandbox, incubating, graduated, archived) | Last 7 days. Status-change detection |
 | Tech Radar          | Thoughtworks Technology Radar (quarterly). Rings: Adopt, Trial, Assess, Hold.                                | Quarterly cadence; pre-LLM intake capped at 2 (background) |
-| YouTube Conferences | YouTube Data API v3 `search`, 6 tech channels (SpringDeveloper, CNCF, Devoxx, Google Cloud Tech, InfoQ, GOTO Conferences) | API key optional. Last 7 days, sorted by recency; pre-LLM intake capped at 3 (background) |
-| AI-lab announcements | Official lab blogs/newsrooms, 5 sources via 3 scrape strategies: **SANITY** — `anthropic.com/news`, `anthropic.com/engineering` (inline Sanity CMS data); **JSONLD** — `claude.com/blog`, `blog.google/.../gemini/` (listing → per-post `datePublished`); **OPENAI_DEV** — `developers.openai.com/blog` (cards inline). | Last 48 h. **Highest-signal source** for AI model/product news — very high engagement_score in LLM prompt so it never gets trimmed. Stateless (no DB). A failing source is skipped; only a total outage marks the source FAILED |
+| YouTube Conferences | YouTube Data API v3 `search`, 6 tech channels (SpringDeveloper, CNCF, Devoxx, Google Cloud Tech, InfoQ, GOTO Conferences) | API key optional. Last 10 days, sorted by recency; pre-LLM intake capped at 3 (background) |
+| AI-lab announcements | Official lab blogs/newsrooms, 5 sources via 3 scrape strategies: **SANITY** — `anthropic.com/news`, `anthropic.com/engineering` (inline Sanity CMS data); **JSONLD** — `claude.com/blog`, `blog.google/.../gemini/` (listing → per-post `datePublished`); **OPENAI_DEV** — `developers.openai.com/blog` (cards inline). | Last 80 h. **Highest-signal source** for AI model/product news — very high engagement_score in LLM prompt so it never gets trimmed. Stateless (no DB). A failing source is skipped; only a total outage marks the source FAILED |
 
 ## Categorization (two dimensions)
 
@@ -203,24 +203,29 @@ defaults, not per-environment knobs.
 |--------------------------------|--------------------------|----------------------------------------------------|
 | `twitter.max-calls-per-run`    | `10`                     | Hard ceiling on X API search calls per run (config-drift budget guard) |
 | `twitter.min-faves`            | `0`                      | Server-side `min_faves:N` floor appended to queries; `0` = off (tier-dependent operator) |
-| `research.days-back`           | `2`                      | Tweet age window (days)                            |
+| `research.days-back`           | `4`                      | Tweet age window (days) — 96h covers the Fri→Mon gap |
 | `research.min-likes`           | `3`                      | Minimum likes for tweets                           |
+| `dedup.enabled`                | `true`                   | Drop items already published in recent editions    |
+| `dedup.lookback-days`          | `10`                     | Days of prior editions to dedup against (≥ widest window) |
 | `hacker-news.keywords`         | `[ai, llm, java, ...]`   | HN search keywords (parallel single-term queries)  |
 | `hacker-news.min-score`        | `25`                     | Minimum HN points                                  |
 | `hacker-news.limit`            | `15`                     | Max HN items                                       |
+| `hacker-news.lookback-hours`   | `80`                     | HN post age window (was hardcoded 24h)             |
 | `github.query`                 | `(topic:ai OR topic:machine-learning OR topic:llm)` | GitHub search query                              |
 | `github.limit`                 | `8`                      | Max GitHub repos                                   |
+| `github.lookback-days`         | `4`                      | GitHub `pushed:>=` window (was hardcoded 1 day)    |
 | `rss.limit`                    | `10`                     | Max items per RSS feed                             |
+| `rss.lookback-hours`           | `80`                     | RSS item age window (was hardcoded 24h)            |
 | `reddit.min-score`             | `20`                     | Minimum Reddit upvotes                             |
 | `reddit.limit`                 | `15`                     | Max posts per subreddit                            |
 | `arxiv.max-results`            | `20`                     | Max arXiv papers                                   |
-| `arxiv.lookback-hours`         | `48`                     | arXiv paper age window                             |
-| `github-releases.lookback-hours` | `72`                   | GitHub Releases age window                         |
+| `arxiv.lookback-hours`         | `80`                     | arXiv paper age window                             |
+| `github-releases.lookback-hours` | `80`                   | GitHub Releases age window                         |
 | `hugging-face.limit`           | `30`                     | Max HF trending models per fetch                   |
 | `hugging-face.min-likes`       | `3`                      | Min HF likes (OR `min-downloads` to qualify)       |
 | `hugging-face.min-downloads`   | `50`                     | Min HF downloads (OR `min-likes` to qualify)       |
 | `product-hunt.min-votes`       | `100`                    | Min Product Hunt upvotes                           |
-| `product-hunt.lookback-hours`  | `36`                     | Product Hunt launch age window                     |
+| `product-hunt.lookback-hours`  | `80`                     | Product Hunt launch age window                     |
 | `security-advisories.lookback-hours` | `72`               | Security Advisory age window                       |
 | `security-advisories.limit`    | `20`                     | Max advisories fetched per run                     |
 | `trend.enabled`                | `true`                   | Toggle trend section in email                      |
@@ -234,12 +239,12 @@ defaults, not per-environment knobs.
 | `tech-demand.min-mentions`     | `3`                      | Ignore technologies below this many mentions       |
 | `tech-demand.technologies`     | stack + market list      | Vocabulary counted in hiring posts (configurable)  |
 | `tech-demand.priority-technologies` | JVM + Python core   | Reader's stack, shown on the "Twój stack" line     |
-| `open-jdk.lookback-days`       | `7`                      | OpenJDK JEP age window                            |
+| `open-jdk.lookback-days`       | `10`                     | OpenJDK JEP age window                            |
 | `cncf-landscape.lookback-days` | `7`                      | CNCF landscape change window                      |
 | `technology-radar.lookback-months` | `6`                   | Tech Radar edition age window                     |
-| `conference-talks.lookback-days`   | `7`                  | YouTube talks age window                          |
+| `conference-talks.lookback-days`   | `10`                 | YouTube talks age window                          |
 | `conference-talks.max-results` | `10`                     | Max items per channel                             |
-| `lab-announcements.lookback-hours` | `48`                 | Window for new posts on AI-lab blogs (Anthropic, OpenAI, Google) |
+| `lab-announcements.lookback-hours` | `80`                 | Window for new posts on AI-lab blogs (Anthropic, OpenAI, Google) |
 | `lab-announcements.post-fetch-limit` | `15`               | Max post pages fetched per JSONLD source (listings have no dates) |
 | `lab-announcements.sources`    | 5 sources                | Per-source `name` + `strategy` (SANITY/JSONLD/OPENAI_DEV) + `listing-url` |
 

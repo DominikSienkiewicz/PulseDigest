@@ -47,7 +47,8 @@ public class GithubSearchAdapter {
             return List.of();
         }
 
-        String pushedSince = LocalDate.now().minusDays(1).toString();
+        int lookbackDays = props.lookbackDays() > 0 ? props.lookbackDays() : 1;
+        String pushedSince = LocalDate.now().minusDays(lookbackDays).toString();
         String query = props.query() + " pushed:>=" + pushedSince;
         log.info("Przeszukuję GitHub: {}", query);
         int limit = props.limit() > 0 ? props.limit() : 5;
