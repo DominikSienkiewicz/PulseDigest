@@ -66,7 +66,7 @@ class ReportEmailBuilderTest {
         ResearchResult research = new ResearchResult(
                 List.of(), List.of(new HackerNewsPost("HN", "https://news.example/1", 1)),
                 List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(),
-                List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(),
+                List.of(), List.of(), List.of(), List.of(),
                 LocalDateTime.parse("2026-05-14T10:00:00"), 0, 1, 0, 0, 0,
                 List.of(SourceFetchReport.failed("Twitter/X topic", 12, "429 Too Many Requests")));
 
@@ -179,9 +179,6 @@ class ReportEmailBuilderTest {
                 List.of(new HackerNewsPost("HN", "https://news.example/1", 1)),
                 List.of(),
                 List.of(new RssItem("RSS", "https://blog.example/1", "desc", "Java")),
-                List.of(),
-                List.of(),
-                List.of(),
                 List.of(),
                 List.of(),
                 List.of(),

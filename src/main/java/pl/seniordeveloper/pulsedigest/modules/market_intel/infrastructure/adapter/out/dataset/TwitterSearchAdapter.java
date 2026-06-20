@@ -19,6 +19,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -31,7 +32,7 @@ public class TwitterSearchAdapter {
     private static final DateTimeFormatter X_API_FMT =
             DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'");
     private static final int ACCOUNT_BATCH_SIZE = 8;
-    private static final int MAX_RESULTS = 100;
+    private static final int MAX_RESULTS = 30;
     private static final String SORT_RECENCY = "recency";
     private static final String SORT_RELEVANCY = "relevancy";
 
@@ -43,6 +44,10 @@ public class TwitterSearchAdapter {
     private final TwitterProperties twitterProperties;
     private final ResearchProperties researchProperties;
     private RestClient restClient;
+
+    // Per-run X API call counter. The app is a single-shot batch (fresh JVM per run), so this counts
+    // exactly one run's calls; once it exceeds twitter.max-calls-per-run, further fetches short-circuit.
+    private final AtomicInteger callsThisRun = new AtomicInteger(0);
 
     @PostConstruct
     void init() {
@@ -98,13 +103,31 @@ public class TwitterSearchAdapter {
         return batchQueries;
     }
 
+    // Appends the `min_faves:N` engagement operator to every query when twitter.min-faves > 0, so X
+    // filters low-engagement tweets server-side (saving read quota) instead of us paying for them and
+    // discarding client-side. Disabled (0) by default — not all X access tiers support the operator.
+    private String appendMinFaves(String query) {
+        int minFaves = twitterProperties.minFaves();
+        return minFaves > 0 ? query + " min_faves:" + minFaves : query;
+    }
+
     private List<Tweet> fetchTweets(String query, int maxResults, int daysBack, String sortOrder) {
+        int callNo = callsThisRun.incrementAndGet();
+        int budget = twitterProperties.maxCallsPerRun();
+        if (callNo > budget) {
+            log.warn("Budżet wywołań X wyczerpany ({} calli/run) — pomijam zapytanie: {}...",
+                    budget, query.substring(0, Math.min(40, query.length())));
+            return List.of();
+        }
+
+        String effectiveQuery = appendMinFaves(query);
         ZonedDateTime now = ZonedDateTime.now(ZoneOffset.UTC);
         String endTime = now.minusMinutes(10).format(X_API_FMT);
         String startTime = now.minusDays(daysBack).format(X_API_FMT);
 
-        log.info("X API query [{} dni, sort={}]: {}...",
-                daysBack, sortOrder, query.substring(0, Math.min(70, query.length())));
+        log.info("X API query [{} dni, sort={}, call {}/{}]: {}...",
+                daysBack, sortOrder, callNo, budget,
+                effectiveQuery.substring(0, Math.min(70, effectiveQuery.length())));
 
         // HTTP/transport errors (402 CreditsDepleted, 401, 429, 5xx) intentionally propagate.
         // MarketResearchService.fetchSource catches them and marks the source as FAILED in
@@ -113,7 +136,7 @@ public class TwitterSearchAdapter {
         String raw = restClient.get()
                 .uri(uriBuilder -> uriBuilder
                         .path("/tweets/search/recent")
-                        .queryParam("query", query)
+                        .queryParam("query", effectiveQuery)
                         .queryParam("max_results", Math.max(10, Math.min(maxResults, 100)))
                         .queryParam("tweet.fields", "created_at,author_id,text,public_metrics")
                         .queryParam("expansions", "author_id")

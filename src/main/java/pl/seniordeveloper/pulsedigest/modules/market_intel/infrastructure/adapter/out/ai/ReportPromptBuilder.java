@@ -159,31 +159,6 @@ public class ReportPromptBuilder {
             ));
         }
 
-        for (var vuln : research.nvdVulnerabilities()) {
-            String preview = "CVSS " + vuln.cvssScore() + " · severity=" + vuln.severity()
-                    + " · " + String.join(", ", vuln.affectedProducts());
-            all.add(Map.of(
-                    "source", "NVD/CVE",
-                    "title", vuln.cveId() + " " + truncate(vuln.description(), 120),
-                    "url", vuln.url(),
-                    "engagement_score", (int) (vuln.cvssScore() * 100),
-                    "text_preview", preview.substring(0, Math.min(300, preview.length()))
-            ));
-        }
-
-        for (var trend : research.packageTrends()) {
-            String preview = "Platform: " + trend.platform()
-                    + " · " + trend.dependentProjects() + " dependents"
-                    + (trend.description() != null ? " · " + trend.description() : "");
-            all.add(Map.of(
-                    "source", "Libraries.io",
-                    "title", trend.name(),
-                    "url", trend.url(),
-                    "engagement_score", (int) Math.min(Integer.MAX_VALUE, trend.stars()),
-                    "text_preview", preview.substring(0, Math.min(300, preview.length()))
-            ));
-        }
-
         for (var jep : research.jepUpdates()) {
             String preview = "Status: " + jep.status() + (jep.title() != null ? " · " + jep.title() : "");
             all.add(Map.of(
@@ -244,26 +219,13 @@ public class ReportPromptBuilder {
             ));
         }
 
-        for (var db : research.dbEngineRankings()) {
-            String preview = "Rank #" + db.rank()
-                    + " · Score: " + String.format("%.1f", db.score())
-                    + (db.scoreChange() != 0 ? " · Change: " + String.format("%+.1f", db.scoreChange()) : "");
-            all.add(Map.of(
-                    "source", "DB-Engines",
-                    "title", db.dbName(),
-                    "url", db.url(),
-                    "engagement_score", 1000 - db.rank(),
-                    "text_preview", preview.substring(0, Math.min(300, preview.length()))
-            ));
-        }
-
         List<Map<String, Object>> payload = PromptItemSelector.selectTopItems(all);
 
         try {
             String json = objectMapper.writeValueAsString(payload);
             log.info("Prompt payload: {} itemów wybranych z {} (tweets={}, hn={}, gh={}, rss={}, reddit={},"
                             + " papers={}, releases={}, hf={}, ph={}, advisories={},"
-                            + " nvd={}, libs={}, jep={}, cncf={}, radar={}, talks={}, db={}, labs={})",
+                            + " jep={}, cncf={}, radar={}, talks={}, labs={})",
                     payload.size(), all.size(),
                     research.tweets().size(),
                     research.hackerNewsPosts().size(),
@@ -275,13 +237,10 @@ public class ReportPromptBuilder {
                     research.huggingFaceModels().size(),
                     research.productHuntPosts().size(),
                     research.securityAdvisories().size(),
-                    research.nvdVulnerabilities().size(),
-                    research.packageTrends().size(),
                     research.jepUpdates().size(),
                     research.cncfProjectUpdates().size(),
                     research.radarEntries().size(),
                     research.conferenceTalks().size(),
-                    research.dbEngineRankings().size(),
                     research.labAnnouncements().size());
             return "Oto posty z ostatnich 24 godzin:\n\n" + json;
         } catch (JsonProcessingException e) {
@@ -341,12 +300,5 @@ public class ReportPromptBuilder {
             case "hold" -> 10;
             default -> 0;
         };
-    }
-
-    private String truncate(String s, int maxLen) {
-        if (s == null) {
-            return "";
-        }
-        return s.length() > maxLen ? s.substring(0, maxLen) : s;
     }
 }

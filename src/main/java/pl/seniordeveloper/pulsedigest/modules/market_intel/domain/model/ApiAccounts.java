@@ -21,9 +21,6 @@ public final class ApiAccounts {
         if (sourceName.startsWith("Twitter")) {
             return "Twitter/X API";
         }
-        if (sourceName.equals("NVD/CVE")) {
-            return "NVD API (NIST)";
-        }
         if (sourceName.equals("Security Advisories") || sourceName.startsWith("GitHub")
                 || sourceName.equals("OpenJDK JEP") || sourceName.startsWith("CNCF")) {
             return "GitHub API (token)";
@@ -33,9 +30,6 @@ public final class ApiAccounts {
         }
         if (sourceName.equals("Product Hunt")) {
             return "Product Hunt API";
-        }
-        if (sourceName.equals("Libraries.io")) {
-            return "Libraries.io API";
         }
         if (sourceName.equals("Hugging Face")) {
             return "Hugging Face API";

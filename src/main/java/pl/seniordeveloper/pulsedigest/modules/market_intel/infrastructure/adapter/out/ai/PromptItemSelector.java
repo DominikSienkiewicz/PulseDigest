@@ -26,16 +26,15 @@ final class PromptItemSelector {
     private static final int CAP_HF          = 8;
     private static final int CAP_PRODUCTHUNT = 6;
     // Security is a background topic for this audience (JVM / Python-AI / Cloud-Native): keep the
-    // deterministic intake small so generic CVE/advisory feeds cannot crowd out priority content.
+    // deterministic intake small so generic advisory feeds cannot crowd out priority content.
     // Stack-relevant advisories still surface — the LLM scores them on merit (see system-prompt.txt).
     private static final int CAP_ADVISORIES  = 3;
-    private static final int CAP_NVD         = 2;
-    private static final int CAP_LIBRARIES   = 5;
     private static final int CAP_JEP         = 5;
     private static final int CAP_CNCF        = 5;
-    private static final int CAP_RADAR       = 10;
-    private static final int CAP_TALKS       = 6;
-    private static final int CAP_DBENGINES   = 5;
+    // Tech Radar (quarterly) and conference talks are low-cadence background sources for this
+    // audience: capped tight so they never crowd out fresh JVM / AI / cloud-native signal.
+    private static final int CAP_RADAR       = 2;
+    private static final int CAP_TALKS       = 3;
     static final int TOTAL_CAP               = 100;
 
     private PromptItemSelector() {
@@ -52,13 +51,10 @@ final class PromptItemSelector {
         List<Map<String, Object>> hf          = new ArrayList<>();
         List<Map<String, Object>> productHunt = new ArrayList<>();
         List<Map<String, Object>> advisories  = new ArrayList<>();
-        List<Map<String, Object>> nvd         = new ArrayList<>();
-        List<Map<String, Object>> libraries   = new ArrayList<>();
         List<Map<String, Object>> jep         = new ArrayList<>();
         List<Map<String, Object>> cncf        = new ArrayList<>();
         List<Map<String, Object>> radar       = new ArrayList<>();
         List<Map<String, Object>> talks       = new ArrayList<>();
-        List<Map<String, Object>> databases   = new ArrayList<>();
 
         for (var item : all) {
             String src = (String) item.get("source");
@@ -82,10 +78,6 @@ final class PromptItemSelector {
                 productHunt.add(item);
             } else if (src.equals("Security Advisories")) {
                 advisories.add(item);
-            } else if (src.equals("NVD/CVE")) {
-                nvd.add(item);
-            } else if (src.equals("Libraries.io")) {
-                libraries.add(item);
             } else if (src.equals("OpenJDK JEP")) {
                 jep.add(item);
             } else if (src.startsWith("CNCF")) {
@@ -94,8 +86,6 @@ final class PromptItemSelector {
                 radar.add(item);
             } else if (src.startsWith("YouTube")) {
                 talks.add(item);
-            } else if (src.equals("DB-Engines")) {
-                databases.add(item);
             }
         }
 
@@ -113,13 +103,10 @@ final class PromptItemSelector {
         selected.addAll(topN(hf,          CAP_HF,          byEngagement));
         selected.addAll(topN(productHunt, CAP_PRODUCTHUNT, byEngagement));
         selected.addAll(topN(advisories,  CAP_ADVISORIES,  byEngagement));
-        selected.addAll(topN(nvd,         CAP_NVD,         byEngagement));
-        selected.addAll(topN(libraries,   CAP_LIBRARIES,   byEngagement));
         selected.addAll(topN(jep,         CAP_JEP,         byEngagement));
         selected.addAll(topN(cncf,        CAP_CNCF,        byEngagement));
         selected.addAll(topN(radar,       CAP_RADAR,       byEngagement));
         selected.addAll(topN(talks,       CAP_TALKS,       byEngagement));
-        selected.addAll(topN(databases,   CAP_DBENGINES,   byEngagement));
 
         return applyTotalCap(selected, TOTAL_CAP);
     }

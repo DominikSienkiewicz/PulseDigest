@@ -3,13 +3,10 @@ package pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.LabAnnouncement;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.CncfProjectUpdate;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ConferenceTalk;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.DbEngineRanking;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.GithubRepo;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.HackerNewsPost;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.HuggingFaceModel;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.JepUpdate;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.NvdVulnerability;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.PackageTrend;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ProductHuntPost;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RadarEntry;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RedditPost;
@@ -51,10 +48,6 @@ public interface MarketIntelligencePort {
 
     List<SecurityAdvisory> fetchSecurityAdvisories();
 
-    List<NvdVulnerability> fetchNvdVulnerabilities();
-
-    List<PackageTrend> fetchPackageTrends();
-
     List<JepUpdate> fetchJepUpdates();
 
     List<CncfProjectUpdate> fetchCncfLandscapeChanges();
@@ -62,8 +55,6 @@ public interface MarketIntelligencePort {
     List<RadarEntry> fetchTechRadarEntries();
 
     List<ConferenceTalk> fetchConferenceTalks();
-
-    List<DbEngineRanking> fetchDbEngineRankings();
 
     List<LabAnnouncement> fetchLabAnnouncements();
 

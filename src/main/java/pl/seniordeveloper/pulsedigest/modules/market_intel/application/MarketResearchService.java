@@ -8,13 +8,10 @@ import org.springframework.stereotype.Service;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.LabAnnouncement;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.CncfProjectUpdate;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ConferenceTalk;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.DbEngineRanking;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.GithubRepo;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.HackerNewsPost;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.HuggingFaceModel;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.JepUpdate;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.NvdVulnerability;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.PackageTrend;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ProductHuntPost;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RadarEntry;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RedditPost;
@@ -102,10 +99,6 @@ public class MarketResearchService {
                 fetchSource("Product Hunt", intelligencePort::fetchProductLaunches);
         CompletableFuture<FetchOutcome<SecurityAdvisory>> futureAdvisories =
                 fetchSource("Security Advisories", intelligencePort::fetchSecurityAdvisories);
-        CompletableFuture<FetchOutcome<NvdVulnerability>> futureNvd =
-                fetchSource("NVD/CVE", intelligencePort::fetchNvdVulnerabilities);
-        CompletableFuture<FetchOutcome<PackageTrend>> futurePackages =
-                fetchSource("Libraries.io", intelligencePort::fetchPackageTrends);
         CompletableFuture<FetchOutcome<JepUpdate>> futureJep =
                 fetchSource("OpenJDK JEP", intelligencePort::fetchJepUpdates);
         CompletableFuture<FetchOutcome<CncfProjectUpdate>> futureCncf =
@@ -114,8 +107,6 @@ public class MarketResearchService {
                 fetchSource("Tech Radar", intelligencePort::fetchTechRadarEntries);
         CompletableFuture<FetchOutcome<ConferenceTalk>> futureTalks =
                 fetchSource("Conference Talks", intelligencePort::fetchConferenceTalks);
-        CompletableFuture<FetchOutcome<DbEngineRanking>> futureDb =
-                fetchSource("DB-Engines", intelligencePort::fetchDbEngineRankings);
         CompletableFuture<FetchOutcome<LabAnnouncement>> futureAnnouncements =
                 fetchSource("Lab Announcements", intelligencePort::fetchLabAnnouncements);
         CompletableFuture<FetchOutcome<TechDemandSignal>> futureTechDemand =
@@ -123,8 +114,8 @@ public class MarketResearchService {
 
         CompletableFuture.allOf(futureInfluencer, futureTopic, futureAnthropic, futureHn, futureGh,
                 futureRss, futureReddit, futurePapers, futureReleases,
-                futureHf, futurePh, futureAdvisories, futureNvd, futurePackages,
-                futureJep, futureCncf, futureRadar, futureTalks, futureDb, futureAnnouncements,
+                futureHf, futurePh, futureAdvisories,
+                futureJep, futureCncf, futureRadar, futureTalks, futureAnnouncements,
                 futureTechDemand).join();
 
         FetchOutcome<Tweet> influencer = futureInfluencer.join();
@@ -139,13 +130,10 @@ public class MarketResearchService {
         FetchOutcome<HuggingFaceModel> hf = futureHf.join();
         FetchOutcome<ProductHuntPost> ph = futurePh.join();
         FetchOutcome<SecurityAdvisory> advisories = futureAdvisories.join();
-        FetchOutcome<NvdVulnerability> nvd = futureNvd.join();
-        FetchOutcome<PackageTrend> packages = futurePackages.join();
         FetchOutcome<JepUpdate> jep = futureJep.join();
         FetchOutcome<CncfProjectUpdate> cncf = futureCncf.join();
         FetchOutcome<RadarEntry> radar = futureRadar.join();
         FetchOutcome<ConferenceTalk> talks = futureTalks.join();
-        FetchOutcome<DbEngineRanking> db = futureDb.join();
         FetchOutcome<LabAnnouncement> announcements = futureAnnouncements.join();
         FetchOutcome<TechDemandSignal> techDemand = futureTechDemand.join();
 
@@ -161,21 +149,18 @@ public class MarketResearchService {
         List<HuggingFaceModel> rawHf = hf.items();
         List<ProductHuntPost> rawPh = ph.items();
         List<SecurityAdvisory> rawAdvisories = advisories.items();
-        List<NvdVulnerability> rawNvd = nvd.items();
-        List<PackageTrend> rawPackages = packages.items();
         List<JepUpdate> rawJep = jep.items();
         List<CncfProjectUpdate> rawCncf = cncf.items();
         List<RadarEntry> rawRadar = radar.items();
         List<ConferenceTalk> rawTalks = talks.items();
-        List<DbEngineRanking> rawDb = db.items();
         List<LabAnnouncement> rawAnnouncements = announcements.items();
         List<TechDemandSignal> rawTechDemand = techDemand.items();
         TechDemandSignal techDemandSignal = rawTechDemand.isEmpty() ? null : rawTechDemand.get(0);
         List<SourceFetchReport> sourceFetchReports = Stream.of(
                         influencer.report(), topic.report(), anthropic.report(), hn.report(), gh.report(),
                         rss.report(), reddit.report(), papers.report(), releases.report(), hf.report(), ph.report(),
-                        advisories.report(), nvd.report(), packages.report(), jep.report(), cncf.report(),
-                        radar.report(), talks.report(), db.report(), announcements.report(), techDemand.report())
+                        advisories.report(), jep.report(), cncf.report(),
+                        radar.report(), talks.report(), announcements.report(), techDemand.report())
                 .toList();
 
         Set<String> authorityUsernames = Set.copyOf(researchPolicy.authorityUsernames());
@@ -222,13 +207,10 @@ public class MarketResearchService {
                 rawHf.stream().map(MarketResearchService::canonicalize).toList(),
                 rawPh.stream().map(MarketResearchService::canonicalize).toList(),
                 rawAdvisories.stream().map(MarketResearchService::canonicalize).toList(),
-                rawNvd.stream().map(MarketResearchService::canonicalize).toList(),
-                rawPackages.stream().map(MarketResearchService::canonicalize).toList(),
                 rawJep.stream().map(MarketResearchService::canonicalize).toList(),
                 rawCncf.stream().map(MarketResearchService::canonicalize).toList(),
                 rawRadar.stream().map(MarketResearchService::canonicalize).toList(),
                 rawTalks.stream().map(MarketResearchService::canonicalize).toList(),
-                rawDb.stream().map(MarketResearchService::canonicalize).toList(),
                 rawAnnouncements,
                 LocalDateTime.now(),
                 rawInfluencer.size() + rawTopic.size() + rawAnthropic.size(),
@@ -314,16 +296,6 @@ public class MarketResearchService {
                 a.affectedEcosystems(), UrlCanonicalizer.canonicalize(a.url()));
     }
 
-    private static NvdVulnerability canonicalize(NvdVulnerability v) {
-        return new NvdVulnerability(v.cveId(), v.description(), v.cvssScore(), v.severity(),
-                v.publishedAt(), v.affectedProducts(), UrlCanonicalizer.canonicalize(v.url()));
-    }
-
-    private static PackageTrend canonicalize(PackageTrend t) {
-        return new PackageTrend(t.name(), t.platform(), t.description(), t.stars(),
-                t.dependentProjects(), UrlCanonicalizer.canonicalize(t.url()), t.latestReleaseAt());
-    }
-
     private static JepUpdate canonicalize(JepUpdate j) {
         return new JepUpdate(j.jepId(), j.title(), j.status(), j.updatedAt(),
                 UrlCanonicalizer.canonicalize(j.url()));
@@ -342,11 +314,6 @@ public class MarketResearchService {
     private static ConferenceTalk canonicalize(ConferenceTalk t) {
         return new ConferenceTalk(t.title(), t.channelName(), t.conferenceName(),
                 UrlCanonicalizer.canonicalize(t.url()), t.publishedAt(), t.viewCount());
-    }
-
-    private static DbEngineRanking canonicalize(DbEngineRanking d) {
-        return new DbEngineRanking(d.dbName(), d.rank(), d.rankChange(), d.score(), d.scoreChange(),
-                UrlCanonicalizer.canonicalize(d.url()), d.updatedAt());
     }
 
     private boolean isFromAuthority(Tweet tweet, Set<String> authorities) {

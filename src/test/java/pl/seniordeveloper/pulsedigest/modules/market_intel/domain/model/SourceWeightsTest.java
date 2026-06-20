@@ -11,8 +11,7 @@ class SourceWeightsTest {
     void allKnownSourcesReturnExpectedWeights() {
         assertThat(SourceWeights.of("arXiv")).isCloseTo(1.00, within(0.001));
         assertThat(SourceWeights.of("GitHub Releases")).isCloseTo(0.95, within(0.001));
-        assertThat(SourceWeights.of("Security Advisories")).isCloseTo(0.45, within(0.001));
-        assertThat(SourceWeights.of("NVD/CVE")).isCloseTo(0.45, within(0.001));
+        assertThat(SourceWeights.of("Security Advisories")).isCloseTo(0.30, within(0.001));
         assertThat(SourceWeights.of("GitHub")).isCloseTo(0.85, within(0.001));
         assertThat(SourceWeights.of("Hacker News")).isCloseTo(0.80, within(0.001));
         assertThat(SourceWeights.of("Tech Radar")).isCloseTo(0.80, within(0.001));
@@ -24,8 +23,6 @@ class SourceWeightsTest {
         assertThat(SourceWeights.of("Hugging Face")).isCloseTo(0.50, within(0.001));
         assertThat(SourceWeights.of("RSS")).isCloseTo(0.45, within(0.001));
         assertThat(SourceWeights.of("Twitter/X")).isCloseTo(0.40, within(0.001));
-        assertThat(SourceWeights.of("Libraries.io")).isCloseTo(0.40, within(0.001));
-        assertThat(SourceWeights.of("DB-Engines")).isCloseTo(0.40, within(0.001));
     }
 
     @Test

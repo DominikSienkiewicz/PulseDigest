@@ -1,7 +1,7 @@
 # 🚀 PulseDigest
 **Architected & Developed by [Dominik](https://www.linkedin.com/in/dominik-sienkiewicz/)** *Principal AI Engineer | Full Stack Architect*
 
-Headless batch application that collects tech news from 18 sources every morning, scores items with GPT-4o, **detects cross-source signals** (the same topic surfacing in Science + Code + Business = 🔴 Critical Trend), **detects recurring trends across the last 7 days** (Supabase-backed history), tracks per-source health, and delivers a tier'd, prioritized digest to your inbox — with editorial lead, critical trends, top picks, signals, weekly trend section, and long-tail sections.
+Headless batch application that collects tech news from 15 sources every morning, scores items with GPT-4o, **detects cross-source signals** (the same topic surfacing in Science + Code + Business = 🔴 Critical Trend), **detects recurring trends across the last 7 days** (Supabase-backed history), tracks per-source health, and delivers a tier'd, prioritized digest to your inbox — with editorial lead, critical trends, top picks, signals, weekly trend section, and long-tail sections.
 
 ![Java 26](https://img.shields.io/badge/Java-26-red?style=for-the-badge&logo=openjdk&logoColor=white)
 ![Spring Boot 4.1](https://img.shields.io/badge/Spring_Boot-4.1.0--SNAPSHOT-green?style=for-the-badge&logo=springboot&logoColor=white)
@@ -19,22 +19,19 @@ Twitter/X             ──┐
 Hacker News             ┤
 GitHub                  ┤
 RSS feeds (30)          ┤
-Reddit (8 subs)         ┤
-arXiv                   ┤
-GitHub Releases         ┤                                            ┌─► trend_analytics ─┐
-Hugging Face Hub        ┤                                            │   (last 7 days from │
-Product Hunt            ├─► MarketResearchService ─► GPT-4o synth ──┤   Supabase + LLM   ├─► Supabase save
-GitHub Advisories       ┤   (parallel fetch,         (score 1-10,    │   narratives)      │   ↓
-NVD/CVE                 ┤    URL canonicalization,    category, type,│                    │   Resend email
-Libraries.io            ┤    last 24 h)               editorial, PL) └────────────────────┘
-OpenJDK JEP             ┤
+Reddit (8 subs)         ┤                                            ┌─► trend_analytics ─┐
+arXiv                   ┤                                            │   (last 7 days from │
+GitHub Releases         ┤                                            │   Supabase + LLM   │
+Hugging Face Hub        ├─► MarketResearchService ─► GPT-4o synth ──┤   narratives)      ├─► Supabase save
+Product Hunt            ┤   (parallel fetch,         (score 1-10,    │                    │   ↓
+GitHub Advisories       ┤    URL canonicalization,    category, type,│                    │   Resend email
+OpenJDK JEP             ┤    last 24-72 h)            editorial, PL)  └────────────────────┘
 CNCF Landscape          ┤
 Tech Radar              ┤
-YouTube Conferences     ┤
-DB-Engines Ranking      ┘
+YouTube Conferences     ┘
 ```
 
-1. **Fetch** — 18 sources run in parallel via Virtual Threads (`CompletableFuture`) with per-source deadlines, shared HTTP connect/read timeouts, and automatic retry for 429/5xx responses (honoring the server's `Retry-After` header, with jitter so parallel fetches don't retry in lock-step). Each source filters to the last 24-72h depending on cadence and records a source-health entry.
+1. **Fetch** — 15 sources run in parallel via Virtual Threads (`CompletableFuture`) with per-source deadlines, shared HTTP connect/read timeouts, and automatic retry for 429/5xx responses (honoring the server's `Retry-After` header, with jitter so parallel fetches don't retry in lock-step). Each source filters to the last 24-72h depending on cadence and records a source-health entry.
 2. **Canonicalize URLs** — strip tracking params (`utm_*`, `fbclid`, `gclid`, etc.) right after fetch, before LLM sees anything. Prevents duplicate items from same article via different campaigns and avoids leaking our UTMs to advertisers when readers click.
 3. **Score** — `ReportPromptBuilder` first selects up to 100 items using per-source caps and a **weighted pre-score** (`round(sourceWeight×100) + min(50, engagement/1000)`) to resolve overflow: a low-engagement arXiv paper (pre-score=100) survives over a viral tweet (max pre-score=90). GPT-4o then deduplicates, scores each surviving item 1–10 for a Senior/Principal Engineer + Architect profile, assigns a **category** (topic) and **type** (signal kind), and writes a 1–2 sentence Polish summary with the key number front-loaded.
 4. **Synthesize** — GPT-4o produces an editorial lead (meta-thesis of the day) + top-3 insights + email preheader text. Token `usage` is logged per call for cost visibility; a response truncated at the token cap (`finish_reason=length`) fails fast with an actionable error instead of a cryptic JSON-parse failure. The system prompt instructs the model to treat all scraped item text as untrusted data, never as instructions (prompt-injection defense).
@@ -47,7 +44,7 @@ DB-Engines Ranking      ┘
 
 | Source              | Filter                                                                              | Notes                                       |
 |---------------------|-------------------------------------------------------------------------------------|---------------------------------------------|
-| Twitter/X           | ~84 curated accounts + 5 topic queries, last 24 h                                   | Authority accounts bypass keyword filter; others require relevance match |
+| Twitter/X           | 24 CV-curated accounts (3 batches of 8) + 4 topic queries, last 2 days, `max_results: 30` | Per-run call budget `twitter.max-calls-per-run: 10` hard-caps spend (~8 calls/run); authority accounts bypass keyword filter, others require relevance match. Optional server-side `min_faves` floor (off by default — tier-dependent operator) |
 | Hacker News         | Algolia `numericFilters=created_at_i>`, keyword query                               | `min-score: 25`, max 15 items               |
 | HN Who-is-hiring    | Algolia `author_whoishiring` story + thread comments; aggregates tech mentions      | Monthly thread, shown only when fresh (`lookback-days: 7`). Feeds the 📈 tech-demand pulse, not the item table |
 | GitHub              | `pushed:>=yesterday`                                                                | Stars desc, configurable query, max 8 repos |
@@ -57,14 +54,11 @@ DB-Engines Ranking      ┘
 | GitHub Releases     | 17 monitored repos (Spring Boot, Spring AI, Quarkus, GraalVM, vLLM, llama.cpp, K8s, OTel…) | Last 72 h, latest release per repo only |
 | Hugging Face Hub    | Public `/api/models?sort=trendingScore`; pipeline filter (text-generation, text-to-image, text-to-speech, image-to-text, ASR, feature-extraction, text-to-video) | `min-likes: 10` OR `min-downloads: 1000`, max 30 trending models |
 | Product Hunt        | GraphQL `posts(order: VOTES)`, topics: AI, Developer Tools, Productivity, Open Source, Tech | `min-votes: 100`, lookback 36 h. Bez tokenu adapter zwraca pustą listę bez crashu |
-| GitHub Advisories   | Public `/advisories?sort=published`, severity HIGH+CRITICAL, ecosystems: maven, pip, docker, actions (stack-relevant only) | Last 72 h, max 20. Karmi badge `INCIDENT`. Off-stack advisories LLM scores ≤3 (long tail) |
-| NVD/CVE             | Public NVD API 2.0, `cvssV3Severity=CRITICAL`                                                                | Last 48 h, max 10 CVEs. Security is background: high score only for JVM/Python-AI/containers/cloud CVEs |
-| Libraries.io        | Public API `?sort=rank`, platforms: maven, npm, pypi                                                       | API key optional; graceful degradation. Last 90 days trending |
+| GitHub Advisories   | Public `/advisories?sort=published`, severity HIGH+CRITICAL, ecosystems: maven, pip, docker, actions (stack-relevant only) | Last 72 h, max 20. Karmi badge `INCIDENT`. Off-stack advisories LLM scores ≤3 (long tail). Source weight demoted to `0.30` (background topic) |
 | OpenJDK JEP         | GitHub Commits API on `openjdk/jdk`, parsing JEP IDs + status changes (Candidate, Proposed to Target, Integrated, Delivered) | Last 7 days. Deduplicated by JEP number |
 | CNCF Landscape      | GitHub Commits API on `cncf/landscape`, filtering commits touching `landscape.yml` (sandbox, incubating, graduated, archived) | Last 7 days. Status-change detection |
-| Tech Radar          | Thoughtworks Technology Radar (quarterly). Rings: Adopt, Trial, Assess, Hold.                                | Quarterly cadence, all entries included |
-| YouTube Conferences | YouTube Data API v3 `search`, 6 tech channels (SpringDeveloper, CNCF, Devoxx, Google Cloud Tech, InfoQ, GOTO Conferences) | API key optional. Last 7 days, sorted by recency |
-| DB-Engines          | DB-Engines.com ranking table, detecting score changes ≥ 5 points                                           | Monthly cadence; significant movers only |
+| Tech Radar          | Thoughtworks Technology Radar (quarterly). Rings: Adopt, Trial, Assess, Hold.                                | Quarterly cadence; pre-LLM intake capped at 2 (background) |
+| YouTube Conferences | YouTube Data API v3 `search`, 6 tech channels (SpringDeveloper, CNCF, Devoxx, Google Cloud Tech, InfoQ, GOTO Conferences) | API key optional. Last 7 days, sorted by recency; pre-LLM intake capped at 3 (background) |
 | AI-lab announcements | Official lab blogs/newsrooms, 5 sources via 3 scrape strategies: **SANITY** — `anthropic.com/news`, `anthropic.com/engineering` (inline Sanity CMS data); **JSONLD** — `claude.com/blog`, `blog.google/.../gemini/` (listing → per-post `datePublished`); **OPENAI_DEV** — `developers.openai.com/blog` (cards inline). | Last 48 h. **Highest-signal source** for AI model/product news — very high engagement_score in LLM prompt so it never gets trimmed. Stateless (no DB). A failing source is skipped; only a total outage marks the source FAILED |
 
 ## Categorization (two dimensions)
@@ -137,7 +131,7 @@ Architecture follows [Hexagonal (Ports & Adapters)](docs/adr/0002-hexagonal-arch
 - Resend account + API key
 - Supabase project (free tier — Postgres for report history)
 - Docker Desktop (for Testcontainers when running `./gradlew test`)
-- *(Optional)* Product Hunt developer token, Libraries.io API key, YouTube Data API key — without them the respective adapters degrade gracefully (return empty list, log warn, pipeline keeps running)
+- *(Optional)* Product Hunt developer token, YouTube Data API key — without them the respective adapters degrade gracefully (return empty list, log warn, pipeline keeps running)
 
 ## Local setup
 
@@ -158,7 +152,6 @@ DIGEST_TO_EMAIL=
 
 # Optional — pomijalne, adaptery degradują się gracefully gdy nieustawione
 PRODUCTHUNT_DEVELOPER_TOKEN=
-LIBRARIES_IO_API_KEY=
 YOUTUBE_API_KEY=
 
 # Supabase Session Pooler (NIE Direct connection — direct is IPv6-only on free tier)
@@ -189,7 +182,7 @@ The workflow at [`.github/workflows/digest.yml`](.github/workflows/digest.yml) r
 
 The daily job is hardened against silent failure: it runs the full `./gradlew check` gate **before** building the JAR (so a broken pre-release SNAPSHOT is caught instead of shipping into the digest), a job-level `concurrency` guard prevents a manual dispatch from overlapping the scheduled run (no double-send / double-spend of OpenAI credits), and an `if: failure()` step emails the recipient via Resend whenever the run fails for **any** reason — including a crash or `EMAIL_FAILED` where the app itself couldn't send its own alert. [`.github/dependabot.yml`](.github/dependabot.yml) keeps the Actions and test/tooling dependencies current (Spring Boot / Spring AI SNAPSHOTs are intentionally excluded).
 
-Required repository secrets: `TWITTER_BEARER_TOKEN`, `OPENAI_API_KEY`, `RESEND_API_KEY`, `DIGEST_FROM_EMAIL`, `DIGEST_TO_EMAIL`, `SUPABASE_DB_URL`, `SUPABASE_DB_USERNAME`, `SUPABASE_DB_PASSWORD`. Optional: `PRODUCTHUNT_DEVELOPER_TOKEN`, `LIBRARIES_IO_API_KEY`, `YOUTUBE_API_KEY` (workflow injects them; adapters no-op gracefully when absent).
+Required repository secrets: `TWITTER_BEARER_TOKEN`, `OPENAI_API_KEY`, `RESEND_API_KEY`, `DIGEST_FROM_EMAIL`, `DIGEST_TO_EMAIL`, `SUPABASE_DB_URL`, `SUPABASE_DB_USERNAME`, `SUPABASE_DB_PASSWORD`. Optional: `PRODUCTHUNT_DEVELOPER_TOKEN`, `YOUTUBE_API_KEY` (workflow injects them; adapters no-op gracefully when absent).
 
 ## Configuration
 
@@ -199,13 +192,15 @@ All tuneable parameters live in [`src/main/resources/application.yaml`](src/main
 environment first and falls back to `default` (or empty). All other keys below are baked into the YAML and
 require a code change + redeploy to override. The keys currently accepting `${ENV}` are: `OPENAI_API_KEY`,
 `TWITTER_BEARER_TOKEN`, `RESEND_API_KEY`, `DIGEST_FROM_EMAIL`, `DIGEST_TO_EMAIL`,
-`PRODUCTHUNT_DEVELOPER_TOKEN`, `LIBRARIES_IO_API_KEY`, `YOUTUBE_API_KEY`, plus the three Supabase
+`PRODUCTHUNT_DEVELOPER_TOKEN`, `YOUTUBE_API_KEY`, plus the three Supabase
 datasource keys (`SUPABASE_DB_URL`, `SUPABASE_DB_USERNAME`, `SUPABASE_DB_PASSWORD`). Tuning thresholds
 (min-score, lookback windows, limits) are **not** env-overridable by default — they are project-policy
 defaults, not per-environment knobs.
 
 | Key                            | Default                  | Description                                        |
 |--------------------------------|--------------------------|----------------------------------------------------|
+| `twitter.max-calls-per-run`    | `10`                     | Hard ceiling on X API search calls per run (config-drift budget guard) |
+| `twitter.min-faves`            | `0`                      | Server-side `min_faves:N` floor appended to queries; `0` = off (tier-dependent operator) |
 | `research.days-back`           | `2`                      | Tweet age window (days)                            |
 | `research.min-likes`           | `3`                      | Minimum likes for tweets                           |
 | `hacker-news.keywords`         | `[ai, llm, java, ...]`   | HN search keywords (parallel single-term queries)  |
@@ -237,16 +232,11 @@ defaults, not per-environment knobs.
 | `tech-demand.min-mentions`     | `3`                      | Ignore technologies below this many mentions       |
 | `tech-demand.technologies`     | stack + market list      | Vocabulary counted in hiring posts (configurable)  |
 | `tech-demand.priority-technologies` | JVM + Python core   | Reader's stack, shown on the "Twój stack" line     |
-| `nvd.lookback-hours`           | `48`                     | NVD CVE age window                                |
-| `nvd.results-per-page`         | `10`                     | Max NVD CVEs per fetch                            |
-| `libraries-io.lookback-days`   | `90`                     | Package trend age window                          |
-| `libraries-io.limit`           | `20`                     | Max Libraries.io items                            |
 | `open-jdk.lookback-days`       | `7`                      | OpenJDK JEP age window                            |
 | `cncf-landscape.lookback-days` | `7`                      | CNCF landscape change window                      |
 | `technology-radar.lookback-months` | `6`                   | Tech Radar edition age window                     |
 | `conference-talks.lookback-days`   | `7`                  | YouTube talks age window                          |
 | `conference-talks.max-results` | `10`                     | Max items per channel                             |
-| `db-engines.min-score-change`  | `5`                      | Min score change to qualify as significant mover  |
 | `lab-announcements.lookback-hours` | `48`                 | Window for new posts on AI-lab blogs (Anthropic, OpenAI, Google) |
 | `lab-announcements.post-fetch-limit` | `15`               | Max post pages fetched per JSONLD source (listings have no dates) |
 | `lab-announcements.sources`    | 5 sources                | Per-source `name` + `strategy` (SANITY/JSONLD/OPENAI_DEV) + `listing-url` |

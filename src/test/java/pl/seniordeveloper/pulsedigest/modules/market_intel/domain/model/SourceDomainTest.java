@@ -23,8 +23,6 @@ class SourceDomainTest {
         assertThat(SourceDomain.from("GitHub Releases")).isEqualTo(SourceDomain.CODE);
         assertThat(SourceDomain.from("OpenJDK JEP")).isEqualTo(SourceDomain.CODE);
         assertThat(SourceDomain.from("CNCF Landscape")).isEqualTo(SourceDomain.CODE);
-        assertThat(SourceDomain.from("Libraries.io")).isEqualTo(SourceDomain.CODE);
-        assertThat(SourceDomain.from("DB-Engines")).isEqualTo(SourceDomain.CODE);
     }
 
     @Test
@@ -46,7 +44,6 @@ class SourceDomainTest {
     @Test
     void securitySourcesResolveToSecurity() {
         assertThat(SourceDomain.from("Security Advisories")).isEqualTo(SourceDomain.SECURITY);
-        assertThat(SourceDomain.from("NVD/CVE")).isEqualTo(SourceDomain.SECURITY);
     }
 
     @Test

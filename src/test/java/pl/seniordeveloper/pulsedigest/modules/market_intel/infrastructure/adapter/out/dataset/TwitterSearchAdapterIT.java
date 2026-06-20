@@ -16,6 +16,7 @@ import java.time.Duration;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
@@ -71,16 +72,21 @@ class TwitterSearchAdapterIT {
         TwitterProperties properties = new TwitterProperties(
                 "token",
                 List.of("java"),
-                List.of("a1", "a2", "a3", "a4", "a5", "a6", "a7", "a8", "a9"));
+                List.of("a1", "a2", "a3", "a4", "a5", "a6", "a7", "a8", "a9"),
+                10,
+                0);
         ResearchProperties research = new ResearchProperties(3, DAYS_BACK, List.of("a1"));
         adapter = new TwitterSearchAdapter(new ObjectMapper(), properties, research);
+        injectTestClient(adapter);
+    }
+
+    private void injectTestClient(TwitterSearchAdapter target) throws Exception {
         RestClient testClient = RestClient.builder()
                 .baseUrl("http://localhost:" + wireMock.port())
                 .build();
-
         Field restClientField = TwitterSearchAdapter.class.getDeclaredField("restClient");
         restClientField.setAccessible(true);
-        restClientField.set(adapter, testClient);
+        restClientField.set(target, testClient);
     }
 
     @AfterEach
@@ -120,7 +126,7 @@ class TwitterSearchAdapterIT {
         ZonedDateTime after = ZonedDateTime.now(ZoneOffset.UTC);
 
         var requests = wireMock.findAll(getRequestedFor(urlPathEqualTo("/tweets/search/recent"))
-                .withQueryParam("max_results", equalTo("100"))
+                .withQueryParam("max_results", equalTo("30"))
                 .withQueryParam("sort_order", equalTo("recency")));
         assertThat(requests).hasSize(1);
 
@@ -163,5 +169,53 @@ class TwitterSearchAdapterIT {
         List<Tweet> tweets = adapter.searchTopicTweets();
 
         assertThat(tweets).isEmpty();
+    }
+
+    @Test
+    void searchInfluencerTweetsStopsWhenCallBudgetExhausted() throws Exception {
+        // 17 accounts → ceil(17/8) = 3 batch calls, but the per-run budget caps execution at 2.
+        wireMock.stubFor(get(urlPathEqualTo("/tweets/search/recent"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(SEARCH_RESPONSE)));
+
+        List<String> manyAccounts = new ArrayList<>();
+        for (int i = 1; i <= 17; i++) {
+            manyAccounts.add("acc" + i);
+        }
+        TwitterProperties capped = new TwitterProperties("token", List.of("java"), manyAccounts, 2, 0);
+        TwitterSearchAdapter cappedAdapter = new TwitterSearchAdapter(
+                new ObjectMapper(), capped, new ResearchProperties(3, DAYS_BACK, List.of("acc1")));
+        injectTestClient(cappedAdapter);
+
+        cappedAdapter.searchInfluencerTweets();
+
+        assertThat(wireMock.findAll(getRequestedFor(urlPathEqualTo("/tweets/search/recent"))))
+                .as("the 3rd batch call must be skipped once the 2-call budget is spent")
+                .hasSize(2);
+    }
+
+    @Test
+    void minFavesOperatorAppendedToQueryWhenConfigured() throws Exception {
+        wireMock.stubFor(get(urlPathEqualTo("/tweets/search/recent"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(SEARCH_RESPONSE)));
+
+        TwitterProperties withFaves = new TwitterProperties(
+                "token", List.of("java OR spring"), List.of("a1"), 10, 3);
+        TwitterSearchAdapter favesAdapter = new TwitterSearchAdapter(
+                new ObjectMapper(), withFaves, new ResearchProperties(3, DAYS_BACK, List.of("a1")));
+        injectTestClient(favesAdapter);
+
+        favesAdapter.searchTopicTweets();
+
+        var requests = wireMock.findAll(getRequestedFor(urlPathEqualTo("/tweets/search/recent")));
+        assertThat(requests).hasSize(1);
+        assertThat(requests.getFirst().queryParameter("query").firstValue())
+                .as("min_faves:N must be appended server-side when twitter.min-faves > 0")
+                .contains("min_faves:3");
     }
 }

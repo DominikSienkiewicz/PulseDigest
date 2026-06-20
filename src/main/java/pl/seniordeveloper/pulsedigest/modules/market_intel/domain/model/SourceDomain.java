@@ -16,15 +16,14 @@ public enum SourceDomain {
             return SCIENCE;
         }
         if (source.equals("GitHub") || source.equals("GitHub Releases")
-                || source.equals("OpenJDK JEP") || source.startsWith("CNCF")
-                || source.equals("Libraries.io") || source.equals("DB-Engines")) {
+                || source.equals("OpenJDK JEP") || source.startsWith("CNCF")) {
             return CODE;
         }
         if (source.startsWith("Hacker News") || source.equals("Product Hunt")
                 || source.equals("Tech Radar") || source.startsWith("YouTube")) {
             return BUSINESS;
         }
-        if (source.equals("Security Advisories") || source.equals("NVD/CVE")) {
+        if (source.equals("Security Advisories")) {
             return SECURITY;
         }
         return SOCIAL;

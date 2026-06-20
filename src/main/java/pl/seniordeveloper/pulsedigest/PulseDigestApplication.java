@@ -9,14 +9,11 @@ import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.TechDemandPro
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ArxivProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.CncfLandscapeProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ConferenceTalksProperties;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.DbEnginesProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.EmailProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.GithubProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.GithubReleasesProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.HackerNewsProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.HuggingFaceProperties;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.LibrariesIoProperties;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.NvdProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.OpenJdkProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ProductHuntProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.RedditProperties;
@@ -45,13 +42,10 @@ import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.TwitterProper
         HuggingFaceProperties.class,
         ProductHuntProperties.class,
         SecurityAdvisoriesProperties.class,
-        NvdProperties.class,
-        LibrariesIoProperties.class,
         OpenJdkProperties.class,
         CncfLandscapeProperties.class,
         TechnologyRadarProperties.class,
         ConferenceTalksProperties.class,
-        DbEnginesProperties.class,
         LabAnnouncementsProperties.class,
         TechDemandProperties.class
 })

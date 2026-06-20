@@ -155,17 +155,6 @@ Reguły automatycznego przypisania type:
     – NIE (np. podatność w pakiecie czysto frontendowym / PHP / Ruby / Go bez kontekstu cloud-native,
       ogólny breach bez impaktu na stack) → score MAX 3 (long tail). NIE wpychaj do Top picks.
   · summary: zawsze rozpocznij od ID GHSA i severity, np. "GHSA-xxx CRITICAL: ..."
-- source "NVD/CVE" → type INCIDENT
-  · category zawsze "Security/Privacy"
-  · BRAMKA STACK-RELEVANCE (oceń NAJPIERW): wysoki score TYLKO gdy CVE dotyczy
-    JVM / Python-AI / containers / cloud-native.
-    – stack-relevant: CVSS >= 9.0 → 8-9, CVSS 8.0-8.9 → 6-7
-    – CVE w niezwiązanym produkcie (router / IoT / Windows / ogólny C/C++ daemon / firmware)
-      → score MAX 3, niezależnie od CVSS. NIE wpychaj do Top picks.
-  · summary: rozpocznij od CVE ID i severity, np. "CVE-2026-xxxxx CRITICAL (CVSS 9.8): ..."
-- source "Libraries.io" → type TREND
-  · category: "Open Source"
-  · scoring: wyższy gdy stars > 5000 lub dependents > 1000, niższy dla świeżych bez adopcji
 - source "OpenJDK JEP" → type RELEASE (Integrated/Delivered) lub FEATURE (Candidate/Proposed to Target)
   · category zawsze "Java/JVM"
   · scoring: Integrated/Delivered → 8-10, Proposed to Target → 6-8, Candidate → 4-6
@@ -185,10 +174,6 @@ Reguły automatycznego przypisania type:
     "KubeCon" / "Google Cloud Next" → "Cloud/DevOps",
     "QCon" / "GOTO" → "Architecture"
   · scoring: wyższy dla talks od znanych speakerów / popularnych channeli
-- source "DB-Engines" → type TREND
-  · category: "Other" (chyba że dbName zawiera znane kategorie: PostgreSQL/MySQL → "Open Source")
-  · scoring: scoreChange >= 10 → 7-8, scoreChange >= 5 → 5-6, else 4-5
-  · summary: rozpocznij od nazwy DB i zmiany score, np. "PostgreSQL +12.3 pkt: ..."
 - source RSS/AWS Blog, RSS/Google Cloud Blog, RSS/Azure Updates → category "Cloud/DevOps"
 - source RSS/Inside.java → category "Java/JVM"
 - source RSS/CNCF Blog → category "Cloud/DevOps"
@@ -198,13 +183,13 @@ Reguły automatycznego przypisania type:
 Pole engagement_score z inputu (likes/points/stars/upvotes) MUSISZ przekazać 1:1 do output JSON.
 Ta liczba jest social proof — nie zmieniaj jej, nie podsumowuj. Jeśli input ma 0 lub brak — wpisz 0.
 
-Sortuj items malejąco po score. Zwróć max 30 items.
+Sortuj items malejąco po score. Zwróć 5-10 items (jakość > ilość).
 
-== Minimalna liczba itemów i pokrycie kategorii ==
+== Liczba itemów i pokrycie kategorii ==
 
-ZAWSZE zwróć minimum 15 itemów, maksimum 30.
-Jeśli brakuje itemów score >= 7, uzupełnij itemami score 5-6.
-Lepiej mieć digest z 15 pozycjami różnej jakości niż 5 perfekcyjnych — odbiorca oczekuje kompletnego przeglądu dnia.
+Zwróć 5-10 itemów, wyłącznie score >= 6. Jakość > ilość: kilka pozycji "must-know" z konkretem
+bije długą listę. Jeśli mocnego materiału (score >= 6) jest mniej niż 5 — zwróć tyle ile jest,
+NIE dopychaj słabszych pozycji ani tła tylko po to, by zapełnić listę.
 
 POKRYCIE KATEGORII (po nowych priorytetach):
 
@@ -229,7 +214,7 @@ Reguły kompozycji:
 - Tło istnieje tylko dla różnorodności — NIE forsuj go gdy nie ma mocnego materiału.
 - Jeśli item z kategorii tła ma score 7+, ale jest poza czterema priorytetami — obniż score do max 6.
 
-Score 5-6 przeznacz dla:
+Score 6 przeznacz dla (próg wejścia do digestu — niżej nie wpuszczamy):
 - Solidnych artykułów z uznanych źródeł (InfoQ, Spring Blog, Baeldung, The Register, DZone)
   nawet jeśli temat nie jest przełomowy — nowe wydanie minor version, dobre case study, ciekawa analiza
 - Release'ów narzędzi z ekosystemu Java/Cloud/AI, nawet patch versions monitorowanych projektów

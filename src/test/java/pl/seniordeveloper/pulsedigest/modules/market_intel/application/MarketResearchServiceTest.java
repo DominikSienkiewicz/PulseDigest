@@ -3,13 +3,10 @@ package pl.seniordeveloper.pulsedigest.modules.market_intel.application;
 import org.junit.jupiter.api.Test;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.CncfProjectUpdate;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ConferenceTalk;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.DbEngineRanking;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.GithubRepo;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.HackerNewsPost;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.HuggingFaceModel;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.JepUpdate;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.NvdVulnerability;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.PackageTrend;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ProductHuntPost;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RadarEntry;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RedditPost;
@@ -54,9 +51,9 @@ class MarketResearchServiceTest {
         assertThat(result.hackerNewsPosts().getFirst().url()).doesNotContain("utm_source");
         assertThat(result.githubRepos().getFirst().url()).doesNotContain("utm_source");
         assertThat(result.redditPosts()).hasSize(1);
-        assertThat(result.rawTotalCount()).isEqualTo(27);
-        assertThat(result.activeSourceCount()).isEqualTo(17);
-        assertThat(result.sourceFetchReports()).hasSize(21);
+        assertThat(result.rawTotalCount()).isEqualTo(24);
+        assertThat(result.activeSourceCount()).isEqualTo(14);
+        assertThat(result.sourceFetchReports()).hasSize(18);
         assertThat(result.sourceFetchReports())
                 .allMatch(report -> report.status() == SourceFetchStatus.SUCCESS);
     }
@@ -71,7 +68,7 @@ class MarketResearchServiceTest {
         ResearchResult result = service.fetchAndFilter();
 
         assertThat(result.redditPosts()).isEmpty();
-        assertThat(result.rawTotalCount()).isEqualTo(26);
+        assertThat(result.rawTotalCount()).isEqualTo(23);
         assertThat(result.sourceFetchReports())
                 .anySatisfy(report -> {
                     assertThat(report.sourceName()).isEqualTo("Reddit");
@@ -191,17 +188,6 @@ class MarketResearchServiceTest {
         }
 
         @Override
-        public List<NvdVulnerability> fetchNvdVulnerabilities() {
-            return List.of(new NvdVulnerability("CVE-1", "desc", 7.5, "HIGH", now, List.of("jdk"),
-                    trackedUrl("nvd")));
-        }
-
-        @Override
-        public List<PackageTrend> fetchPackageTrends() {
-            return List.of(new PackageTrend("lib", "Maven", "desc", 100, 1_000, trackedUrl("lib"), now));
-        }
-
-        @Override
         public List<JepUpdate> fetchJepUpdates() {
             return List.of(new JepUpdate("JEP 1", "title", "delivered", now, trackedUrl("jep")));
         }
@@ -220,11 +206,6 @@ class MarketResearchServiceTest {
         @Override
         public List<ConferenceTalk> fetchConferenceTalks() {
             return List.of(new ConferenceTalk("Talk", "Devoxx", "Devoxx", trackedUrl("talk"), now, 1_000));
-        }
-
-        @Override
-        public List<DbEngineRanking> fetchDbEngineRankings() {
-            return List.of(new DbEngineRanking("PostgreSQL", 1, 0, 1_000.0, 1.0, trackedUrl("db"), now));
         }
 
         @Override

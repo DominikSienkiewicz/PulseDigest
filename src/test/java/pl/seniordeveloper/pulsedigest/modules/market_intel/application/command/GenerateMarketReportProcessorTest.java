@@ -137,8 +137,7 @@ class GenerateMarketReportProcessorTest {
         ResearchResult emptyNonQuota = new ResearchResult(
                 List.of(), List.of(), List.of(), List.of(), List.of(),
                 List.of(), List.of(), List.of(), List.of(), List.of(),
-                List.of(), List.of(), List.of(), List.of(), List.of(),
-                List.of(), List.of(),
+                List.of(), List.of(), List.of(), List.of(),
                 LocalDateTime.now(), 0, 0, 0, 0, 0,
                 List.of(SourceFetchReport.failed("RSS", 12L, "connection timeout")));
         when(researchService.fetchAndFilter()).thenReturn(emptyNonQuota);
@@ -158,8 +157,7 @@ class GenerateMarketReportProcessorTest {
         ResearchResult emptyButRateLimited = new ResearchResult(
                 List.of(), List.of(), List.of(), List.of(), List.of(),
                 List.of(), List.of(), List.of(), List.of(), List.of(),
-                List.of(), List.of(), List.of(), List.of(), List.of(),
-                List.of(), List.of(),
+                List.of(), List.of(), List.of(), List.of(),
                 LocalDateTime.now(), 0, 0, 0, 0, 0,
                 List.of(SourceFetchReport.failed("Twitter/X topic", 12L, "429 Too Many Requests")));
         when(researchService.fetchAndFilter()).thenReturn(emptyButRateLimited);
@@ -203,9 +201,6 @@ class GenerateMarketReportProcessorTest {
         return new ResearchResult(
                 List.of(),
                 List.of(new HackerNewsPost("Java news", "https://example.com/java", 1200)),
-                List.of(),
-                List.of(),
-                List.of(),
                 List.of(),
                 List.of(),
                 List.of(),

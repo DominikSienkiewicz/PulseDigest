@@ -7,13 +7,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.CncfProjectUpdate;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ConferenceTalk;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.DbEngineRanking;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.GithubRepo;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.HackerNewsPost;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.HuggingFaceModel;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.JepUpdate;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.NvdVulnerability;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.PackageTrend;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ProductHuntPost;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RadarEntry;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RedditPost;
@@ -42,7 +39,7 @@ class ReportPromptBuilderTest {
 
         List<Map<String, Object>> payload = payload(builder.buildUserPrompt(researchWithEverySource()));
 
-        assertThat(payload).hasSize(17);
+        assertThat(payload).hasSize(14);
         assertThat(payload)
                 .extracting(item -> item.get("source"))
                 .containsExactlyInAnyOrder(
@@ -56,20 +53,13 @@ class ReportPromptBuilderTest {
                         "Hugging Face",
                         "Product Hunt",
                         "Security Advisories",
-                        "NVD/CVE",
-                        "Libraries.io",
                         "OpenJDK JEP",
                         "CNCF Landscape",
                         "Tech Radar",
-                        "YouTube/Devoxx",
-                        "DB-Engines");
+                        "YouTube/Devoxx");
         assertThat(payload).anySatisfy(item -> {
             assertThat(item).containsEntry("source", "Security Advisories");
             assertThat(item).containsEntry("engagement_score", 1000);
-        });
-        assertThat(payload).anySatisfy(item -> {
-            assertThat(item).containsEntry("source", "NVD/CVE");
-            assertThat(item).containsEntry("engagement_score", 910);
         });
         assertThat(payload).anySatisfy(item -> {
             assertThat(item).containsEntry("source", "OpenJDK JEP");
@@ -83,7 +73,7 @@ class ReportPromptBuilderTest {
 
         List<Map<String, Object>> payload = payload(builder.buildUserPrompt(researchWithNullOptionalFields()));
 
-        assertThat(payload).hasSize(14);
+        assertThat(payload).hasSize(11);
         assertThat(payload).allSatisfy(item -> assertThat(item.values()).doesNotContainNull());
         assertThat(payload).anySatisfy(item -> {
             assertThat(item).containsEntry("source", "arXiv/cs.AI");
@@ -186,17 +176,12 @@ class ReportPromptBuilderTest {
                         77, List.of("Developer Tools"), now)),
                 List.of(new SecurityAdvisory("GHSA-1234", "Critical issue", "CRITICAL", now,
                         List.of("Maven"), "https://github.com/advisories/GHSA-1234")),
-                List.of(new NvdVulnerability("CVE-2026-0001", "Important vulnerability", 9.1, "CRITICAL",
-                        now, List.of("jdk"), "https://nvd.nist.gov/vuln/detail/CVE-2026-0001")),
-                List.of(new PackageTrend("library", "Maven", "Useful package", 9_000, 12_000,
-                        "https://libraries.io/maven/library", now)),
                 List.of(new JepUpdate("JEP 999", "Virtual Threads Next", "delivered", now,
                         "https://openjdk.org/jeps/999")),
                 List.of(new CncfProjectUpdate("Kubernetes", "Orchestration", "graduated", "Update",
                         "https://landscape.cncf.io/card-mode?selected=kubernetes", now)),
                 List.of(new RadarEntry("Tool", "adopt", "tools", "Radar item", "https://radar.example/tool", now)),
                 List.of(new ConferenceTalk("Talk", "Devoxx", "Devoxx", "https://youtube.example/talk", now, 12_000)),
-                List.of(new DbEngineRanking("PostgreSQL", 1, 0, 1_200.4, 3.2, "https://db-engines.example/db", now)),
                 now,
                 1,
                 1,
@@ -224,16 +209,11 @@ class ReportPromptBuilderTest {
                         77, List.of(), now)),
                 List.of(new SecurityAdvisory("GHSA-1234", null, null, now, List.of(),
                         "https://github.com/advisories/GHSA-1234")),
-                List.of(new NvdVulnerability("CVE-2026-0001", null, 0.0, null,
-                        now, List.of(), "https://nvd.nist.gov/vuln/detail/CVE-2026-0001")),
-                List.of(new PackageTrend("library", "Maven", null, 9, 12,
-                        "https://libraries.io/maven/library", now)),
                 List.of(new JepUpdate("JEP 999", null, null, now, "https://openjdk.org/jeps/999")),
                 List.of(new CncfProjectUpdate("Kubernetes", null, null, "Update",
                         "https://landscape.cncf.io/card-mode?selected=kubernetes", now)),
                 List.of(new RadarEntry("Tool", null, "tools", "Radar item", "https://radar.example/tool", now)),
                 List.of(new ConferenceTalk("Talk", "Devoxx", "Devoxx", "https://youtube.example/talk", now, 12)),
-                List.of(new DbEngineRanking("PostgreSQL", 1, 0, 1_200.4, 0.0, "https://db-engines.example/db", now)),
                 now,
                 0,
                 0,

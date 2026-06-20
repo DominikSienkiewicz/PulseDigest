@@ -21,102 +21,52 @@ spring:
 
 twitter:
   bearer-token: "${TWITTER_BEARER_TOKEN:}"
+  # Hard ceiling na wywołania X search/run (backstop na config-drift). Zamierzony intake:
+  # ceil(accounts/8)=3 + queries=4 + 1 Anthropic = 8 calli; cap 10 daje headroom. Calle ponad budżet
+  # są pomijane (pusty wynik + WARN), reszta darmowych źródeł pipeline'u i tak się wykonuje.
+  max-calls-per-run: 10
+  # Server-side próg engagementu (min_faves:N) dołączany do każdego query gdy > 0. WYŁĄCZONY (0)
+  # domyślnie — operator min_faves nie jest dostępny na każdym tierze X API, a nieobsługiwany operator
+  # wywala całe wyszukiwanie. Włącz (np. 3) dopiero po potwierdzeniu, że Twój tier go wspiera.
+  min-faves: 0
+  # Zapytania tematyczne skonsolidowane 8 -> 4 pod CV (JVM, LLM-tooling/agents/MCP, inference, cloud-native).
   queries:
-    - "Spring AI agents OR Spring Boot -is:retweet lang:en"
-    - "LangChain LangGraph OR LlamaIndex -is:retweet lang:en"
-    - "Kubernetes operators OR CNCF -is:retweet lang:en"
-    - "Virtual Threads OR GraalVM OR Quarkus -is:retweet lang:en"
-    - "vLLM OR Ollama OR llama.cpp inference -is:retweet lang:en"
-    - "MCP Model Context Protocol -is:retweet lang:en"
-    - "serverless OR Knative OR eBPF -is:retweet lang:en"
-    - "DDD domain driven design -is:retweet lang:en"
+    - "Spring Boot OR Quarkus OR GraalVM OR Virtual Threads -is:retweet lang:en"
+    - "LangGraph OR LlamaIndex OR MCP OR Model Context Protocol OR AI agents -is:retweet lang:en"
+    - "vLLM OR Ollama OR llama.cpp OR LLM inference -is:retweet lang:en"
+    - "Kubernetes OR CNCF OR serverless OR Knative -is:retweet lang:en"
+  # Konta przycięte 76 -> 24: tylko CV-relevant (JVM, AI-tooling, cloud, dev tools). Usunięto konta
+  # security/pentest/privacy-OS i celebryckie (szum + palenie tokenów); newsy security idą przez RSS
+  # (Niebezpiecznik/Sekurak są już w report.rss.feeds — konta X były redundantne).
   accounts:
-    # Java ecosystem
+    # Java / JVM ecosystem
     - "java"
-    - "QuarkusIO"
     - "springcentral"
+    - "QuarkusIO"
     - "micronautfw"
-    - "gradle"
-    - "adoptium"
     - "graalvm"
     - "kotlin"
-    - "intellijidea"
+    - "gradle"
     - "jetbrains"
-    # AI / ML
-    - "cerebral_valley"
-    - "googlegemma"
-    - "ollama"
+    # AI / LLM tooling
     - "AnthropicAI"
     - "claudeai"
     - "OpenAI"
     - "OpenAIDevs"
-    - "GoogleAIStudio"
     - "googleaidevs"
-    - "antigravity"
+    - "GoogleAIStudio"
+    - "ollama"
     - "geminicli"
-    - "GeminiApp"
-    - "ElevenLabs"
-    - "ElevenLabsDevs"
     - "grok"
-    - "sama"
     - "xai"
     # Cloud / DevOps
     - "kubernetesio"
     - "Docker"
-    - "grafana"
-    - "linuxfoundation"
     - "awscloud"
     - "googlecloud"
-    - "GoogleCloudTech"
-    - "GoogleCloud_PL"
-    - "Azure"
-    - "googledevs"
-    - "GoogleWorkspace"
-    # Security
-    - "TheHackersNews"
-    - "metasploit"
-    - "owasp"
-    - "kalilinux"
-    - "Whonix"
-    - "QubesOS"
-    - "Tails_live"
-    - "torproject"
-    - "privacytests"
-    - "CERT_Polska"
-    - "konieczny"
-    - "sajdoor"
-    - "tryhackme"
-    - "0dayCTF"
-    - "niebezpiecznik"
-    - "CyberDefence24"
-    - "Sekurak"
-    - "Zaufana3Strona"
-    - "MateuszChrobok"
-    # Privacy
-    - "ProtonMail"
-    - "Proton_Pass"
-    - "ProtonPrivacy"
-    - "mullvadnet"
-    - "SimpleLogin"
-    - "signalapp"
-    # Databases / infra
+    # Databases / dev tools
     - "PostgreSQL"
-    - "AMD"
-    # OS
-    - "ubuntu"
-    - "fedora"
-    # Dev tools
     - "github"
-    - "code"
-    # Tech leaders
-    - "BillGates"
-    - "satyanadella"
-    - "unclebobmartin"
-    - "JeffBezos"
-    # Other tech
-    - "googleanalytics"
-    - "amazon"
-    - "SpaceX"
 
 report:
   cache-ttl-minutes: 60
@@ -377,24 +327,6 @@ report:
       - docker
       - actions
 
-  nvd:
-    base-url: https://services.nvd.nist.gov/rest/json/cves/2.0
-    results-per-page: 10
-    lookback-hours: 48
-    # CRITICAL only — NVD returns broad, stack-agnostic CVEs; HIGH was pure background noise here.
-    min-severities:
-      - CRITICAL
-
-  libraries-io:
-    base-url: https://libraries.io/api/search
-    api-key: "${LIBRARIES_IO_API_KEY:}"
-    limit: 20
-    platforms:
-      - maven
-      - npm
-      - pypi
-    lookback-days: 90
-
   open-jdk:
     base-url: https://api.github.com/repos/openjdk/jdk/commits
     lookback-days: 7
@@ -442,11 +374,6 @@ report:
       - channel-name: "GOTO Conferences"
         conference-name: "GOTO"
         channel-id: "UCs_tLP3AiwYKwdUHpltJPuA"
-
-  db-engines:
-    base-url: https://db-engines.com/en/ranking
-    lookback-days: 7
-    min-score-change: 5
 
   lab-announcements:
     lookback-hours: 48

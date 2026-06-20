@@ -17,13 +17,10 @@ public record ResearchResult(
         List<HuggingFaceModel> huggingFaceModels,
         List<ProductHuntPost> productHuntPosts,
         List<SecurityAdvisory> securityAdvisories,
-        List<NvdVulnerability> nvdVulnerabilities,
-        List<PackageTrend> packageTrends,
         List<JepUpdate> jepUpdates,
         List<CncfProjectUpdate> cncfProjectUpdates,
         List<RadarEntry> radarEntries,
         List<ConferenceTalk> conferenceTalks,
-        List<DbEngineRanking> dbEngineRankings,
         List<LabAnnouncement> labAnnouncements,
         LocalDateTime collectedAt,
         int rawTweetsCount,
@@ -51,13 +48,10 @@ public record ResearchResult(
             List<HuggingFaceModel> huggingFaceModels,
             List<ProductHuntPost> productHuntPosts,
             List<SecurityAdvisory> securityAdvisories,
-            List<NvdVulnerability> nvdVulnerabilities,
-            List<PackageTrend> packageTrends,
             List<JepUpdate> jepUpdates,
             List<CncfProjectUpdate> cncfProjectUpdates,
             List<RadarEntry> radarEntries,
             List<ConferenceTalk> conferenceTalks,
-            List<DbEngineRanking> dbEngineRankings,
             LocalDateTime collectedAt,
             int rawTweetsCount,
             int rawHackerNewsCount,
@@ -67,8 +61,7 @@ public record ResearchResult(
     ) {
         this(tweets, hackerNewsPosts, githubRepos, rssItems, redditPosts,
                 papers, releases, huggingFaceModels, productHuntPosts, securityAdvisories,
-                nvdVulnerabilities, packageTrends, jepUpdates, cncfProjectUpdates,
-                radarEntries, conferenceTalks, dbEngineRankings, List.of(), collectedAt,
+                jepUpdates, cncfProjectUpdates, radarEntries, conferenceTalks, List.of(), collectedAt,
                 rawTweetsCount, rawHackerNewsCount, rawGithubCount, rawRssCount, rawRedditCount, List.of(), null);
     }
 
@@ -83,13 +76,10 @@ public record ResearchResult(
             List<HuggingFaceModel> huggingFaceModels,
             List<ProductHuntPost> productHuntPosts,
             List<SecurityAdvisory> securityAdvisories,
-            List<NvdVulnerability> nvdVulnerabilities,
-            List<PackageTrend> packageTrends,
             List<JepUpdate> jepUpdates,
             List<CncfProjectUpdate> cncfProjectUpdates,
             List<RadarEntry> radarEntries,
             List<ConferenceTalk> conferenceTalks,
-            List<DbEngineRanking> dbEngineRankings,
             LocalDateTime collectedAt,
             int rawTweetsCount,
             int rawHackerNewsCount,
@@ -100,8 +90,7 @@ public record ResearchResult(
     ) {
         this(tweets, hackerNewsPosts, githubRepos, rssItems, redditPosts,
                 papers, releases, huggingFaceModels, productHuntPosts, securityAdvisories,
-                nvdVulnerabilities, packageTrends, jepUpdates, cncfProjectUpdates,
-                radarEntries, conferenceTalks, dbEngineRankings, List.of(), collectedAt,
+                jepUpdates, cncfProjectUpdates, radarEntries, conferenceTalks, List.of(), collectedAt,
                 rawTweetsCount, rawHackerNewsCount, rawGithubCount, rawRssCount, rawRedditCount,
                 sourceFetchReports, null);
     }
@@ -111,8 +100,7 @@ public record ResearchResult(
         return new ResearchResult(
                 tweets, hackerNewsPosts, githubRepos, rssItems, redditPosts,
                 papers, releases, huggingFaceModels, productHuntPosts, securityAdvisories,
-                nvdVulnerabilities, packageTrends, jepUpdates, cncfProjectUpdates,
-                radarEntries, conferenceTalks, dbEngineRankings, labAnnouncements, collectedAt,
+                jepUpdates, cncfProjectUpdates, radarEntries, conferenceTalks, labAnnouncements, collectedAt,
                 rawTweetsCount, rawHackerNewsCount, rawGithubCount, rawRssCount, rawRedditCount,
                 sourceFetchReports, newTechDemand);
     }
@@ -122,10 +110,9 @@ public record ResearchResult(
                 && rssItems.isEmpty() && redditPosts.isEmpty()
                 && papers.isEmpty() && releases.isEmpty()
                 && huggingFaceModels.isEmpty() && productHuntPosts.isEmpty()
-                && securityAdvisories.isEmpty() && nvdVulnerabilities.isEmpty()
-                && packageTrends.isEmpty() && jepUpdates.isEmpty()
+                && securityAdvisories.isEmpty() && jepUpdates.isEmpty()
                 && cncfProjectUpdates.isEmpty() && radarEntries.isEmpty()
-                && conferenceTalks.isEmpty() && dbEngineRankings.isEmpty()
+                && conferenceTalks.isEmpty()
                 && labAnnouncements.isEmpty();
     }
 
@@ -133,9 +120,9 @@ public record ResearchResult(
         return rawTweetsCount + rawHackerNewsCount + rawGithubCount
                 + rawRssCount + rawRedditCount + papers.size() + releases.size()
                 + huggingFaceModels.size() + productHuntPosts.size() + securityAdvisories.size()
-                + nvdVulnerabilities.size() + packageTrends.size() + jepUpdates.size()
+                + jepUpdates.size()
                 + cncfProjectUpdates.size() + radarEntries.size() + conferenceTalks.size()
-                + dbEngineRankings.size() + labAnnouncements.size();
+                + labAnnouncements.size();
     }
 
     public int activeSourceCount() {
@@ -170,12 +157,6 @@ public record ResearchResult(
         if (!securityAdvisories.isEmpty()) {
             n++;
         }
-        if (!nvdVulnerabilities.isEmpty()) {
-            n++;
-        }
-        if (!packageTrends.isEmpty()) {
-            n++;
-        }
         if (!jepUpdates.isEmpty()) {
             n++;
         }
@@ -188,9 +169,6 @@ public record ResearchResult(
         if (!conferenceTalks.isEmpty()) {
             n++;
         }
-        if (!dbEngineRankings.isEmpty()) {
-            n++;
-        }
         if (!labAnnouncements.isEmpty()) {
             n++;
         }
@@ -200,15 +178,15 @@ public record ResearchResult(
     public String summary() {
         return ("Zebrano: %d tweetów, %d HN, %d GH, %d RSS, %d Reddit, %d papers, %d releases,"
                 + " %d HF models, %d ProductHunt, %d security advisories,"
-                + " %d NVD, %d Libraries.io, %d JEP, %d CNCF, %d Radar, %d Talks, %d DB-Engines,"
+                + " %d JEP, %d CNCF, %d Radar, %d Talks,"
                 + " %d Lab announcements"
                 + " — łącznie %d itemów, o %s")
                 .formatted(rawTweetsCount, rawHackerNewsCount, rawGithubCount,
                         rawRssCount, rawRedditCount, papers.size(), releases.size(),
                         huggingFaceModels.size(), productHuntPosts.size(), securityAdvisories.size(),
-                        nvdVulnerabilities.size(), packageTrends.size(), jepUpdates.size(),
+                        jepUpdates.size(),
                         cncfProjectUpdates.size(), radarEntries.size(), conferenceTalks.size(),
-                        dbEngineRankings.size(), labAnnouncements.size(),
+                        labAnnouncements.size(),
                         rawTotalCount(),
                         collectedAt);
     }
