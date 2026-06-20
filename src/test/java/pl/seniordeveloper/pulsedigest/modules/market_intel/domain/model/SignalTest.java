@@ -11,7 +11,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class SignalTest {
 
     private static final DigestItem ITEM = new DigestItem(
-            "title", "https://example.com", "arXiv/cs.AI", "AI", "paper", 9, 5000, "summary");
+            "title", "https://example.com", "arXiv/cs.AI", "AI", "paper", 9, 5000, "summary", null);
 
     @Test
     void isCriticalTrendReturnsTrueForCriticalRank() {

@@ -19,13 +19,15 @@ Twoje zadania:
 6. Zachowaj engagement_score z inputu w odpowiednim itemie (likes / points / stars / upvotes)
 7. Napisz editorial – 2-3 zdania łączące top_insights w jedną meta-tezę dnia (po polsku, konkretnie, bez ogólników)
 8. Wygeneruj email_preview – 60-90 znaków preview text do skrzynki pocztowej, listujący 3-4 najważniejsze tematy oddzielone przecinkami
+9. Dla każdego itemu napisz why_it_matters – JEDNO zdanie po polsku: dlaczego to ważne DLA ODBIORCY
+   i co z tym zrobić (konkretna akcja), zakotwiczone w jego stacku/roli; null gdy realnie go nie dotyczy
 
 == Kryteria scoringu ==
 
 Odbiorcy: Senior Engineer + Principal Architect (JVM, Python-AI, Cloud-Native, DDD).
 
 PRIORYTETY TEMATYCZNE (rdzeń raportu — co najmniej 80% itemów score ≥ 7 musi dotyczyć
-jednego z poniższych czterech obszarów):
+jednego z poniższych pięciu obszarów):
 
 1. JVM / Backend
    - Java 26, Virtual Threads / Project Loom, GraalVM native image, JEP-y
@@ -58,11 +60,20 @@ jednego z poniższych czterech obszarów):
    - Service mesh, GitOps, platform engineering
    - AWS / GCP / Azure releases (gdy dotyczą compute/AI/containers, nie biz news)
 
-Daj wyższy score (7-10) jeśli item dotyczy jednego z czterech priorytetów powyżej ORAZ:
+5. Narzędzia, Deale & Premiery (TOP trafność dla odbiorcy — AI-native architekt / solo founder)
+   - Nowe narzędzia/biblioteki/usługi, których odbiorca może realnie użyć (AI tooling, dev tools,
+     LLM infra, agent frameworks: LangGraph, MCP, vLLM, Ollama, Claude / Gemini / Mistral API)
+   - Promocje / deale / oferty: obniżki cen, darmowe tiery, kredyty, granty, early-access,
+     open-source release komercyjnego narzędzia, free dla indie / solo founderów
+   - Istotne zmiany w stacku odbiorcy (Spring, Quarkus, GraalVM, Postgres, K8s, Docker, Terraform)
+
+Daj wyższy score (7-10) jeśli item dotyczy jednego z pięciu priorytetów powyżej ORAZ:
 - Zawiera benchmark / case study / breaking change / nową wersję istotnego narzędzia
 - Ma wpływ na decyzje architektoniczne (wzorce dla AI, distributed systems, event sourcing,
   CQRS, service mesh, observability, platform engineering)
 - Jest premierą produktu/API które zmienia reguły gry
+- Jest nowym narzędziem, które odbiorca może wdrożyć, ALBO promocją / dealem / free-tierem
+  istotnym dla AI-native architekta / solo foundera (pricing drop, credits, grant, OSS release)
 - Dotyczy bezpieczeństwa Z konkretnym impaktem dla JVM / Python-AI / containers / cloud-native
   (np. CVE w Spring Framework, podatność w container runtime, supply-chain w PyPI/Maven)
 
@@ -72,7 +83,7 @@ Daj średni score (5-6) jeśli item:
   solidne case study z innego ekosystemu)
 
 Daj niższy score (1-4) jeśli item:
-- Jest poza czterema priorytetami i nie wnosi wartości architektonicznej:
+- Jest poza pięcioma priorytetami i nie wnosi wartości architektonicznej:
   · ogólne newsy security bez kontekstu JVM/Python-AI/containers/cloud-native
   · frontend bez backendu (React/Next.js UI tricks, CSS, Tailwind)
   · hiring / restrukturyzacje firm bez impaktu technicznego
@@ -97,6 +108,16 @@ Daj niższy score (1-4) jeśli item:
     "1 na 1300 czatów Claude'a wpływa…"
 - Liczby przyciągają wzrok skanującego maila — nie chowaj ich w środku zdania.
 
+== Wytyczne dla why_it_matters ==
+
+- JEDNO zdanie, po polsku, konkretne. Perspektywa odbiorcy: AI-native software architect,
+  Java/Spring + Python-AI, buduje agentów (LangGraph/MCP), Local-First inference, solo founder
+  indie SaaS, pilnuje kosztu LLM (FinOps).
+- Odpowiedz: dlaczego to ważne DLA NIEGO ORAZ co z tym zrobić (akcja). Nie powtarzaj summary.
+  Przykłady: "Podbij Spring Boota — łata pinning Virtual Threads, który dławi Twój throughput.",
+  "Darmowy tier do 1M tokenów — przetestuj w swoim LLM gateway zanim wejdzie pricing."
+- Jeśli item realnie nie dotyczy odbiorcy, zostaw why_it_matters = null.
+
 == Format odpowiedzi ==
 
 Zwróć TYLKO JSON w formacie:
@@ -113,7 +134,8 @@ Zwróć TYLKO JSON w formacie:
       "type": "RELEASE",
       "score": 8,
       "engagement_score": 1234,
-      "summary": "Po polsku. 1-2 zdania. Konkretnie. Liczba w pierwszych słowach jeśli istnieje."
+      "summary": "Po polsku. 1-2 zdania. Konkretnie. Liczba w pierwszych słowach jeśli istnieje.",
+      "why_it_matters": "Po polsku. JEDNO zdanie: czemu to ważne DLA ODBIORCY + konkretna akcja. null gdy nie dotyczy."
     }
   ]
 }
@@ -127,6 +149,7 @@ Dozwolone wartości type (typ sygnału):
 - RELEASE    – nowa wersja istniejącego oprogramowania (np. Spring Boot 4.1, Kubernetes 1.30)
 - FEATURE    – nowa funkcjonalność dodana do istniejącego narzędzia lub platformy
 - LAUNCH     – premiera nowego produktu, narzędzia lub usługi (dotychczas nieistniejącego)
+- PROMOTION  – promocja / deal / oferta: obniżka ceny, darmowy tier, kredyty, grant, early-access
 - BREAKTHROUGH – przełomowy wynik badań, dramatyczna poprawa benchmarku, nowy SOTA
 - TREND      – rosnący sygnał społecznościowy, temat nabierający momentum w community
 - INCIDENT   – bug, podatność (CVE), breach, incydent bezpieczeństwa, postmortem

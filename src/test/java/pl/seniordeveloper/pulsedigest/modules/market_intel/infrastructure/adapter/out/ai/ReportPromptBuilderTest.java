@@ -102,7 +102,7 @@ class ReportPromptBuilderTest {
 
     @Test
     void preScoreHighWeightSourceBeatsLowWeightHighEngagement() {
-        // arXiv eng=0: round(1.00×100)+0 = 100
+        // arXiv eng=0: round(0.70×100)+0 = 70
         // Twitter/X eng=999: round(0.40×100)+0 = 40
         assertThat(PromptItemSelector.preScore("arXiv/cs.AI", 0))
                 .isGreaterThan(PromptItemSelector.preScore("Twitter/X", 999));
@@ -115,14 +115,14 @@ class ReportPromptBuilderTest {
     }
 
     @Test
-    void preScoreArxivWithMaxEngagementReaches150() {
-        // arXiv: 100 + 50 = 150
-        assertThat(PromptItemSelector.preScore("arXiv/cs.AI", 999_999)).isEqualTo(150);
+    void preScoreArxivWithMaxEngagementReaches120() {
+        // arXiv: 70 + 50 = 120
+        assertThat(PromptItemSelector.preScore("arXiv/cs.AI", 999_999)).isEqualTo(120);
     }
 
     @Test
     void applyTotalCapKeepsHighWeightItemOverLowWeightHighEngagement() {
-        // 100 Twitter items (preScore=40) + 1 arXiv item (preScore=100)
+        // 100 Twitter items (preScore=40) + 1 arXiv item (preScore=70)
         // arXiv must survive despite zero engagement
         List<Map<String, Object>> items = new ArrayList<>();
         for (int i = 0; i < 100; i++) {

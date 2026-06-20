@@ -104,7 +104,7 @@ class SupabaseReportStorageAdapterIT {
     void roundTripsTrendsInsidePayload() {
         ReportData reportData = new ReportData(
                 "preview", "editorial", List.of("insight"),
-                List.of(new DigestItem("t", "u", "src", "Cat", "RELEASE", 9, 100, "sum")),
+                List.of(new DigestItem("t", "u", "src", "Cat", "RELEASE", 9, 100, "sum", "why")),
                 List.of(new TrendInsight("Security/Privacy", 3, "narr", List.of("a", "b")))
         );
         adapter.save(new PersistedReport(reportData, "job-trends",
@@ -119,7 +119,7 @@ class SupabaseReportStorageAdapterIT {
         ReportData data = new ReportData(
                 "preview", "editorial", List.of("i1"),
                 List.of(new DigestItem("title", "https://x", "Twitter",
-                        "AI/LLM", "RELEASE", 8, 50, "sum")),
+                        "AI/LLM", "RELEASE", 8, 50, "sum", "why")),
                 List.of()
         );
         return new PersistedReport(data, jobId, generatedAt, 10, 0, 0);

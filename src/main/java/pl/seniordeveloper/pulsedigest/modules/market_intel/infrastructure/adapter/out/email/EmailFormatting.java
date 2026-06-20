@@ -49,6 +49,7 @@ final class EmailFormatting {
             case "RELEASE"      -> new String[]{"#ede9fe", "#6d28d9"};
             case "FEATURE"      -> new String[]{"#dbeafe", "#1d4ed8"};
             case "LAUNCH"       -> new String[]{"#ffedd5", "#c2410c"};
+            case "PROMOTION"    -> new String[]{"#fae8ff", "#a21caf"};
             case "BREAKTHROUGH" -> new String[]{"#fce7f3", "#9d174d"};
             case "TREND"        -> new String[]{"#ccfbf1", "#0f766e"};
             case "INCIDENT"     -> new String[]{"#fee2e2", "#b91c1c"};

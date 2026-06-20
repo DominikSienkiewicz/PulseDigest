@@ -15,6 +15,7 @@ public record DigestItem(
         String type,
         int score,
         @JsonProperty("engagement_score") Integer engagementScore,
-        String summary
+        String summary,
+        @JsonProperty("why_it_matters") String whyItMatters
 ) {
 }

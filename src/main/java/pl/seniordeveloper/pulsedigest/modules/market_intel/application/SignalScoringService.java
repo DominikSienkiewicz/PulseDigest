@@ -28,7 +28,8 @@ public class SignalScoringService {
     private static final int CROSS_SOURCE_BONUS = 50;
     private static final int MAX_ENGAGEMENT_BONUS = 50;
     private static final int ENGAGEMENT_DIVISOR = 1_000;
-    // Score of exactly 100 is STRONG (e.g. arXiv alone); 101+ requires engagement or cross-source bonus.
+    // Score of exactly 100 is STRONG; reaching it now needs an engagement or cross-source bonus on top
+    // of a high base weight (no single source weight hits 100 alone), and 101+ is CRITICAL.
     private static final int CRITICAL_THRESHOLD = 101;
     private static final int STRONG_THRESHOLD = 100;
     private static final int MODERATE_THRESHOLD = 60;

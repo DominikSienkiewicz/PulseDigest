@@ -194,7 +194,8 @@ class GenerateMarketReportProcessorTest {
                         "DISCUSSION",
                         8,
                         1200,
-                        "summary")));
+                        "summary",
+                        "why it matters")));
     }
 
     private static ResearchResult sampleResearch() {

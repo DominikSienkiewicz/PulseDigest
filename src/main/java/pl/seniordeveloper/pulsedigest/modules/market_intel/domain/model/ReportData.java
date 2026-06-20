@@ -52,7 +52,7 @@ public record ReportData(
                         i.title(),
                         UrlCanonicalizer.canonicalize(i.url()),
                         i.source(), i.category(), i.type(),
-                        i.score(), i.engagementScore(), i.summary()))
+                        i.score(), i.engagementScore(), i.summary(), i.whyItMatters()))
                 .toList();
         return new ReportData(emailPreview, editorial, topInsights, cleaned, trends, signals);
     }

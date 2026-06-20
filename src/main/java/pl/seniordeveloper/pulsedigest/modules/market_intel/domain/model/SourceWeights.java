@@ -10,7 +10,9 @@ import java.util.Map;
 public final class SourceWeights {
 
     private static final Map<String, Double> WEIGHTS = Map.ofEntries(
-            Map.entry("arXiv",               1.00),
+            // arXiv demoted from 1.00 — research papers are a background signal for this audience,
+            // not the priority. Usable tools/launches (Product Hunt, Hugging Face) are upweighted instead.
+            Map.entry("arXiv",               0.70),
             Map.entry("GitHub Releases",     0.95),
             // Security is a background topic for this audience — generic advisory feeds are demoted to
             // the default floor (0.30) so they neither flood the pre-LLM prompt nor reach a high signal
@@ -22,9 +24,9 @@ public final class SourceWeights {
             Map.entry("OpenJDK JEP",         0.75),
             Map.entry("CNCF",                0.75),
             Map.entry("Reddit",              0.60),
-            Map.entry("Product Hunt",        0.55),
+            Map.entry("Product Hunt",        0.75),
             Map.entry("YouTube",             0.55),
-            Map.entry("Hugging Face",        0.50),
+            Map.entry("Hugging Face",        0.70),
             Map.entry("RSS",                 0.45),
             Map.entry("Twitter/X",           0.40)
     );

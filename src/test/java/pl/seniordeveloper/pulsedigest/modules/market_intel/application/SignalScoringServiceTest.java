@@ -17,16 +17,16 @@ class SignalScoringServiceTest {
     private static DigestItem item(String source, String category, int engagement) {
         return new DigestItem(
                 "title", "http://example.com/" + Math.abs(source.hashCode()),
-                source, category, "TYPE", 5, engagement, "summary");
+                source, category, "TYPE", 5, engagement, "summary", null);
     }
 
     @Test
-    void arxivWithoutCrossSourceScoresStrong() {
-        // arXiv weight=1.00 → base=100, engagement bonus=0, crossSource=0 → 100 → STRONG
+    void arxivWithoutCrossSourceScoresModerate() {
+        // arXiv weight=0.70 → base=70, engagement bonus=0, crossSource=0 → 70 → MODERATE
         List<Signal> result = service.score(List.of(item("arXiv/cs.AI", "AI", 0)));
         assertThat(result).hasSize(1);
-        assertThat(result.get(0).rank()).isEqualTo(SignalRank.STRONG);
-        assertThat(result.get(0).signalScore()).isEqualTo(100);
+        assertThat(result.get(0).rank()).isEqualTo(SignalRank.MODERATE);
+        assertThat(result.get(0).signalScore()).isEqualTo(70);
     }
 
     @Test
@@ -40,7 +40,7 @@ class SignalScoringServiceTest {
     @Test
     void threeDistinctDomainsPromoteAllItemsToCritical() {
         // "llm" category → SCIENCE(arXiv), CODE(GitHub), BUSINESS(HN) → 3 domains → +50 bonus
-        // arXiv:  100 + 0 + 50 = 150 → CRITICAL
+        // arXiv:   70 + 0 + 50 = 120 → CRITICAL
         // GitHub:  85 + 0 + 50 = 135 → CRITICAL
         // HN:      80 + 0 + 50 = 130 → CRITICAL
         DigestItem paper = item("arXiv/cs.AI",  "llm", 0);
@@ -82,9 +82,9 @@ class SignalScoringServiceTest {
 
     @Test
     void engagementBonusCappedAt50Points() {
-        // arXiv weight=1.00 → base=100 + min(50, 999_999/1000)=50 = 150 → CRITICAL
+        // arXiv weight=0.70 → base=70 + min(50, 999_999/1000)=50 = 120 → CRITICAL
         List<Signal> result = service.score(List.of(item("arXiv/cs.AI", "AI", 999_999)));
-        assertThat(result.get(0).signalScore()).isEqualTo(150);
+        assertThat(result.get(0).signalScore()).isEqualTo(120);
         assertThat(result.get(0).rank()).isEqualTo(SignalRank.CRITICAL);
     }
 
@@ -99,7 +99,7 @@ class SignalScoringServiceTest {
     @Test
     void nullEngagementScoreTreatedAsZero() {
         DigestItem itemWithNull = new DigestItem(
-                "title", "http://example.com", "Hacker News", "AI", "TYPE", 5, null, "summary");
+                "title", "http://example.com", "Hacker News", "AI", "TYPE", 5, null, "summary", null);
         List<Signal> result = service.score(List.of(itemWithNull));
         assertThat(result.get(0).signalScore()).isEqualTo(80);
         assertThat(result.get(0).rank()).isEqualTo(SignalRank.MODERATE);
@@ -107,19 +107,20 @@ class SignalScoringServiceTest {
 
     @Test
     void outputSortedByRankThenSignalScoreDescending() {
-        // arXiv:  100 → STRONG
-        // Reddit:  60 → MODERATE  (0.60 * 100 = 60)
         // HN:      80 → MODERATE  (0.80 * 100 = 80)
+        // arXiv:   70 → MODERATE  (0.70 * 100 = 70)
+        // Reddit:  60 → MODERATE  (0.60 * 100 = 60)
         // Twitter: 40 → WEAK
+        // Within MODERATE sorted by score desc; WEAK ranks last regardless of input order.
         DigestItem arxiv   = item("arXiv/cs.AI",    "A", 0);
         DigestItem reddit  = item("Reddit/r/java",  "B", 0);
         DigestItem hn      = item("Hacker News",    "C", 0);
         DigestItem twitter = item("Twitter/X",      "D", 0);
         List<Signal> result = service.score(List.of(twitter, reddit, arxiv, hn));
-        assertThat(result.get(0).rank()).isEqualTo(SignalRank.STRONG);   // arXiv 100
-        assertThat(result.get(1).rank()).isEqualTo(SignalRank.MODERATE); // HN 80
-        assertThat(result.get(2).rank()).isEqualTo(SignalRank.MODERATE); // Reddit 60
-        assertThat(result.get(3).rank()).isEqualTo(SignalRank.WEAK);     // Twitter 40
+        assertThat(result.get(0).signalScore()).isEqualTo(80);          // HN, MODERATE
+        assertThat(result.get(1).signalScore()).isEqualTo(70);          // arXiv, MODERATE
+        assertThat(result.get(2).signalScore()).isEqualTo(60);          // Reddit, MODERATE
+        assertThat(result.get(3).rank()).isEqualTo(SignalRank.WEAK);    // Twitter 40
     }
 
     @Test
@@ -130,10 +131,10 @@ class SignalScoringServiceTest {
     @Test
     void itemWithNullCategoryIsScoredWithoutCrossSourceBonus() {
         DigestItem noCategory = new DigestItem(
-                "title", "http://example.com", "arXiv/cs.AI", null, "TYPE", 5, 0, "summary");
+                "title", "http://example.com", "arXiv/cs.AI", null, "TYPE", 5, 0, "summary", null);
         List<Signal> result = service.score(List.of(noCategory));
-        // arXiv base=100, no cross-source bonus because category is null
-        assertThat(result.get(0).signalScore()).isEqualTo(100);
+        // arXiv base=70, no cross-source bonus because category is null
+        assertThat(result.get(0).signalScore()).isEqualTo(70);
         assertThat(result.get(0).sourceDomains()).isEmpty();
     }
 }

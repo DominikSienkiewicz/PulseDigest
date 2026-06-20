@@ -29,6 +29,12 @@ class EmailFormattingTest {
     }
 
     @Test
+    void typeBadgeUsesDistinctPaletteForPromotion() {
+        String badge = EmailFormatting.typeBadge("PROMOTION");
+        assertThat(badge).contains("background:#fae8ff").contains("color:#a21caf").contains(">PROMOTION<");
+    }
+
+    @Test
     void safeHrefAllowsHttpAndHttpsUrls() {
         assertThat(EmailFormatting.safeHref("https://example.com/a?b=1")).isEqualTo("https://example.com/a?b=1");
         assertThat(EmailFormatting.safeHref("http://example.com")).isEqualTo("http://example.com");

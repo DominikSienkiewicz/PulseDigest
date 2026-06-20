@@ -32,7 +32,7 @@ public class ReportEmailBuilder {
             DateTimeFormatter.ofPattern("dd.MM.yyyy", Locale.of("pl", "PL"));
 
     private static final int TOP_PICK_THRESHOLD = 8;
-    private static final int SIGNAL_THRESHOLD = 5;
+    private static final int SIGNAL_THRESHOLD = 6;
 
     public String buildSubject(ReportData report) {
         return "📡 Daily Digest " + LocalDate.now().format(DATE_FMT);
@@ -69,7 +69,9 @@ public class ReportEmailBuilder {
                 + buildHeader(today)
                 + buildQuotaBanner(exhausted)
                 + buildEditorialSection(editorial)
+                + DigestHighlightBuilder.buildMustKnowSection(items)
                 + buildInsightsSection(insights)
+                + DigestHighlightBuilder.buildDealsAndToolsSection(items)
                 + buildCriticalTrendsSection(criticals)
                 + buildTrendsSection(trends)
                 + buildTechDemandSection(research != null ? research.techDemand() : null)
@@ -297,14 +299,10 @@ public class ReportEmailBuilder {
         List<DigestItem> midTier = items.stream()
                 .filter(i -> i.score() >= SIGNAL_THRESHOLD && i.score() < TOP_PICK_THRESHOLD)
                 .toList();
-        List<DigestItem> longTail = items.stream()
-                .filter(i -> i.score() < SIGNAL_THRESHOLD)
-                .toList();
 
         StringBuilder sb = new StringBuilder();
         sb.append(buildTopPicksSection(topPicks, rankByUrl));
         sb.append(buildMidTierSection(midTier, rankByUrl));
-        sb.append(buildLongTailSection(longTail, rankByUrl));
         return sb.toString();
     }
 
@@ -350,29 +348,6 @@ public class ReportEmailBuilder {
         sb.append("</tr></thead><tbody>");
         for (DigestItem item : items) {
             sb.append(buildTieredRow(item, "#fafafa", rankByUrl.get(item.url())));
-        }
-        sb.append("</tbody></table></div>");
-        return sb.toString();
-    }
-
-    private String buildLongTailSection(List<DigestItem> items, Map<String, SignalRank> rankByUrl) {
-        if (items.isEmpty()) {
-            return "";
-        }
-        StringBuilder sb = new StringBuilder();
-        sb.append("<div style=\"padding:20px 28px;background:#f9fafb;border-top:1px solid #f0f0f0\">");
-        sb.append("<h2 style=\"color:#9ca3af;font-size:14px;margin:0 0 12px\">")
-                .append("Long tail (").append(items.size()).append(")</h2>");
-        sb.append("<table style=\"width:100%;border-collapse:collapse;font-size:12px\">");
-        sb.append("<thead><tr style=\"background:#f3f4f6\">");
-        sb.append(th("Artyku&#322;"));
-        sb.append(th("Kategoria"));
-        sb.append(th("Typ"));
-        sb.append(th("&#377;r&oacute;d&#322;o"));
-        sb.append(th("Score"));
-        sb.append("</tr></thead><tbody>");
-        for (DigestItem item : items) {
-            sb.append(buildTieredRow(item, "#f9fafb", rankByUrl.get(item.url())));
         }
         sb.append("</tbody></table></div>");
         return sb.toString();

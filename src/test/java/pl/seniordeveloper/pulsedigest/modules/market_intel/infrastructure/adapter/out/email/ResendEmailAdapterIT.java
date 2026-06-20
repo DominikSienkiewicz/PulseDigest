@@ -109,7 +109,8 @@ class ResendEmailAdapterIT {
                         "RELEASE",
                         9,
                         100,
-                        "Summary")));
+                        "Summary",
+                        "Why it matters")));
     }
 
     private static ResearchResult emptyResearch() {

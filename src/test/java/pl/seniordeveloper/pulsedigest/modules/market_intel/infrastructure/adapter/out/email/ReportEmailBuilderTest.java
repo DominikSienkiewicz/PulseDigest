@@ -39,13 +39,40 @@ class ReportEmailBuilderTest {
                 .contains("W tym tygodniu wraca")
                 .contains("Top picks (1)")
                 .contains("Signals (2)")
-                .contains("Long tail (1)")
                 .contains("z ostrze")
                 .contains("&lt;unsafe&gt;")
                 .contains("12k &#9733;")
                 .contains("42 &#10084;")
-                .contains("8.8k pkt")
-                .contains("10 &#8593;");
+                .contains("8.8k pkt");
+    }
+
+    @Test
+    void buildHtmlRendersMustKnowSectionWithWhyItMatters() {
+        String html = builder.buildHtml(fullReport(), researchWithFailedSource());
+
+        assertThat(html)
+                .contains("Must-know")
+                .contains("Action: update your dependency now")   // top (score 9) why_it_matters
+                .contains("Action: try this new API");            // strong (score 7) why_it_matters
+    }
+
+    @Test
+    void buildHtmlRendersDealsAndToolsSectionForToolTypes() {
+        String html = builder.buildHtml(fullReport(), researchWithFailedSource());
+
+        // top=RELEASE and strong=FEATURE qualify; moderate=OPINION, weak=DISCUSSION do not.
+        assertThat(html)
+                .contains("Deals &amp; Tools")
+                .contains("Strong signal");
+    }
+
+    @Test
+    void buildHtmlOmitsLongTailAndLowScoreItems() {
+        String html = builder.buildHtml(fullReport(), researchWithFailedSource());
+
+        assertThat(html)
+                .doesNotContain("Long tail")
+                .doesNotContain("Weak signal");   // score 2 < signal threshold, no long-tail section
     }
 
     @Test
@@ -129,7 +156,8 @@ class ReportEmailBuilderTest {
                 "RELEASE",
                 9,
                 12_345,
-                "Important <summary>");
+                "Important <summary>",
+                "Action: update your dependency now");
         DigestItem strong = new DigestItem(
                 "Strong signal",
                 "https://example.com/strong",
@@ -138,16 +166,18 @@ class ReportEmailBuilderTest {
                 "FEATURE",
                 7,
                 42,
-                "Strong summary");
+                "Strong summary",
+                "Action: try this new API");
         DigestItem moderate = new DigestItem(
                 "Moderate signal",
                 "https://example.com/moderate",
                 "Hacker News",
                 null,
                 "OPINION",
-                5,
+                6,
                 8_800,
-                "Moderate summary");
+                "Moderate summary",
+                null);
         DigestItem weak = new DigestItem(
                 "Weak signal",
                 "https://example.com/weak",
@@ -156,7 +186,8 @@ class ReportEmailBuilderTest {
                 "DISCUSSION",
                 2,
                 10,
-                "Weak summary");
+                "Weak summary",
+                null);
         return new ReportData(
                 "Preview",
                 "Editorial lead",
