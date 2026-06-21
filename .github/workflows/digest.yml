@@ -91,8 +91,9 @@ jobs:
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
           PRODUCTHUNT_DEVELOPER_TOKEN: ${{ secrets.PRODUCTHUNT_DEVELOPER_TOKEN }}
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
-          # Optional: external feedback receiver for the email 👍/👎 links (C6). Blank/unset = no links rendered.
-          FEEDBACK_RECEIVER_URL: ${{ secrets.FEEDBACK_RECEIVER_URL }}
+          # Optional: external feedback receiver for the email 👍/👎 links (C6). Repository VARIABLE
+          # (non-sensitive public URL), not a secret. Blank/unset = no links rendered.
+          FEEDBACK_RECEIVER_URL: ${{ vars.FEEDBACK_RECEIVER_URL }}
 
       - name: Upload digest log on failure
         if: failure()
