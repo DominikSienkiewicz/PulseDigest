@@ -152,7 +152,25 @@ class GptSynthesisAdapterIT {
 
         private StubPromptBuilder() {
             super(new ObjectMapper(), lookbackDays -> java.util.Set.of(),
-                    new pl.seniordeveloper.pulsedigest.shared.infrastructure.config.DedupProperties(false, 10));
+                    new pl.seniordeveloper.pulsedigest.shared.infrastructure.config.DedupProperties(false, 10),
+                    new pl.seniordeveloper.pulsedigest.shared.infrastructure.config.InterestProfileProperties(
+                            "Test Persona", java.util.List.of("java")),
+                    noFeedback(),
+                    new pl.seniordeveloper.pulsedigest.shared.infrastructure.config.FeedbackProperties(false, 30, ""));
+        }
+
+        private static pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.FeedbackPort noFeedback() {
+            return new pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.FeedbackPort() {
+                @Override
+                public java.util.Set<String> downvotedUrls(int lookbackDays) {
+                    return java.util.Set.of();
+                }
+
+                @Override
+                public java.util.Map<String, Integer> netVotesBySource(int lookbackDays) {
+                    return java.util.Map.of();
+                }
+            };
         }
 
         @Override

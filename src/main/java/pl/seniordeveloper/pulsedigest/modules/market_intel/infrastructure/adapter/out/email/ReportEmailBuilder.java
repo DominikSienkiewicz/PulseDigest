@@ -1,5 +1,6 @@
 package pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapter.out.email;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ApiAccounts;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.DigestItem;
@@ -12,6 +13,7 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceFe
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TechDemandEntry;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TechDemandSignal;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TrendInsight;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.FeedbackProperties;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -26,6 +28,7 @@ import static pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure
 import static pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapter.out.email.EmailFormatting.typeBadge;
 
 @Component
+@RequiredArgsConstructor
 public class ReportEmailBuilder {
 
     private static final DateTimeFormatter DATE_FMT =
@@ -34,15 +37,17 @@ public class ReportEmailBuilder {
     private static final int TOP_PICK_THRESHOLD = 8;
     private static final int SIGNAL_THRESHOLD = 6;
 
+    private final FeedbackProperties feedbackProperties;
+
     public String buildSubject(ReportData report) {
-        return "📡 Daily Digest " + LocalDate.now().format(DATE_FMT);
+        return "📡 PulseDigest " + LocalDate.now().format(DATE_FMT);
     }
 
     public String buildHtml(ReportData report, ResearchResult research) {
         String today = LocalDate.now().format(DATE_FMT);
         String preheader = report.emailPreview() != null && !report.emailPreview().isBlank()
                 ? report.emailPreview()
-                : "Twój daily digest tech news z ostatnich 24h";
+                : "Twój digest tech news z ostatnich kilku dni";
         List<String> insights = report.topInsights() != null ? report.topInsights() : List.of();
         List<DigestItem> items = report.items() != null ? report.items() : List.of();
         List<TrendInsight> trends = report.trends() != null ? report.trends() : List.of();
@@ -60,7 +65,7 @@ public class ReportEmailBuilder {
         return "<!DOCTYPE html>"
                 + "<html lang=\"pl\"><head><meta charset=\"utf-8\">"
                 + "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
-                + "<title>Daily Digest " + today + "</title></head>"
+                + "<title>PulseDigest " + today + "</title></head>"
                 + "<body style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',"
                 + "sans-serif;background:#f9fafb;margin:0;padding:20px\">"
                 + buildPreheader(preheader)
@@ -69,7 +74,7 @@ public class ReportEmailBuilder {
                 + buildHeader(today)
                 + buildQuotaBanner(exhausted)
                 + buildEditorialSection(editorial)
-                + DigestHighlightBuilder.buildMustKnowSection(items)
+                + DigestHighlightBuilder.buildMustKnowSection(items, feedbackProperties.receiverUrl())
                 + buildInsightsSection(insights)
                 + DigestHighlightBuilder.buildDealsAndToolsSection(items)
                 + buildCriticalTrendsSection(criticals)
@@ -91,7 +96,7 @@ public class ReportEmailBuilder {
 
     private String buildHeader(String today) {
         return "<div style=\"background:#1e293b;padding:24px 28px\">"
-                + "<h1 style=\"color:#fff;margin:0;font-size:22px\">&#128225; Daily Tech Digest</h1>"
+                + "<h1 style=\"color:#fff;margin:0;font-size:22px\">&#128225; PulseDigest</h1>"
                 + "<p style=\"color:#94a3b8;margin:4px 0 0;font-size:14px\">"
                 + today + " &middot; powered by GPT-4o</p>"
                 + "</div>";
@@ -413,7 +418,7 @@ public class ReportEmailBuilder {
         return "<div style=\"padding:16px 28px;background:#f9fafb;text-align:center;"
                 + "color:#9ca3af;font-size:12px\">"
                 + "Wybrano " + selectedCount + " z " + rawTotal + " itemów &middot; "
-                + sources + " &#378;róde&#322;" + sourceHealth + " &middot; okno 24h"
+                + sources + " &#378;róde&#322;" + sourceHealth + " &middot; okno pn/śr/pt"
                 + "<br>Wygenerowano przez GPT-4o &middot; PulseDigest"
                 + "</div>";
     }

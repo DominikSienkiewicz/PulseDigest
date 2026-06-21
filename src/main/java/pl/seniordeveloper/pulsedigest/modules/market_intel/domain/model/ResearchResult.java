@@ -22,6 +22,7 @@ public record ResearchResult(
         List<RadarEntry> radarEntries,
         List<ConferenceTalk> conferenceTalks,
         List<LabAnnouncement> labAnnouncements,
+        List<SocialPost> socialPosts,
         LocalDateTime collectedAt,
         int rawTweetsCount,
         int rawHackerNewsCount,
@@ -35,6 +36,7 @@ public record ResearchResult(
     public ResearchResult {
         sourceFetchReports = sourceFetchReports != null ? List.copyOf(sourceFetchReports) : List.of();
         labAnnouncements = labAnnouncements != null ? List.copyOf(labAnnouncements) : List.of();
+        socialPosts = socialPosts != null ? List.copyOf(socialPosts) : List.of();
     }
 
     public ResearchResult(
@@ -61,7 +63,7 @@ public record ResearchResult(
     ) {
         this(tweets, hackerNewsPosts, githubRepos, rssItems, redditPosts,
                 papers, releases, huggingFaceModels, productHuntPosts, securityAdvisories,
-                jepUpdates, cncfProjectUpdates, radarEntries, conferenceTalks, List.of(), collectedAt,
+                jepUpdates, cncfProjectUpdates, radarEntries, conferenceTalks, List.of(), List.of(), collectedAt,
                 rawTweetsCount, rawHackerNewsCount, rawGithubCount, rawRssCount, rawRedditCount, List.of(), null);
     }
 
@@ -90,7 +92,7 @@ public record ResearchResult(
     ) {
         this(tweets, hackerNewsPosts, githubRepos, rssItems, redditPosts,
                 papers, releases, huggingFaceModels, productHuntPosts, securityAdvisories,
-                jepUpdates, cncfProjectUpdates, radarEntries, conferenceTalks, List.of(), collectedAt,
+                jepUpdates, cncfProjectUpdates, radarEntries, conferenceTalks, List.of(), List.of(), collectedAt,
                 rawTweetsCount, rawHackerNewsCount, rawGithubCount, rawRssCount, rawRedditCount,
                 sourceFetchReports, null);
     }
@@ -100,8 +102,8 @@ public record ResearchResult(
         return new ResearchResult(
                 tweets, hackerNewsPosts, githubRepos, rssItems, redditPosts,
                 papers, releases, huggingFaceModels, productHuntPosts, securityAdvisories,
-                jepUpdates, cncfProjectUpdates, radarEntries, conferenceTalks, labAnnouncements, collectedAt,
-                rawTweetsCount, rawHackerNewsCount, rawGithubCount, rawRssCount, rawRedditCount,
+                jepUpdates, cncfProjectUpdates, radarEntries, conferenceTalks, labAnnouncements, socialPosts,
+                collectedAt, rawTweetsCount, rawHackerNewsCount, rawGithubCount, rawRssCount, rawRedditCount,
                 sourceFetchReports, newTechDemand);
     }
 
@@ -113,7 +115,8 @@ public record ResearchResult(
                 && securityAdvisories.isEmpty() && jepUpdates.isEmpty()
                 && cncfProjectUpdates.isEmpty() && radarEntries.isEmpty()
                 && conferenceTalks.isEmpty()
-                && labAnnouncements.isEmpty();
+                && labAnnouncements.isEmpty()
+                && socialPosts.isEmpty();
     }
 
     public int rawTotalCount() {
@@ -122,7 +125,7 @@ public record ResearchResult(
                 + huggingFaceModels.size() + productHuntPosts.size() + securityAdvisories.size()
                 + jepUpdates.size()
                 + cncfProjectUpdates.size() + radarEntries.size() + conferenceTalks.size()
-                + labAnnouncements.size();
+                + labAnnouncements.size() + socialPosts.size();
     }
 
     public int activeSourceCount() {
@@ -172,6 +175,9 @@ public record ResearchResult(
         if (!labAnnouncements.isEmpty()) {
             n++;
         }
+        if (!socialPosts.isEmpty()) {
+            n++;
+        }
         return n;
     }
 
@@ -179,14 +185,14 @@ public record ResearchResult(
         return ("Zebrano: %d tweetów, %d HN, %d GH, %d RSS, %d Reddit, %d papers, %d releases,"
                 + " %d HF models, %d ProductHunt, %d security advisories,"
                 + " %d JEP, %d CNCF, %d Radar, %d Talks,"
-                + " %d Lab announcements"
+                + " %d Lab announcements, %d Social"
                 + " — łącznie %d itemów, o %s")
                 .formatted(rawTweetsCount, rawHackerNewsCount, rawGithubCount,
                         rawRssCount, rawRedditCount, papers.size(), releases.size(),
                         huggingFaceModels.size(), productHuntPosts.size(), securityAdvisories.size(),
                         jepUpdates.size(),
                         cncfProjectUpdates.size(), radarEntries.size(), conferenceTalks.size(),
-                        labAnnouncements.size(),
+                        labAnnouncements.size(), socialPosts.size(),
                         rawTotalCount(),
                         collectedAt);
     }

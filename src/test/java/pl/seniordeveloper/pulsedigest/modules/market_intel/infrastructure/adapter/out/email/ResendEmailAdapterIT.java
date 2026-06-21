@@ -60,7 +60,7 @@ class ResendEmailAdapterIT {
                 .withHeader("Authorization", containing("Bearer resend-key"))
                 .withRequestBody(containing("\"from\":\"from@example.com\""))
                 .withRequestBody(containing("\"to\":[\"to@example.com\"]"))
-                .withRequestBody(containing("Daily Digest"))
+                .withRequestBody(containing("PulseDigest"))
                 .withRequestBody(containing("Item")));
     }
 
@@ -82,7 +82,10 @@ class ResendEmailAdapterIT {
 
     private ResendEmailAdapter adapter(EmailProperties emailProperties) throws Exception {
         ResendEmailAdapter adapter = new ResendEmailAdapter(
-                new ObjectMapper(), new ReportEmailBuilder(), new AlertEmailBuilder(), emailProperties);
+                new ObjectMapper(),
+                new ReportEmailBuilder(
+                        new pl.seniordeveloper.pulsedigest.shared.infrastructure.config.FeedbackProperties(false, 30, "")),
+                new AlertEmailBuilder(), emailProperties);
         Field field = ResendEmailAdapter.class.getDeclaredField("resendClient");
         field.setAccessible(true);
         field.set(adapter, RestClient.builder()

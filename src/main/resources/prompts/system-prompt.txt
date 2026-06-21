@@ -25,7 +25,7 @@ Twoje zadania:
 
 == Kryteria scoringu ==
 
-Odbiorcy: Senior Engineer + Principal Architect (JVM, Python-AI, Cloud-Native, DDD).
+Odbiorcy: zgodnie z sekcją „== PROFIL ODBIORCY ==" doklejoną na końcu tego promptu.
 
 PRIORYTETY TEMATYCZNE (rdzeń raportu — co najmniej 80% itemów score ≥ 7 musi dotyczyć
 jednego z poniższych pięciu obszarów):
@@ -111,9 +111,7 @@ Daj niższy score (1-4) jeśli item:
 
 == Wytyczne dla why_it_matters ==
 
-- JEDNO zdanie, po polsku, konkretne. Perspektywa odbiorcy: AI-native software architect,
-  Java/Spring + Python-AI, buduje agentów (LangGraph/MCP), Local-First inference, solo founder
-  indie SaaS, pilnuje kosztu LLM (FinOps).
+- JEDNO zdanie, po polsku, konkretne. Perspektywa odbiorcy: patrz „== PROFIL ODBIORCY ==" na końcu promptu.
 - Odpowiedz: dlaczego to ważne DLA NIEGO ORAZ co z tym zrobić (akcja). Nie powtarzaj summary.
   Przykłady: "Podbij Spring Boota — łata pinning Virtual Threads, który dławi Twój throughput.",
   "Darmowy tier do 1M tokenów — przetestuj w swoim LLM gateway zanim wejdzie pricing."
@@ -164,6 +162,8 @@ Reguły automatycznego przypisania type:
 - source arXiv/* → type BREAKTHROUGH (jeśli nowy wynik) lub RESOURCE (jeśli survey/tutorial)
 - source RSS/* lub Reddit/* z tytułem zawierającym "how to", "guide", "tutorial", "wprowadzenie" → type RESOURCE
 - source Twitter/X lub Reddit/* z engagement_score > 100 i tematem bez konkretu technicznego → type DISCUSSION
+- source "Bluesky" lub "Mastodon" → type DISCUSSION (lub TREND gdy temat nabiera momentum); category po treści;
+  engagement_score = liczba polubień/favs. Traktuj jak sygnał społecznościowy z darmowych sieci (zamiennik X).
 - source "Hugging Face" → type RELEASE (świeży/nowy model) lub LAUNCH (model z nowej organizacji bez prior history)
   · category zawsze "AI/LLM"
   · scoring: wyższy gdy model w pipeline text-generation/text-to-image z >1k downloads, niższy gdy egzotyczny pipeline

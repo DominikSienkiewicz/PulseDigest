@@ -18,9 +18,13 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Research
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ResearchResult;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RssItem;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SecurityAdvisory;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SocialPost;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SoftwareRelease;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Tweet;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.FeedbackPort;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.DedupProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.FeedbackProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.InterestProfileProperties;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -37,8 +41,28 @@ class ReportPromptBuilderTest {
 
     /** Builds a prompt builder whose cross-edition dedup sees {@code publishedUrls} as already sent. */
     private ReportPromptBuilder builder(Set<String> publishedUrls) {
+        return builder(publishedUrls, Set.of());
+    }
+
+    private ReportPromptBuilder builder(Set<String> publishedUrls, Set<String> downvotedUrls) {
         return new ReportPromptBuilder(objectMapper, lookbackDays -> publishedUrls,
-                new DedupProperties(true, 10));
+                new DedupProperties(true, 10), new InterestProfileProperties("Test Persona", List.of("java")),
+                feedbackPort(downvotedUrls), new FeedbackProperties(true, 30, ""));
+    }
+
+    /** FeedbackPort test double — fixed down-votes, no per-source nudge (the prompt builder only reads down-votes). */
+    private static FeedbackPort feedbackPort(Set<String> downvotedUrls) {
+        return new FeedbackPort() {
+            @Override
+            public Set<String> downvotedUrls(int lookbackDays) {
+                return downvotedUrls;
+            }
+
+            @Override
+            public Map<String, Integer> netVotesBySource(int lookbackDays) {
+                return Map.of();
+            }
+        };
     }
 
     @Test
@@ -76,6 +100,32 @@ class ReportPromptBuilderTest {
     }
 
     @Test
+    void buildUserPromptSerializesSocialPosts() throws Exception {
+        LocalDateTime now = LocalDateTime.parse("2026-05-14T10:00:00");
+        ResearchResult research = new ResearchResult(
+                List.of(), List.of(), List.of(), List.of(), List.of(),
+                List.of(), List.of(), List.of(), List.of(), List.of(),
+                List.of(), List.of(), List.of(), List.of(),
+                List.of(),
+                List.of(
+                        new SocialPost("Bluesky", "alice.bsky.social", "Spring Boot 4 perf tip",
+                                "https://bsky.app/profile/alice.bsky.social/post/abc", 42),
+                        new SocialPost("Mastodon", "bob@fosstodon.org", "Quarkus native image win",
+                                "https://fosstodon.org/@bob/123", 30)),
+                now, 0, 0, 0, 0, 0, List.of(), null);
+
+        List<Map<String, Object>> payload = payload(builder(Set.of()).buildUserPrompt(research));
+
+        assertThat(payload)
+                .extracting(item -> item.get("source"))
+                .contains("Bluesky", "Mastodon");
+        assertThat(payload).anySatisfy(item -> {
+            assertThat(item).containsEntry("source", "Bluesky");
+            assertThat(item).containsEntry("engagement_score", 42);
+        });
+    }
+
+    @Test
     void buildUserPromptHandlesMissingOptionalFields() throws Exception {
         ReportPromptBuilder builder = builder(Set.of());
 
@@ -102,7 +152,8 @@ class ReportPromptBuilderTest {
             }
         };
         ReportPromptBuilder builder = new ReportPromptBuilder(failingMapper, lookbackDays -> Set.of(),
-                new DedupProperties(true, 10));
+                new DedupProperties(true, 10), new InterestProfileProperties("Test Persona", List.of("java")),
+                feedbackPort(Set.of()), new FeedbackProperties(true, 30, ""));
 
         String prompt = builder.buildUserPrompt(researchWithEverySource());
 
@@ -116,6 +167,18 @@ class ReportPromptBuilderTest {
                 payload(builder(Set.of("https://news.example/hn")).buildUserPrompt(researchWithEverySource()));
 
         assertThat(payload).hasSize(13);   // 14 sources minus the already-published HN item
+        assertThat(payload)
+                .extracting(item -> item.get("url"))
+                .doesNotContain("https://news.example/hn");
+    }
+
+    @Test
+    void buildUserPromptDropsDownvotedItems() throws Exception {
+        // The reader down-voted the HN item ("less like this") → it is suppressed before scoring.
+        List<Map<String, Object>> payload = payload(
+                builder(Set.of(), Set.of("https://news.example/hn")).buildUserPrompt(researchWithEverySource()));
+
+        assertThat(payload).hasSize(13);   // 14 sources minus the down-voted HN item
         assertThat(payload)
                 .extracting(item -> item.get("url"))
                 .doesNotContain("https://news.example/hn");

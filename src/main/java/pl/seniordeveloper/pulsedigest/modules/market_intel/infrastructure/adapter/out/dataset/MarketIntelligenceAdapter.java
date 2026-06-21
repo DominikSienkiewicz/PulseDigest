@@ -15,6 +15,7 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RedditPo
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ResearchPaper;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RssItem;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SecurityAdvisory;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SocialPost;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SoftwareRelease;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TechDemandSignal;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Tweet;
@@ -41,6 +42,7 @@ public class MarketIntelligenceAdapter implements MarketIntelligencePort {
     private final CncfLandscapeAdapter cncfLandscapeAdapter;
     private final TechnologyRadarAdapter technologyRadarAdapter;
     private final ConferenceTalksAdapter conferenceTalksAdapter;
+    private final SocialSearchAdapter socialSearchAdapter;
     private final LabAnnouncementsAdapter labAnnouncementsAdapter;
     private final TechDemandAdapter techDemandAdapter;
 
@@ -122,6 +124,11 @@ public class MarketIntelligenceAdapter implements MarketIntelligencePort {
     @Override
     public List<ConferenceTalk> fetchConferenceTalks() {
         return conferenceTalksAdapter.fetchConferenceTalks();
+    }
+
+    @Override
+    public List<SocialPost> fetchSocialPosts() {
+        return socialSearchAdapter.fetchSocialPosts();
     }
 
     @Override

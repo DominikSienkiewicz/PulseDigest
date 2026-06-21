@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.web.client.RestClient;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TechDemandEntry;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TechDemandSignal;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.InterestProfileProperties;
 
 import java.lang.reflect.Field;
 import java.util.List;
@@ -30,7 +31,8 @@ class GptTechDemandNarrativeAdapterIT {
     void setUp() throws Exception {
         wireMock = new WireMockServer(WireMockConfiguration.wireMockConfig().dynamicPort());
         wireMock.start();
-        adapter = new GptTechDemandNarrativeAdapter(new ObjectMapper());
+        adapter = new GptTechDemandNarrativeAdapter(new ObjectMapper(),
+                new InterestProfileProperties("Test-Persona-XYZ", List.of("java")));
         setOpenAiClient(adapter, "http://localhost:" + wireMock.port());
     }
 
@@ -54,7 +56,8 @@ class GptTechDemandNarrativeAdapterIT {
         assertThat(narrative).isEqualTo("Kubernetes dominuje, Spring spada.");
         wireMock.verify(postRequestedFor(urlPathEqualTo("/chat/completions"))
                 .withRequestBody(containing("kubernetes"))
-                .withRequestBody(containing("Who is hiring")));
+                .withRequestBody(containing("Who is hiring"))
+                .withRequestBody(containing("Test-Persona-XYZ")));   // persona injected from interest-profile
     }
 
     @Test

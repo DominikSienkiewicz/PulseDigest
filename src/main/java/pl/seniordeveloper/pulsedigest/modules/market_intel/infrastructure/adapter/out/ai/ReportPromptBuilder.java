@@ -10,13 +10,17 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ResearchResult;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.FeedbackPort;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.PublishedUrlsPort;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.DedupProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.FeedbackProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.InterestProfileProperties;
 import pl.seniordeveloper.pulsedigest.shared.util.UrlCanonicalizer;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -29,6 +33,9 @@ public class ReportPromptBuilder {
     private final ObjectMapper objectMapper;
     private final PublishedUrlsPort publishedUrlsPort;
     private final DedupProperties dedupProperties;
+    private final InterestProfileProperties interestProfile;
+    private final FeedbackPort feedbackPort;
+    private final FeedbackProperties feedbackProperties;
 
     @Value("classpath:prompts/system-prompt.txt")
     private Resource systemPromptResource;
@@ -42,7 +49,9 @@ public class ReportPromptBuilder {
     }
 
     public String buildSystemPrompt() {
-        return systemPrompt;
+        // Profil odbiorcy doklejany z interest-profile (jedno źródło prawdy) — rubryka scoringu
+        // w system-prompt.txt odsyła do tej sekcji zamiast hardcodować persony.
+        return systemPrompt + "\n\n== PROFIL ODBIORCY ==\n" + interestProfile.persona() + "\n";
     }
 
     public String buildUserPrompt(ResearchResult research) {
@@ -225,6 +234,20 @@ public class ReportPromptBuilder {
             ));
         }
 
+        for (var post : research.socialPosts()) {
+            String text = post.text() != null ? post.text() : "";
+            String title = text.length() > 120
+                    ? text.substring(0, 120).replace("\n", " ")
+                    : text.replace("\n", " ");
+            all.add(Map.of(
+                    "source", post.network(),
+                    "title", title,
+                    "url", post.url(),
+                    "engagement_score", post.likeCount(),
+                    "text_preview", text.substring(0, Math.min(300, text.length()))
+            ));
+        }
+
         all = filterAlreadyPublished(all);
         List<Map<String, Object>> payload = PromptItemSelector.selectTopItems(all);
 
@@ -232,7 +255,7 @@ public class ReportPromptBuilder {
             String json = objectMapper.writeValueAsString(payload);
             log.info("Prompt payload: {} itemów wybranych z {} (tweets={}, hn={}, gh={}, rss={}, reddit={},"
                             + " papers={}, releases={}, hf={}, ph={}, advisories={},"
-                            + " jep={}, cncf={}, radar={}, talks={}, labs={})",
+                            + " jep={}, cncf={}, radar={}, talks={}, social={}, labs={})",
                     payload.size(), all.size(),
                     research.tweets().size(),
                     research.hackerNewsPosts().size(),
@@ -248,6 +271,7 @@ public class ReportPromptBuilder {
                     research.cncfProjectUpdates().size(),
                     research.radarEntries().size(),
                     research.conferenceTalks().size(),
+                    research.socialPosts().size(),
                     research.labAnnouncements().size());
             return "Oto posty z ostatnich kilku dni:\n\n" + json;
         } catch (JsonProcessingException e) {
@@ -256,29 +280,37 @@ public class ReportPromptBuilder {
         }
     }
 
-    // Cross-edition dedup: drops items whose canonical URL already appeared in a recent edition, so the
-    // widened Mon/Wed/Fri lookback windows don't re-surface the same item across consecutive runs. Filters
-    // the unified payload by URL, so every source is covered uniformly — including tweets, whose URL is
-    // synthesized above even though the Tweet record has none.
+    // Drops items whose canonical URL should be suppressed before LLM scoring — cross-edition
+    // duplicates (already published in a recent edition) and reader down-votes (feedback "less like
+    // this"). Filters the unified payload by URL, so every source is covered uniformly — including
+    // tweets, whose URL is synthesized above even though the Tweet record has none.
     private List<Map<String, Object>> filterAlreadyPublished(List<Map<String, Object>> all) {
-        if (!dedupProperties.enabled()) {
-            return all;
-        }
-        Set<String> publishedUrls = publishedUrlsPort.recentlyPublishedUrls(dedupProperties.lookbackDays());
-        if (publishedUrls.isEmpty()) {
+        Set<String> suppressed = collectSuppressedUrls();
+        if (suppressed.isEmpty()) {
             return all;
         }
         List<Map<String, Object>> fresh = all.stream()
                 .filter(item -> {
                     Object url = item.get("url");
-                    return !(url instanceof String s) || !publishedUrls.contains(UrlCanonicalizer.canonicalize(s));
+                    return !(url instanceof String s) || !suppressed.contains(UrlCanonicalizer.canonicalize(s));
                 })
                 .toList();
         int dropped = all.size() - fresh.size();
         if (dropped > 0) {
-            log.info("Cross-edition dedup: pominięto {} itemów już opublikowanych w ostatnich wydaniach", dropped);
+            log.info("Pominięto {} itemów przed scoringiem (cross-edition dedup + feedback)", dropped);
         }
         return fresh;
+    }
+
+    private Set<String> collectSuppressedUrls() {
+        Set<String> suppressed = new HashSet<>();
+        if (dedupProperties.enabled()) {
+            suppressed.addAll(publishedUrlsPort.recentlyPublishedUrls(dedupProperties.lookbackDays()));
+        }
+        if (feedbackProperties.enabled()) {
+            suppressed.addAll(feedbackPort.downvotedUrls(feedbackProperties.lookbackDays()));
+        }
+        return suppressed;
     }
 
     /**

@@ -35,6 +35,8 @@ final class PromptItemSelector {
     // audience: capped tight so they never crowd out fresh JVM / AI / cloud-native signal.
     private static final int CAP_RADAR       = 2;
     private static final int CAP_TALKS       = 3;
+    // Free-source recovery (Bluesky + Mastodon) — recovers CV-relevant signal cut off the X budget.
+    private static final int CAP_SOCIAL      = 12;
     static final int TOTAL_CAP               = 100;
 
     private PromptItemSelector() {
@@ -55,6 +57,7 @@ final class PromptItemSelector {
         List<Map<String, Object>> cncf        = new ArrayList<>();
         List<Map<String, Object>> radar       = new ArrayList<>();
         List<Map<String, Object>> talks       = new ArrayList<>();
+        List<Map<String, Object>> social      = new ArrayList<>();
 
         for (var item : all) {
             String src = (String) item.get("source");
@@ -86,6 +89,8 @@ final class PromptItemSelector {
                 radar.add(item);
             } else if (src.startsWith("YouTube")) {
                 talks.add(item);
+            } else if (src.equals("Bluesky") || src.equals("Mastodon")) {
+                social.add(item);
             }
         }
 
@@ -107,6 +112,7 @@ final class PromptItemSelector {
         selected.addAll(topN(cncf,        CAP_CNCF,        byEngagement));
         selected.addAll(topN(radar,       CAP_RADAR,       byEngagement));
         selected.addAll(topN(talks,       CAP_TALKS,       byEngagement));
+        selected.addAll(topN(social,      CAP_SOCIAL,      byEngagement));
 
         return applyTotalCap(selected, TOTAL_CAP);
     }

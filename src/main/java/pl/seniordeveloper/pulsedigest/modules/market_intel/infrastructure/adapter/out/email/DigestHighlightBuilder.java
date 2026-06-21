@@ -2,6 +2,8 @@ package pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapt
 
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.DigestItem;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
@@ -29,8 +31,9 @@ final class DigestHighlightBuilder {
     }
 
     // Hero block: the few highest-score items (strong+, capped), each with a one-sentence
-    // "why it matters to you" action line. The "if you read nothing else" section.
-    static String buildMustKnowSection(List<DigestItem> items) {
+    // "why it matters to you" action line, plus 👍/👎 feedback links when a receiver URL is configured.
+    // The "if you read nothing else" section.
+    static String buildMustKnowSection(List<DigestItem> items, String feedbackReceiverUrl) {
         List<DigestItem> mustKnow = items.stream()
                 .filter(i -> i.score() >= MUST_KNOW_THRESHOLD)
                 .sorted(Comparator.comparingInt(DigestItem::score).reversed())
@@ -55,11 +58,26 @@ final class DigestHighlightBuilder {
                     .append(escapeHtml(item.title())).append("</a>")
                     .append(" <span style=\"color:#b45309;font-weight:700;font-size:12px\">")
                     .append(item.score()).append("/10</span>")
+                    .append(feedbackLinks(item.url(), item.source(), feedbackReceiverUrl))
                     .append(why)
                     .append("</li>");
         }
         sb.append("</ul></div>");
         return sb.toString();
+    }
+
+    // Renders 👍/👎 links pointing at the external feedback receiver (the headless batch never serves
+    // HTTP). Empty when no receiver URL is configured. The item URL + source are URL-encoded query args.
+    private static String feedbackLinks(String itemUrl, String source, String receiverUrl) {
+        if (receiverUrl == null || receiverUrl.isBlank()) {
+            return "";
+        }
+        String url = URLEncoder.encode(itemUrl != null ? itemUrl : "", StandardCharsets.UTF_8);
+        String src = URLEncoder.encode(source != null ? source : "", StandardCharsets.UTF_8);
+        String up = receiverUrl + "?url=" + url + "&vote=up&source=" + src;
+        String down = receiverUrl + "?url=" + url + "&vote=down&source=" + src;
+        return " <a href=\"" + safeHref(up) + "\" style=\"text-decoration:none;font-size:12px\">&#128077;</a>"
+                + "<a href=\"" + safeHref(down) + "\" style=\"text-decoration:none;font-size:12px\">&#128078;</a>";
     }
 
     // "Deals & Tools" — actionable launches/releases/features/promotions the reader can use right now.

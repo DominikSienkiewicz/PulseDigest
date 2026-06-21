@@ -53,7 +53,7 @@ class MarketResearchServiceTest {
         assertThat(result.redditPosts()).hasSize(1);
         assertThat(result.rawTotalCount()).isEqualTo(24);
         assertThat(result.activeSourceCount()).isEqualTo(14);
-        assertThat(result.sourceFetchReports()).hasSize(18);
+        assertThat(result.sourceFetchReports()).hasSize(19);
         assertThat(result.sourceFetchReports())
                 .allMatch(report -> report.status() == SourceFetchStatus.SUCCESS);
     }
@@ -78,7 +78,8 @@ class MarketResearchServiceTest {
     }
 
     private static ResearchPolicy researchPolicy() {
-        return new ResearchPolicy(10, 2, List.of("authority"));
+        return new ResearchPolicy(10, 2, List.of("authority"),
+                List.of("java", "agent", "ai", "coding", "model", "llm"));
     }
 
     private static String recentHoursAgo(int hours) {
@@ -206,6 +207,11 @@ class MarketResearchServiceTest {
         @Override
         public List<ConferenceTalk> fetchConferenceTalks() {
             return List.of(new ConferenceTalk("Talk", "Devoxx", "Devoxx", trackedUrl("talk"), now, 1_000));
+        }
+
+        @Override
+        public List<pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SocialPost> fetchSocialPosts() {
+            return List.of();
         }
 
         @Override

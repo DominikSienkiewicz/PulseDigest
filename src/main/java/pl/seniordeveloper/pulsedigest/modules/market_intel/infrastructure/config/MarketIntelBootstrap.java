@@ -7,10 +7,13 @@ import jakarta.annotation.PostConstruct;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.MarketIntelJobTracker;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.application.policy.FeedbackNudgePolicy;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.policy.RateLimitPolicy;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.policy.ResearchPolicy;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportJob;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.ReportStoragePort;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.FeedbackProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.InterestProfileProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportRuntimeProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ResearchProperties;
 
@@ -45,13 +48,19 @@ public class MarketIntelBootstrap {
     }
 
     @Bean
-    ResearchPolicy researchPolicy(ResearchProperties research) {
-        return new ResearchPolicy(research.minLikes(), research.daysBack(), research.authorityUsernames());
+    ResearchPolicy researchPolicy(ResearchProperties research, InterestProfileProperties profile) {
+        return new ResearchPolicy(research.minLikes(), research.daysBack(),
+                research.authorityUsernames(), profile.relevanceKeywords());
     }
 
     @Bean
     RateLimitPolicy reportRateLimitPolicy(ReportRuntimeProperties runtime) {
         int cooldownMinutes = Math.max(0, runtime.minGenerationIntervalMinutes());
         return new RateLimitPolicy(Duration.ofMinutes(cooldownMinutes));
+    }
+
+    @Bean
+    FeedbackNudgePolicy feedbackNudgePolicy(FeedbackProperties feedback) {
+        return new FeedbackNudgePolicy(feedback.enabled(), feedback.lookbackDays());
     }
 }

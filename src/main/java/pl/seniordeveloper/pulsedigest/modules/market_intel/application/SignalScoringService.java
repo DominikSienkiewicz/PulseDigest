@@ -34,15 +34,25 @@ public class SignalScoringService {
     private static final int STRONG_THRESHOLD = 100;
     private static final int MODERATE_THRESHOLD = 60;
 
-    /** Scores all items and returns them sorted CRITICAL → STRONG → MODERATE → WEAK, score desc within rank. */
+    /** Scores all items with no feedback nudging — see {@link #score(List, Map)}. */
     public List<Signal> score(List<DigestItem> items) {
+        return score(items, Map.of());
+    }
+
+    /**
+     * Scores all items and returns them sorted CRITICAL → STRONG → MODERATE → WEAK, score desc within
+     * rank. {@code netVotesBySource} (C6) nudges each item's source-credibility weight by accumulated
+     * reader feedback (UP − DOWN); an empty map means no nudging.
+     */
+    public List<Signal> score(List<DigestItem> items, Map<String, Integer> netVotesBySource) {
         Objects.requireNonNull(items, "items must not be null");
+        Objects.requireNonNull(netVotesBySource, "netVotesBySource must not be null");
         if (items.isEmpty()) {
             return List.of();
         }
         Map<String, Set<SourceDomain>> domainsByCategory = buildDomainMap(items);
         List<Signal> signals = items.stream()
-                .map(item -> scoreItem(item, domainsByCategory))
+                .map(item -> scoreItem(item, domainsByCategory, netVotesBySource))
                 .sorted(byRankThenScoreDesc())
                 .toList();
         log.debug("Scored {} items: {} CRITICAL, {} STRONG, {} MODERATE, {} WEAK",
@@ -63,8 +73,10 @@ public class SignalScoringService {
                 ));
     }
 
-    private Signal scoreItem(DigestItem item, Map<String, Set<SourceDomain>> domainsByCategory) {
-        double weight = SourceWeights.of(item.source());
+    private Signal scoreItem(DigestItem item, Map<String, Set<SourceDomain>> domainsByCategory,
+                             Map<String, Integer> netVotesBySource) {
+        int netVotes = netVotesBySource.getOrDefault(item.source(), 0);
+        double weight = SourceWeights.of(item.source(), netVotes);
         int baseScore = (int) Math.round(weight * 100);
         int engagement = item.engagementScore() != null ? item.engagementScore() : 0;
         int engagementBonus = Math.min(MAX_ENGAGEMENT_BONUS, engagement / ENGAGEMENT_DIVISOR);

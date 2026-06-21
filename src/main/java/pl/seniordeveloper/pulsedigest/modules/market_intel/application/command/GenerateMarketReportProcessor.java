@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.MarketIntelJobTracker;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.MarketResearchService;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.SignalScoringService;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.application.policy.FeedbackNudgePolicy;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ApiAccounts;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.EmailDeliveryReceipt;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.PersistedReport;
@@ -19,6 +20,7 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Research
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceFetchReport;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceFetchStatus;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.EmailDeliveryPort;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.FeedbackPort;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.LlmSynthesisPort;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.ReportEnrichmentPort;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.ReportStoragePort;
@@ -29,6 +31,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -51,6 +54,8 @@ public class GenerateMarketReportProcessor {
     private final Optional<ReportEnrichmentPort> enrichmentPort;
     private final SignalScoringService signalScoringService;
     private final TechDemandNarratorPort techDemandNarrator;
+    private final FeedbackPort feedbackPort;
+    private final FeedbackNudgePolicy feedbackNudgePolicy;
 
     public void process(String jobId) {
         log.info("=== [{}] Starting Market Intelligence Pipeline ===", jobId);
@@ -90,7 +95,11 @@ public class GenerateMarketReportProcessor {
                 log.info("[{}] Report enriched with {} trend cluster(s)", jobId, trendCount);
             }
 
-            List<Signal> signals = signalScoringService.score(enriched.items() != null ? enriched.items() : List.of());
+            Map<String, Integer> netVotesBySource = feedbackNudgePolicy.enabled()
+                    ? feedbackPort.netVotesBySource(feedbackNudgePolicy.lookbackDays())
+                    : Map.of();
+            List<Signal> signals = signalScoringService.score(
+                    enriched.items() != null ? enriched.items() : List.of(), netVotesBySource);
             ReportData finalReport = enriched.withSignals(signals);
             long criticalCount = signals.stream().filter(Signal::isCriticalTrend).count();
             log.info("[{}] Signal scoring: {} signals ({} CRITICAL)", jobId, signals.size(), criticalCount);

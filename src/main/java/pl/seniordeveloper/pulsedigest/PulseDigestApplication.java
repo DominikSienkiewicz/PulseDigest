@@ -11,16 +11,19 @@ import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.CncfLandscape
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ConferenceTalksProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.DedupProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.EmailProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.FeedbackProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.GithubProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.GithubReleasesProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.HackerNewsProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.HuggingFaceProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.InterestProfileProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.OpenJdkProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ProductHuntProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.RedditProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportRuntimeProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ResearchProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.RssProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.SocialProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.SecurityAdvisoriesProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.TechnologyRadarProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.TrendProperties;
@@ -49,7 +52,10 @@ import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.TwitterProper
         ConferenceTalksProperties.class,
         LabAnnouncementsProperties.class,
         TechDemandProperties.class,
-        DedupProperties.class
+        DedupProperties.class,
+        InterestProfileProperties.class,
+        FeedbackProperties.class,
+        SocialProperties.class
 })
 public final class PulseDigestApplication {
 

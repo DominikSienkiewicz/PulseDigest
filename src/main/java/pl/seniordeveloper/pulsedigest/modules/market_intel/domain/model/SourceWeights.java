@@ -28,10 +28,21 @@ public final class SourceWeights {
             Map.entry("YouTube",             0.55),
             Map.entry("Hugging Face",        0.70),
             Map.entry("RSS",                 0.45),
-            Map.entry("Twitter/X",           0.40)
+            Map.entry("Twitter/X",           0.40),
+            Map.entry("Bluesky",             0.45),
+            Map.entry("Mastodon",            0.45)
     );
 
     private static final double DEFAULT = 0.30;
+
+    // C6 feedback nudging: net (UP − DOWN) reader votes per source shift its weight by this step each,
+    // bounded so accumulated feedback re-ranks a source but never overwhelms its base credibility.
+    private static final double FEEDBACK_STEP = 0.05;
+    private static final double MAX_FEEDBACK_DELTA = 0.30;
+    private static final double MIN_WEIGHT = 0.10;
+    // Capped just below 1.0 so a positive nudge alone can never reach the STRONG base score (round(1.0*100)=100):
+    // feedback re-orders within a rank and demotes noise; cross-source / engagement bonuses still own promotion.
+    private static final double MAX_WEIGHT = 0.99;
 
     private SourceWeights() {
     }
@@ -54,5 +65,24 @@ public final class SourceWeights {
                 .max(Comparator.comparingInt(e -> e.getKey().length()))
                 .map(Map.Entry::getValue)
                 .orElse(DEFAULT);
+    }
+
+    /**
+     * Returns the base credibility weight nudged by accumulated reader feedback (C6). A source's net
+     * vote count (UP minus DOWN over the feedback window) shifts its weight by {@code 0.05} per vote,
+     * the shift clamped to {@code ±0.30} and the result to {@code [0.10, 0.99]}. With zero votes this
+     * is identical to {@link #of(String)}.
+     *
+     * @param source            the item source label (same label the email feedback links carry)
+     * @param netFeedbackVotes  net (UP − DOWN) votes for this source within the feedback window
+     * @return the feedback-adjusted credibility weight
+     */
+    public static double of(String source, int netFeedbackVotes) {
+        double delta = clamp(netFeedbackVotes * FEEDBACK_STEP, -MAX_FEEDBACK_DELTA, MAX_FEEDBACK_DELTA);
+        return clamp(of(source) + delta, MIN_WEIGHT, MAX_WEIGHT);
+    }
+
+    private static double clamp(double value, double min, double max) {
+        return Math.max(min, Math.min(max, value));
     }
 }

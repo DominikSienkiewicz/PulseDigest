@@ -13,6 +13,7 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceFe
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TechDemandEntry;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TechDemandSignal;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TrendInsight;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.FeedbackProperties;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -21,11 +22,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class ReportEmailBuilderTest {
 
-    private final ReportEmailBuilder builder = new ReportEmailBuilder();
+    private final ReportEmailBuilder builder = new ReportEmailBuilder(new FeedbackProperties(false, 30, ""));
 
     @Test
     void buildSubjectUsesDigestPrefix() {
-        assertThat(builder.buildSubject(fullReport())).contains("Daily Digest");
+        assertThat(builder.buildSubject(fullReport())).contains("PulseDigest");
     }
 
     @Test
@@ -33,7 +34,7 @@ class ReportEmailBuilderTest {
         String html = builder.buildHtml(fullReport(), researchWithFailedSource());
 
         assertThat(html)
-                .contains("Daily Tech Digest")
+                .contains("PulseDigest")
                 .contains("Top insights dnia")
                 .contains("Krytyczne trendy")
                 .contains("W tym tygodniu wraca")
@@ -67,6 +68,28 @@ class ReportEmailBuilderTest {
     }
 
     @Test
+    void buildHtmlRendersFeedbackLinksWhenReceiverConfigured() {
+        ReportEmailBuilder withFeedback = new ReportEmailBuilder(
+                new FeedbackProperties(true, 30, "https://fb.example/vote"));
+
+        String html = withFeedback.buildHtml(fullReport(), researchWithFailedSource());
+
+        assertThat(html)
+                .contains("https://fb.example/vote?url=")   // feedback receiver link on Must-know items
+                .contains("vote=up")
+                .contains("vote=down")
+                .contains("&#128077;")                       // 👍
+                .contains("&#128078;");                      // 👎
+    }
+
+    @Test
+    void buildHtmlOmitsFeedbackLinksWhenReceiverBlank() {
+        String html = builder.buildHtml(fullReport(), researchWithFailedSource());
+
+        assertThat(html).doesNotContain("vote=up");
+    }
+
+    @Test
     void buildHtmlOmitsLongTailAndLowScoreItems() {
         String html = builder.buildHtml(fullReport(), researchWithFailedSource());
 
@@ -82,7 +105,7 @@ class ReportEmailBuilderTest {
         String html = builder.buildHtml(report, null);
 
         assertThat(html)
-                .contains("daily digest tech news")
+                .contains("z ostatnich kilku dni")
                 .contains("Wybrano 0 z 0 item")
                 .doesNotContain("Top insights dnia")
                 .doesNotContain("Top picks");

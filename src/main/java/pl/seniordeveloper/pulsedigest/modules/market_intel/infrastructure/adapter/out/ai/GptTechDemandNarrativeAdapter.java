@@ -12,6 +12,7 @@ import org.springframework.web.client.RestClient;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TechDemandEntry;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TechDemandSignal;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.TechDemandNarratorPort;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.InterestProfileProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.http.ExternalRestClients;
 
 import java.util.List;
@@ -34,6 +35,7 @@ public class GptTechDemandNarrativeAdapter implements TechDemandNarratorPort {
     @Value("${spring.ai.openai.api-key:}")
     private String openAiApiKey;
     private final ObjectMapper objectMapper;
+    private final InterestProfileProperties interestProfile;
     private RestClient openAiClient;
 
     @PostConstruct
@@ -68,7 +70,7 @@ public class GptTechDemandNarrativeAdapter implements TechDemandNarratorPort {
 
     private String buildPrompt(TechDemandSignal signal) {
         StringBuilder sb = new StringBuilder();
-        sb.append("Odbiorca: Principal Architect (JVM, Python-AI, Cloud-Native). ")
+        sb.append("Odbiorca: ").append(interestProfile.persona()).append(". ")
                 .append("Poniżej ranking popytu na technologie z miesięcznego wątku HN \"Who is hiring?\" ")
                 .append("(% = udział ogłoszeń wymieniających technologię; Δ = zmiana w punktach proc. ")
                 .append("vs poprzedni miesiąc).\n\n")

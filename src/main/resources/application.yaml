@@ -25,10 +25,11 @@ twitter:
   # ceil(accounts/8)=3 + queries=4 + 1 Anthropic = 8 calli; cap 10 daje headroom. Calle ponad budżet
   # są pomijane (pusty wynik + WARN), reszta darmowych źródeł pipeline'u i tak się wykonuje.
   max-calls-per-run: 10
-  # Server-side próg engagementu (min_faves:N) dołączany do każdego query gdy > 0. WYŁĄCZONY (0)
-  # domyślnie — operator min_faves nie jest dostępny na każdym tierze X API, a nieobsługiwany operator
-  # wywala całe wyszukiwanie. Włącz (np. 3) dopiero po potwierdzeniu, że Twój tier go wspiera.
-  min-faves: 0
+  # Server-side próg engagementu (min_faves:N) dołączany do każdego query gdy > 0. WŁĄCZONY (3).
+  # UWAGA: operator min_faves nie jest dostępny na każdym tierze X API. Jeśli Twój tier go nie wspiera,
+  # źródło X zwróci błąd (degraduje się gracefully — oznaczone FAILED w source-health, digest leci dalej).
+  # Zweryfikuj ręcznym `workflow_dispatch`; jeśli X pada — wróć do 0.
+  min-faves: 3
   # Zapytania tematyczne skonsolidowane 8 -> 4 pod CV (JVM, LLM-tooling/agents/MCP, inference, cloud-native).
   queries:
     - "Spring Boot OR Quarkus OR GraalVM OR Virtual Threads -is:retweet lang:en"
@@ -68,6 +69,112 @@ twitter:
     - "PostgreSQL"
     - "github"
 
+# Profil zainteresowań odbiorcy — JEDNO źródło prawdy (C1). `persona` wstrzykiwana do promptów
+# (synteza + narrator tech-demand); `relevance-keywords` zasilają filtr trafności tweetów w
+# MarketResearchService. Wcześniej zduplikowane w system-prompt.txt + 2 adapterach.
+interest-profile:
+  persona: >-
+    AI-Native Software Architect / Fractional Principal Engineer. Java/Spring (Boot, Modulith,
+    Quarkus, GraalVM, Virtual Threads) + Python-AI; buduje agentów (LangGraph, MCP), RAG, Local-First
+    inference (Ollama/vLLM), vendor-agnostic LLM orchestration z cost-routingiem; PostgreSQL/pgvector,
+    Kubernetes/Docker/Terraform, Azure/AWS, ELK/Splunk. Solo founder indie SaaS (Chrome/VS Code ext,
+    GitHub Apps, pSEO), FinOps i koszt LLM. CHCE: ważne newsy AI, nowe narzędzia do realnego użycia,
+    promocje/deale/free-tiery, zmiany w jego stacku. NIE CHCE: generyczne CVE/security advisories,
+    pentest/privacy-OS chatter.
+  relevance-keywords:
+    - ai
+    - llm
+    - agent
+    - agentic
+    - model
+    - gpt
+    - claude
+    - gemini
+    - copilot
+    - openai
+    - anthropic
+    - mistral
+    - qwen
+    - deepseek
+    - llama
+    - ml
+    - machine learning
+    - inference
+    - fine-tuning
+    - embedding
+    - rag
+    - vector
+    - reasoning
+    - context
+    - token
+    - mcp
+    - langchain
+    - llamaindex
+    - vllm
+    - ollama
+    - pytorch
+    - huggingface
+    - pydantic
+    - transformers
+    - java
+    - jvm
+    - kotlin
+    - groovy
+    - scala
+    - spring
+    - quarkus
+    - micronaut
+    - graalvm
+    - gradle
+    - maven
+    - testcontainers
+    - hibernate
+    - jdk
+    - jep
+    - python
+    - fastapi
+    - kubernetes
+    - k8s
+    - container
+    - docker
+    - podman
+    - containerd
+    - oci
+    - cncf
+    - helm
+    - istio
+    - linkerd
+    - knative
+    - argocd
+    - flux
+    - cilium
+    - ebpf
+    - operator
+    - serverless
+    - edge
+    - opentelemetry
+    - observability
+    - service mesh
+    - platform engineering
+    - gitops
+    - azure
+    - aws
+    - cloud
+    - lambda
+    - cloud run
+    - coding
+    - engineer
+    - programming
+    - developer
+    - software
+    - architecture
+    - ddd
+    - event sourcing
+    - cqrs
+    - benchmark
+    - release
+    - api
+
 report:
   cache-ttl-minutes: 60
   min-generation-interval-minutes: 30
@@ -81,6 +188,14 @@ report:
   dedup:
     enabled: true
     lookback-days: 10          # >= najszersze okno (open-jdk/conference-talks 10d), więc łapie każdy overlap
+
+  # Feedback loop (C6): headless-batch tylko CZYTA feedback. receiver-url = zewnętrzny endpoint, do
+  # którego prowadzą linki 👍/👎 w mailu (np. Supabase Edge Function piszący do tabeli `feedback`).
+  # Puste receiver-url = brak linków w mailu (graceful). Down-voty z ostatnich lookback-days są wyciszane.
+  feedback:
+    enabled: true
+    lookback-days: 30
+    receiver-url: "${FEEDBACK_RECEIVER_URL:}"
 
   research:
     min-likes: 3
@@ -125,7 +240,7 @@ report:
       - opentelemetry
       - observability
     limit: 15
-    min-score: 25
+    min-score: 40              # było 25 — wyższy próg jakości przy szerszym oknie 80h (mniej szumu)
     lookback-hours: 80         # było 24 (zahardkodowane w adapterze) — pokrywa cykl pn/śr/pt + margines
 
   # Tech-demand pulse: agreguje wzmianki technologii w miesięcznym wątku HN "Who is hiring?".
@@ -251,7 +366,7 @@ report:
 
   reddit:
     limit: 15
-    min-score: 20
+    min-score: 30              # było 20 — wyższy próg jakości (mniej szumu)
     subreddits:
       - "java"
       - "programming"
@@ -261,6 +376,26 @@ report:
       - "kubernetes"
       - "datascience"
       - "artificial"
+
+  # Free-source recovery (C7): Bluesky author-feeds + Mastodon hashtag-timelines (oba public, bez auth)
+  # odzyskują sygnał CV-relevant przycięty pod budżet X. Jeden scalony source "Social"; każda sieć
+  # degraduje się gracefully (źródło FAILED tylko gdy OBIE padną). Dostrój handles/hashtags pod siebie.
+  social:
+    limit: 15
+    min-likes: 5
+    bluesky:
+      base-url: https://public.api.bsky.app
+      handles:
+        - bsky.app        # seed (oficjalne konto) — dodaj CV-relevant handles (AI/Java dev) z bsky.app
+    mastodon:
+      instance-url: https://fosstodon.org
+      hashtags:
+        - java
+        - quarkus
+        - kubernetes
+        - llm
+        - ai
+
   arxiv:
     categories: "cs.AI,cs.LG,cs.CR,cs.DC,cs.PL"
     keywords: "agent,llm,rag,inference,jvm,virtual thread,kubernetes,container,orchestration,serverless,edge,mcp,vector,embedding,fine-tuning,training,alignment,safety,speculative,decoding,quantization"
@@ -364,25 +499,17 @@ report:
     api-key: "${YOUTUBE_API_KEY:}"
     lookback-days: 10          # było 7 — >= 4d, gap-free na cyklu pn/śr/pt
     max-results: 10
+    # Przycięte 6 -> 3 pod CV (JVM + cloud-native); oszczędza quotę YouTube (intake i tak capowany do 3).
     channels:
       - channel-name: "SpringDeveloper"
         conference-name: "Spring I/O"
         channel-id: "UCvT2j2iACv7QUaFpB4fJjGw"
-      - channel-name: "CNCF"
-        conference-name: "KubeCon"
-        channel-id: "UCvqbFHwN-nwalWPjPUKpvTA"
       - channel-name: "Devoxx"
         conference-name: "Devoxx"
         channel-id: "UCJyEBMU1-Kb1pGjWvFz5X3g"
-      - channel-name: "Google Cloud Tech"
-        conference-name: "Google Cloud Next"
-        channel-id: "UCJSBzeANgUXDr5XyOQBnLVA"
-      - channel-name: "InfoQ"
-        conference-name: "QCon"
-        channel-id: "UCsYVgBx0Kx0MGFj0qQ2qLtA"
-      - channel-name: "GOTO Conferences"
-        conference-name: "GOTO"
-        channel-id: "UCs_tLP3AiwYKwdUHpltJPuA"
+      - channel-name: "CNCF"
+        conference-name: "KubeCon"
+        channel-id: "UCvqbFHwN-nwalWPjPUKpvTA"
 
   lab-announcements:
     lookback-hours: 80         # było 48 — najwyższy sygnał CV (AI-lab); 48h gubił posty w gapie 72h

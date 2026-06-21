@@ -19,6 +19,7 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Research
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ResearchResult;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RssItem;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SecurityAdvisory;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SocialPost;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceFetchReport;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SoftwareRelease;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TechDemandSignal;
@@ -47,24 +48,6 @@ import java.util.stream.Stream;
 @Service
 public class MarketResearchService {
 
-    private static final Set<String> RELEVANCE_KEYWORDS = Set.of(
-            "ai", "llm", "agent", "agentic", "model", "gpt", "claude", "gemini", "copilot",
-            "openai", "anthropic", "mistral", "qwen", "deepseek", "llama",
-            "ml", "machine learning", "inference", "fine-tuning", "embedding", "rag", "vector",
-            "reasoning", "context", "token", "mcp", "langchain", "llamaindex", "vllm", "ollama",
-            "pytorch", "huggingface", "pydantic", "transformers",
-            "java", "jvm", "kotlin", "groovy", "scala", "spring", "quarkus", "micronaut",
-            "graalvm", "gradle", "maven", "testcontainers", "hibernate", "jdk", "jep",
-            "python", "fastapi",
-            "kubernetes", "k8s", "container", "docker", "podman", "containerd", "oci",
-            "cncf", "helm", "istio", "linkerd", "knative", "argocd", "flux", "cilium", "ebpf",
-            "operator", "serverless", "edge", "opentelemetry", "observability", "service mesh",
-            "platform engineering", "gitops",
-            "azure", "aws", "cloud", "lambda", "cloud run",
-            "coding", "engineer", "programming", "developer", "software",
-            "architecture", "ddd", "event sourcing", "cqrs",
-            "benchmark", "release", "api"
-    );
     private static final Duration SOURCE_TIMEOUT = Duration.ofSeconds(90);
 
     private final MarketIntelligencePort intelligencePort;
@@ -107,6 +90,8 @@ public class MarketResearchService {
                 fetchSource("Tech Radar", intelligencePort::fetchTechRadarEntries);
         CompletableFuture<FetchOutcome<ConferenceTalk>> futureTalks =
                 fetchSource("Conference Talks", intelligencePort::fetchConferenceTalks);
+        CompletableFuture<FetchOutcome<SocialPost>> futureSocial =
+                fetchSource("Social", intelligencePort::fetchSocialPosts);
         CompletableFuture<FetchOutcome<LabAnnouncement>> futureAnnouncements =
                 fetchSource("Lab Announcements", intelligencePort::fetchLabAnnouncements);
         CompletableFuture<FetchOutcome<TechDemandSignal>> futureTechDemand =
@@ -115,7 +100,7 @@ public class MarketResearchService {
         CompletableFuture.allOf(futureInfluencer, futureTopic, futureAnthropic, futureHn, futureGh,
                 futureRss, futureReddit, futurePapers, futureReleases,
                 futureHf, futurePh, futureAdvisories,
-                futureJep, futureCncf, futureRadar, futureTalks, futureAnnouncements,
+                futureJep, futureCncf, futureRadar, futureTalks, futureSocial, futureAnnouncements,
                 futureTechDemand).join();
 
         FetchOutcome<Tweet> influencer = futureInfluencer.join();
@@ -134,6 +119,7 @@ public class MarketResearchService {
         FetchOutcome<CncfProjectUpdate> cncf = futureCncf.join();
         FetchOutcome<RadarEntry> radar = futureRadar.join();
         FetchOutcome<ConferenceTalk> talks = futureTalks.join();
+        FetchOutcome<SocialPost> social = futureSocial.join();
         FetchOutcome<LabAnnouncement> announcements = futureAnnouncements.join();
         FetchOutcome<TechDemandSignal> techDemand = futureTechDemand.join();
 
@@ -153,6 +139,7 @@ public class MarketResearchService {
         List<CncfProjectUpdate> rawCncf = cncf.items();
         List<RadarEntry> rawRadar = radar.items();
         List<ConferenceTalk> rawTalks = talks.items();
+        List<SocialPost> rawSocial = social.items();
         List<LabAnnouncement> rawAnnouncements = announcements.items();
         List<TechDemandSignal> rawTechDemand = techDemand.items();
         TechDemandSignal techDemandSignal = rawTechDemand.isEmpty() ? null : rawTechDemand.get(0);
@@ -160,7 +147,7 @@ public class MarketResearchService {
                         influencer.report(), topic.report(), anthropic.report(), hn.report(), gh.report(),
                         rss.report(), reddit.report(), papers.report(), releases.report(), hf.report(), ph.report(),
                         advisories.report(), jep.report(), cncf.report(),
-                        radar.report(), talks.report(), announcements.report(), techDemand.report())
+                        radar.report(), talks.report(), social.report(), announcements.report(), techDemand.report())
                 .toList();
 
         Set<String> authorityUsernames = Set.copyOf(researchPolicy.authorityUsernames());
@@ -212,6 +199,7 @@ public class MarketResearchService {
                 rawRadar.stream().map(MarketResearchService::canonicalize).toList(),
                 rawTalks.stream().map(MarketResearchService::canonicalize).toList(),
                 rawAnnouncements,
+                rawSocial.stream().map(MarketResearchService::canonicalize).toList(),
                 LocalDateTime.now(),
                 rawInfluencer.size() + rawTopic.size() + rawAnthropic.size(),
                 rawHn.size(), rawGh.size(), rawRss.size(), rawReddit.size(),
@@ -316,6 +304,11 @@ public class MarketResearchService {
                 UrlCanonicalizer.canonicalize(t.url()), t.publishedAt(), t.viewCount());
     }
 
+    private static SocialPost canonicalize(SocialPost p) {
+        return new SocialPost(p.network(), p.author(), p.text(),
+                UrlCanonicalizer.canonicalize(p.url()), p.likeCount());
+    }
+
     private boolean isFromAuthority(Tweet tweet, Set<String> authorities) {
         if (authorities.isEmpty()) {
             return true;
@@ -341,6 +334,6 @@ public class MarketResearchService {
             return false;
         }
         String lower = tweet.text().toLowerCase();
-        return RELEVANCE_KEYWORDS.stream().anyMatch(lower::contains);
+        return researchPolicy.relevanceKeywords().stream().anyMatch(lower::contains);
     }
 }

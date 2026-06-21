@@ -23,6 +23,8 @@ class SourceWeightsTest {
         assertThat(SourceWeights.of("Hugging Face")).isCloseTo(0.70, within(0.001));
         assertThat(SourceWeights.of("RSS")).isCloseTo(0.45, within(0.001));
         assertThat(SourceWeights.of("Twitter/X")).isCloseTo(0.40, within(0.001));
+        assertThat(SourceWeights.of("Bluesky")).isCloseTo(0.45, within(0.001));
+        assertThat(SourceWeights.of("Mastodon")).isCloseTo(0.45, within(0.001));
     }
 
     @Test
@@ -58,5 +60,39 @@ class SourceWeightsTest {
     void blankSourceReturnsDefault() {
         assertThat(SourceWeights.of("")).isCloseTo(0.30, within(0.001));
         assertThat(SourceWeights.of("   ")).isCloseTo(0.30, within(0.001));
+    }
+
+    // --- C6 feedback nudging: of(source, netFeedbackVotes) ---
+
+    @Test
+    void zeroNetVotesEqualsBaseWeight() {
+        assertThat(SourceWeights.of("Twitter/X", 0)).isCloseTo(0.40, within(0.001));
+        assertThat(SourceWeights.of("Hacker News", 0)).isCloseTo(0.80, within(0.001));
+    }
+
+    @Test
+    void netVotesNudgeWeightByZeroPointZeroFivePerVote() {
+        // +4 → +0.20; −4 → −0.20 (step 0.05 per net vote)
+        assertThat(SourceWeights.of("Twitter/X", 4)).isCloseTo(0.60, within(0.001));
+        assertThat(SourceWeights.of("Twitter/X", -4)).isCloseTo(0.20, within(0.001));
+    }
+
+    @Test
+    void deltaClampedToPlusMinusZeroPointThree() {
+        // Reddit 0.60: ±100 votes → delta clamped at ±0.30 (both within [0.10, 0.99])
+        assertThat(SourceWeights.of("Reddit", 100)).isCloseTo(0.90, within(0.001));
+        assertThat(SourceWeights.of("Reddit", -100)).isCloseTo(0.30, within(0.001));
+    }
+
+    @Test
+    void effectiveWeightFlooredAtZeroPointOne() {
+        // Security Advisories 0.30 − 0.30 = 0.00 → floored to 0.10
+        assertThat(SourceWeights.of("Security Advisories", -100)).isCloseTo(0.10, within(0.001));
+    }
+
+    @Test
+    void effectiveWeightCappedBelowStrongThreshold() {
+        // GitHub Releases 0.95 + 0.30 = 1.25 → capped at 0.99 so a nudge alone never reaches STRONG (base 100)
+        assertThat(SourceWeights.of("GitHub Releases", 100)).isCloseTo(0.99, within(0.001));
     }
 }

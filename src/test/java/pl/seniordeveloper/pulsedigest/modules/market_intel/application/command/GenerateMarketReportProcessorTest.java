@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.MarketIntelJobTracker;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.MarketResearchService;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.SignalScoringService;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.application.policy.FeedbackNudgePolicy;
 import org.mockito.ArgumentCaptor;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ApiAccounts;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.DigestItem;
@@ -16,6 +17,7 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportJo
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ResearchResult;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceFetchReport;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.EmailDeliveryPort;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.FeedbackPort;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.LlmSynthesisPort;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.ReportStoragePort;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.TechDemandNarratorPort;
@@ -39,6 +41,7 @@ class GenerateMarketReportProcessorTest {
     private final ReportStoragePort storagePort = mock(ReportStoragePort.class);
     private final EmailDeliveryPort emailPort = mock(EmailDeliveryPort.class);
     private final TechDemandNarratorPort techDemandNarrator = mock(TechDemandNarratorPort.class);
+    private final FeedbackPort feedbackPort = mock(FeedbackPort.class);
 
     @Test
     void marksJobDeliveredOnlyAfterEmailDeliverySucceeds() {
@@ -178,7 +181,9 @@ class GenerateMarketReportProcessorTest {
                 emailPort,
                 Optional.empty(),
                 new SignalScoringService(),
-                techDemandNarrator);
+                techDemandNarrator,
+                feedbackPort,
+                new FeedbackNudgePolicy(true, 30));
     }
 
     private static ReportData sampleReport() {

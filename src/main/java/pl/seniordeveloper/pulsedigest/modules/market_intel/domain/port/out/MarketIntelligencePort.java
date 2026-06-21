@@ -13,6 +13,7 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RedditPo
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ResearchPaper;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RssItem;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SecurityAdvisory;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SocialPost;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SoftwareRelease;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TechDemandSignal;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Tweet;
@@ -55,6 +56,8 @@ public interface MarketIntelligencePort {
     List<RadarEntry> fetchTechRadarEntries();
 
     List<ConferenceTalk> fetchConferenceTalks();
+
+    List<SocialPost> fetchSocialPosts();
 
     List<LabAnnouncement> fetchLabAnnouncements();
 

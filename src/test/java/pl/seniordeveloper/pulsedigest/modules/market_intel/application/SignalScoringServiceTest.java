@@ -7,6 +7,7 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SignalRa
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceDomain;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -126,6 +127,45 @@ class SignalScoringServiceTest {
     @Test
     void emptyItemsReturnsEmptyList() {
         assertThat(service.score(List.of())).isEmpty();
+    }
+
+    // --- C6 feedback nudging: score(items, netVotesBySource) ---
+
+    @Test
+    void downvotedSourceIsDemotedByFeedbackNudge() {
+        // Hacker News base 0.80 → 80 (MODERATE). Net −6 votes → −0.30 → 0.50 → 50 (WEAK).
+        DigestItem hn = item("Hacker News", "Java", 0);
+        List<Signal> result = service.score(List.of(hn), Map.of("Hacker News", -6));
+        assertThat(result.get(0).signalScore()).isEqualTo(50);
+        assertThat(result.get(0).rank()).isEqualTo(SignalRank.WEAK);
+    }
+
+    @Test
+    void upvotedSourceRaisesBaseScore() {
+        // arXiv base 0.70 → 70. Net +4 → +0.20 → 0.90 → 90 (still MODERATE, but higher within rank).
+        DigestItem arxiv = item("arXiv/cs.AI", "AI", 0);
+        List<Signal> result = service.score(List.of(arxiv), Map.of("arXiv/cs.AI", 4));
+        assertThat(result.get(0).signalScore()).isEqualTo(90);
+        assertThat(result.get(0).rank()).isEqualTo(SignalRank.MODERATE);
+    }
+
+    @Test
+    void emptyNudgeMapMatchesUnnudgedScoring() {
+        DigestItem hn = item("Hacker News", "Java", 0);
+        List<Signal> nudged = service.score(List.of(hn), Map.of());
+        List<Signal> plain = service.score(List.of(hn));
+        assertThat(nudged.get(0).signalScore()).isEqualTo(plain.get(0).signalScore());
+        assertThat(nudged.get(0).signalScore()).isEqualTo(80);
+    }
+
+    @Test
+    void nudgeOnlyAffectsTheVotedSource() {
+        // Down-vote HN; arXiv (unvoted) keeps its base 70.
+        DigestItem hn = item("Hacker News", "A", 0);
+        DigestItem arxiv = item("arXiv/cs.AI", "B", 0);
+        List<Signal> result = service.score(List.of(hn, arxiv), Map.of("Hacker News", -6));
+        Signal arxivSignal = result.stream().filter(s -> s.item().source().startsWith("arXiv")).findFirst().orElseThrow();
+        assertThat(arxivSignal.signalScore()).isEqualTo(70);
     }
 
     @Test
