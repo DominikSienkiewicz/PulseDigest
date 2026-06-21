@@ -95,4 +95,32 @@ class SourceWeightsTest {
         // GitHub Releases 0.95 + 0.30 = 1.25 → capped at 0.99 so a nudge alone never reaches STRONG (base 100)
         assertThat(SourceWeights.of("GitHub Releases", 100)).isCloseTo(0.99, within(0.001));
     }
+
+    // --- C6 feedback aggregation key: keyOf(source) ---
+
+    @Test
+    void keyOfCollapsesHighCardinalityLabelsToBaseSource() {
+        assertThat(SourceWeights.keyOf("arXiv/cs.AI")).isEqualTo("arXiv");
+        assertThat(SourceWeights.keyOf("Reddit/r/java")).isEqualTo("Reddit");
+        assertThat(SourceWeights.keyOf("RSS/InfoQ Articles")).isEqualTo("RSS");
+        assertThat(SourceWeights.keyOf("YouTube/Devoxx")).isEqualTo("YouTube");
+    }
+
+    @Test
+    void keyOfPrefersExactThenLongestPrefix() {
+        assertThat(SourceWeights.keyOf("Hacker News")).isEqualTo("Hacker News");
+        assertThat(SourceWeights.keyOf("GitHub Releases")).isEqualTo("GitHub Releases");
+        assertThat(SourceWeights.keyOf("GitHub Releases/spring-boot")).isEqualTo("GitHub Releases");
+        assertThat(SourceWeights.keyOf("GitHub")).isEqualTo("GitHub");
+    }
+
+    @Test
+    void keyOfUnknownSourceReturnsItself() {
+        assertThat(SourceWeights.keyOf("Totally Unknown")).isEqualTo("Totally Unknown");
+    }
+
+    @Test
+    void keyOfNullReturnsEmptyString() {
+        assertThat(SourceWeights.keyOf(null)).isEqualTo("");
+    }
 }

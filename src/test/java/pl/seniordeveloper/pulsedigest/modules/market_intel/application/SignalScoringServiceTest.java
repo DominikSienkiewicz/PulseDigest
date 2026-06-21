@@ -159,6 +159,25 @@ class SignalScoringServiceTest {
     }
 
     @Test
+    void feedbackAggregatesAtBaseSourceAcrossLabels() {
+        // Votes are recorded under high-cardinality labels (arXiv/cs.AI), but the nudge modifies the
+        // base-source weight — so a down-vote under "arXiv/cs.AI" must also demote a sibling "arXiv/cs.LG".
+        DigestItem otherLabel = item("arXiv/cs.LG", "AI", 0);
+        List<Signal> result = service.score(List.of(otherLabel), Map.of("arXiv/cs.AI", -6));
+        // arXiv base 0.70 − 0.30 = 0.40 → 40 (WEAK), despite the differing label.
+        assertThat(result.get(0).signalScore()).isEqualTo(40);
+        assertThat(result.get(0).rank()).isEqualTo(SignalRank.WEAK);
+    }
+
+    @Test
+    void feedbackSumsVotesAcrossLabelsOfSameSource() {
+        // Two labels of the same base source sum at source level: -3 + -3 = -6 → 0.70 − 0.30 = 0.40.
+        DigestItem arxiv = item("arXiv/cs.CR", "AI", 0);
+        List<Signal> result = service.score(List.of(arxiv), Map.of("arXiv/cs.AI", -3, "arXiv/cs.LG", -3));
+        assertThat(result.get(0).signalScore()).isEqualTo(40);
+    }
+
+    @Test
     void nudgeOnlyAffectsTheVotedSource() {
         // Down-vote HN; arXiv (unvoted) keeps its base 70.
         DigestItem hn = item("Hacker News", "A", 0);

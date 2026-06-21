@@ -9,6 +9,7 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceDo
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceWeights;
 
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -51,8 +52,9 @@ public class SignalScoringService {
             return List.of();
         }
         Map<String, Set<SourceDomain>> domainsByCategory = buildDomainMap(items);
+        Map<String, Integer> netVotesByWeightKey = aggregateByWeightKey(netVotesBySource);
         List<Signal> signals = items.stream()
-                .map(item -> scoreItem(item, domainsByCategory, netVotesBySource))
+                .map(item -> scoreItem(item, domainsByCategory, netVotesByWeightKey))
                 .sorted(byRankThenScoreDesc())
                 .toList();
         log.debug("Scored {} items: {} CRITICAL, {} STRONG, {} MODERATE, {} WEAK",
@@ -73,9 +75,20 @@ public class SignalScoringService {
                 ));
     }
 
+    /**
+     * Collapses raw per-label feedback counts (e.g. {@code arXiv/cs.AI}, {@code arXiv/cs.LG}) into
+     * base-source buckets ({@code arXiv}), so votes aggregate at the same granularity as the weight
+     * they nudge instead of scattering across high-cardinality labels.
+     */
+    private static Map<String, Integer> aggregateByWeightKey(Map<String, Integer> rawNetVotes) {
+        Map<String, Integer> byKey = new HashMap<>();
+        rawNetVotes.forEach((source, votes) -> byKey.merge(SourceWeights.keyOf(source), votes, Integer::sum));
+        return byKey;
+    }
+
     private Signal scoreItem(DigestItem item, Map<String, Set<SourceDomain>> domainsByCategory,
-                             Map<String, Integer> netVotesBySource) {
-        int netVotes = netVotesBySource.getOrDefault(item.source(), 0);
+                             Map<String, Integer> netVotesByWeightKey) {
+        int netVotes = netVotesByWeightKey.getOrDefault(SourceWeights.keyOf(item.source()), 0);
         double weight = SourceWeights.of(item.source(), netVotes);
         int baseScore = (int) Math.round(weight * 100);
         int engagement = item.engagementScore() != null ? item.engagementScore() : 0;

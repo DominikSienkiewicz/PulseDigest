@@ -68,6 +68,30 @@ public final class SourceWeights {
     }
 
     /**
+     * Resolves a source label to the base-weight key it maps to — the same exact-then-longest-prefix
+     * resolution {@link #of(String)} uses. High-cardinality labels collapse to their base source
+     * ({@code "arXiv/cs.AI"} → {@code "arXiv"}, {@code "Reddit/r/java"} → {@code "Reddit"}), so feedback
+     * votes aggregate at the same granularity as the weight they nudge. Unknown sources map to
+     * themselves (their own bucket); {@code null} maps to the empty string.
+     *
+     * @param source the item source label
+     * @return the base-weight key this source resolves to
+     */
+    public static String keyOf(String source) {
+        if (source == null) {
+            return "";
+        }
+        if (WEIGHTS.containsKey(source)) {
+            return source;
+        }
+        return WEIGHTS.entrySet().stream()
+                .filter(e -> source.startsWith(e.getKey()))
+                .max(Comparator.comparingInt(e -> e.getKey().length()))
+                .map(Map.Entry::getKey)
+                .orElse(source);
+    }
+
+    /**
      * Returns the base credibility weight nudged by accumulated reader feedback (C6). A source's net
      * vote count (UP minus DOWN over the feedback window) shifts its weight by {@code 0.05} per vote,
      * the shift clamped to {@code ±0.30} and the result to {@code [0.10, 0.99]}. With zero votes this
