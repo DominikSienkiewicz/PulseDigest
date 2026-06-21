@@ -47,27 +47,9 @@ fi
 
 die() { echo "${RED}error:${RESET} $*" >&2; exit 2; }
 
-command -v gh >/dev/null 2>&1 || die "GitHub CLI (gh) not found — install from https://cli.github.com"
-gh auth status >/dev/null 2>&1 || die "gh is not authenticated — run: gh auth login"
-[ -d "$WF_DIR" ] || die "no workflows directory at $WF_DIR"
-[ -f "$ENV_FILE" ] || die "env file not found: $ENV_FILE (copy .env.example to .env first)"
-
-REPO_FLAG=()
-if [ -n "$REPO" ]; then
-  REPO_FLAG=(--repo "$REPO")
-  REPO_LABEL="$REPO"
-else
-  REPO_LABEL="$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || echo '(from git remote)')"
-fi
-
-discover() {
-  grep -rhoE "$1\.[A-Za-z0-9_]+" "$WF_DIR" 2>/dev/null \
-    | sed "s/^$1\.//" | grep -vx 'GITHUB_TOKEN' | sort -u
-}
-
-# Read a single key's value from the env file (last assignment wins). Returns the raw
-# value after the first '=', minus one layer of surrounding quotes and a trailing CR.
-# Inline comments are NOT stripped (values are taken verbatim) to avoid corrupting URLs.
+# Read a single key's value from the env file (last assignment wins). Returns the raw value
+# after the first '=', minus one layer of surrounding quotes and a trailing CR. Inline
+# comments are NOT stripped (values are taken verbatim) to avoid corrupting URLs.
 get_env_value() {
   local key="$1" file="$2" line val
   line="$(grep -E "^[[:space:]]*(export[[:space:]]+)?${key}=" "$file" | tail -n1 || true)"
@@ -81,6 +63,30 @@ get_env_value() {
     \'*\') val="${val#\'}"; val="${val%\'}" ;;
   esac
   printf '%s' "$val"
+}
+
+command -v gh >/dev/null 2>&1 || die "GitHub CLI (gh) not found — install from https://cli.github.com"
+[ -d "$WF_DIR" ] || die "no workflows directory at $WF_DIR"
+[ -f "$ENV_FILE" ] || die "env file not found: $ENV_FILE (copy .env.example to .env first)"
+
+# Prefer a GH_TOKEN from the env file for every gh call (overrides a too-narrow token already
+# exported in the shell). Exported only into this process + its children, never your shell.
+_ENV_GH_TOKEN="$(get_env_value GH_TOKEN "$ENV_FILE" 2>/dev/null || true)"
+[ -n "${_ENV_GH_TOKEN:-}" ] && export GH_TOKEN="$_ENV_GH_TOKEN"
+
+gh auth status >/dev/null 2>&1 || die "gh is not authenticated — run: gh auth login (or set GH_TOKEN in $ENV_FILE)"
+
+REPO_FLAG=()
+if [ -n "$REPO" ]; then
+  REPO_FLAG=(--repo "$REPO")
+  REPO_LABEL="$REPO"
+else
+  REPO_LABEL="$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || echo '(from git remote)')"
+fi
+
+discover() {
+  grep -rhoE "$1\.[A-Za-z0-9_]+" "$WF_DIR" 2>/dev/null \
+    | sed "s/^$1\.//" | grep -vx 'GITHUB_TOKEN' | sort -u
 }
 
 # Build the plan into parallel indexed arrays (bash 3.2 has no associative arrays).
@@ -114,7 +120,9 @@ stage_kind variable vars    0
 required_all="$(printf '%s\n%s\n' "$(discover secrets)" "$(discover vars)" | sort -u)"
 env_keys="$(grep -vE '^[[:space:]]*#|^[[:space:]]*$' "$ENV_FILE" \
   | sed -E 's/^[[:space:]]*(export[[:space:]]+)?//; s/=.*//; s/[[:space:]]//g' | sort -u)"
-ignored="$(comm -23 <(printf '%s\n' "$env_keys") <(printf '%s\n' "$required_all") | grep -v '^$' || true)"
+# GH_TOKEN/GITHUB_TOKEN are the script's own gh auth, never push candidates — drop from "ignored".
+ignored="$(comm -23 <(printf '%s\n' "$env_keys") <(printf '%s\n' "$required_all") \
+  | grep -v '^$' | grep -vxE 'GH_TOKEN|GITHUB_TOKEN' || true)"
 
 echo "${BOLD}PulseDigest — push secrets/variables from $(basename "$ENV_FILE")${RESET}"
 echo "Repo: ${REPO_LABEL}   Source: ${ENV_FILE}"
@@ -155,10 +163,10 @@ fi
 FAIL=0
 i=0
 while [ "$i" -lt "$N" ]; do
-  if printf '%s' "${PLAN_VALUE[i]}" | gh "${PLAN_NOUN[i]}" set "${PLAN_NAME[i]}" "${REPO_FLAG[@]+"${REPO_FLAG[@]}"}" >/dev/null 2>&1; then
+  if err="$(printf '%s' "${PLAN_VALUE[i]}" | gh "${PLAN_NOUN[i]}" set "${PLAN_NAME[i]}" "${REPO_FLAG[@]+"${REPO_FLAG[@]}"}" 2>&1)"; then
     echo "  ${GREEN}✓${RESET} ${PLAN_NOUN[i]} ${PLAN_NAME[i]}"
   else
-    echo "  ${RED}✗ FAILED${RESET} ${PLAN_NOUN[i]} ${PLAN_NAME[i]}"
+    echo "  ${RED}✗ FAILED${RESET} ${PLAN_NOUN[i]} ${PLAN_NAME[i]} ${DIM}— ${err}${RESET}"
     FAIL=$((FAIL + 1))
   fi
   i=$((i + 1))
@@ -166,6 +174,11 @@ done
 echo
 if [ "$FAIL" -gt 0 ]; then
   echo "${RED}${FAIL} of ${N} failed.${RESET}"
+  if [ -n "${GH_TOKEN:-}${GITHUB_TOKEN:-}" ]; then
+    echo "${YELLOW}GH_TOKEN/GITHUB_TOKEN is set${RESET} and overrides your 'gh auth login' token —"
+    echo "  ${DIM}a fine-grained PAT needs 'Secrets: Read and write' (and 'Variables: R/W') to set these.${RESET}"
+    echo "  ${DIM}Retry with your keyring token:  GH_TOKEN= GITHUB_TOKEN= ${0##*/}${RESET}"
+  fi
   exit 1
 fi
 echo "${GREEN}Done — ${N} item(s) set on ${REPO_LABEL}.${RESET}"

@@ -208,6 +208,8 @@ Required repository **secrets**: `TWITTER_BEARER_TOKEN`, `OPENAI_API_KEY`, `RESE
 - [`scripts/gh-secrets-check.sh`](scripts/gh-secrets-check.sh) — read-only audit. Lists every secret/variable the workflows need and shows which are set (`✓`) or missing (`✗`) on the repo, and **flags a key placed in the wrong bucket** (e.g. set as a secret while the workflow reads it as a `vars.*` variable — a silent runtime miss). Exits non-zero when anything is missing (CI-friendly). `-R owner/repo` targets a specific repo.
 - [`scripts/gh-secrets-sync.sh`](scripts/gh-secrets-sync.sh) — pushes the matching keys from your local `.env` (`gh secret set` / `gh variable set`, values piped over stdin so they never hit `ps`/history; non-referenced `.env` keys are ignored). Prints a masked plan and asks to confirm before applying; flags: `--dry-run`, `-y/--yes`, `-f <file>` (default `.env`), `-R owner/repo`.
 
+> **Auth:** both scripts read `GH_TOKEN` from your `.env` (if set) and use it for every `gh` call, so they don't depend on your shell's gh auth — and a token in `.env` overrides a too-narrow `GH_TOKEN`/`GITHUB_TOKEN` you may have exported globally (e.g. in `~/.zshrc`). Give that token the repo **Secrets** (and **Variables**) permission: *Read* for `check`, *Read and write* for `sync`. Leave `GH_TOKEN=` blank in `.env` to fall back to your `gh auth login` (keyring) token. `GH_TOKEN` is the scripts' own auth — `sync` never pushes it as a repo secret. If gh still returns `HTTP 403`, the scripts surface it with a targeted hint instead of silently reporting everything as "missing".
+
 ## Configuration
 
 All tuneable parameters live in [`src/main/resources/application.yaml`](src/main/resources/application.yaml) under the `report:` prefix.
