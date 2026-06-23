@@ -69,7 +69,7 @@ public sealed interface Result<T, E extends DomainError> permits Result.Success,
      */
     default E getError() {
         return switch (this) {
-            case Success(var value) -> throw new IllegalStateException("Cannot get error from Success result");
+            case Success(_) -> throw new IllegalStateException("Cannot get error from Success result");
             case Failure(var error) -> error;
         };
     }
@@ -80,7 +80,7 @@ public sealed interface Result<T, E extends DomainError> permits Result.Success,
     default Optional<T> toOptional() {
         return switch (this) {
             case Success(var value) -> Optional.ofNullable(value);
-            case Failure(var error) -> Optional.empty();
+            case Failure(_) -> Optional.empty();
         };
     }
 
@@ -89,7 +89,7 @@ public sealed interface Result<T, E extends DomainError> permits Result.Success,
      */
     default Optional<E> errorToOptional() {
         return switch (this) {
-            case Success(var value) -> Optional.empty();
+            case Success(_) -> Optional.empty();
             case Failure(var error) -> Optional.of(error);
         };
     }
@@ -100,7 +100,7 @@ public sealed interface Result<T, E extends DomainError> permits Result.Success,
     default T orElse(T defaultValue) {
         return switch (this) {
             case Success(var value) -> value;
-            case Failure(var error) -> defaultValue;
+            case Failure(_) -> defaultValue;
         };
     }
 
@@ -110,7 +110,7 @@ public sealed interface Result<T, E extends DomainError> permits Result.Success,
     default T orElseGet(Supplier<T> supplier) {
         return switch (this) {
             case Success(var value) -> value;
-            case Failure(var error) -> supplier.get();
+            case Failure(_) -> supplier.get();
         };
     }
 

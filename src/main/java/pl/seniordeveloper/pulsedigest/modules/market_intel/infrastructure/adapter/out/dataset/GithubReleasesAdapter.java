@@ -12,10 +12,12 @@ import pl.seniordeveloper.pulsedigest.shared.infrastructure.http.QuotaErrors;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SoftwareRelease;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.GithubReleasesProperties;
 
+import java.time.ZoneOffset;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Fetches OSS release notes from the GitHub Releases API.
@@ -84,43 +86,44 @@ public class GithubReleasesAdapter {
     }
 
     List<SoftwareRelease> parseReleases(String json, String repoFullName, int lookbackHours) {
-        LocalDateTime cutoff = LocalDateTime.now().minusHours(lookbackHours);
+        LocalDateTime cutoff = LocalDateTime.now(ZoneOffset.UTC).minusHours(lookbackHours);
         try {
             JsonNode releases = objectMapper.readTree(json);
             List<SoftwareRelease> result = new ArrayList<>();
-
             for (JsonNode release : releases) {
-                if (release.path("prerelease").asBoolean() || release.path("draft").asBoolean()) {
-                    continue;
-                }
-                String publishedAtRaw = release.path("published_at").asText("");
-                if (publishedAtRaw.isBlank()) {
-                    continue;
-                }
-                LocalDateTime releasedAt;
-                try {
-                    releasedAt = LocalDateTime.parse(publishedAtRaw, DateTimeFormatter.ISO_DATE_TIME);
-                } catch (Exception e) {
-                    continue;
-                }
-                if (releasedAt.isBefore(cutoff)) {
-                    continue;
-                }
-
-                String version = release.path("tag_name").asText("");
-                String url = release.path("html_url").asText("");
-                if (version.isBlank() || url.isBlank()) {
-                    continue;
-                }
-                String body = release.path("body").asText("");
-                String excerpt = body.length() > 300 ? body.substring(0, 297) + "..." : body;
-
-                result.add(new SoftwareRelease(repoFullName, version, excerpt, url, releasedAt));
+                parseRelease(release, repoFullName, cutoff).ifPresent(result::add);
             }
             return result;
         } catch (Exception e) {
             log.warn("GitHub Releases parse failed for {}: {}", repoFullName, e.getMessage());
             return List.of();
         }
+    }
+
+    private Optional<SoftwareRelease> parseRelease(JsonNode release, String repoFullName, LocalDateTime cutoff) {
+        if (release.path("prerelease").asBoolean() || release.path("draft").asBoolean()) {
+            return Optional.empty();
+        }
+        String publishedAtRaw = release.path("published_at").asText("");
+        if (publishedAtRaw.isBlank()) {
+            return Optional.empty();
+        }
+        LocalDateTime releasedAt;
+        try {
+            releasedAt = LocalDateTime.parse(publishedAtRaw, DateTimeFormatter.ISO_DATE_TIME);
+        } catch (Exception _) {
+            return Optional.empty();
+        }
+        if (releasedAt.isBefore(cutoff)) {
+            return Optional.empty();
+        }
+        String version = release.path("tag_name").asText("");
+        String url = release.path("html_url").asText("");
+        if (version.isBlank() || url.isBlank()) {
+            return Optional.empty();
+        }
+        String body = release.path("body").asText("");
+        String excerpt = body.length() > 300 ? body.substring(0, 297) + "..." : body;
+        return Optional.of(new SoftwareRelease(repoFullName, version, excerpt, url, releasedAt));
     }
 }

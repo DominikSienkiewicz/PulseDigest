@@ -16,30 +16,26 @@ public final class TechDemandPulse {
     }
 
     /**
-     * @param monthLabel      current thread month label
-     * @param prevMonthLabel  previous thread month label, or {@code null} if no previous thread
-     * @param threadUrl       link to the current thread
-     * @param current         current month's token → post-count
-     * @param currentTotal    current month's number of hiring posts
-     * @param previous        previous month's token → post-count ({@code null}/empty disables deltas)
-     * @param previousTotal   previous month's number of hiring posts
-     * @param priority        the reader's stack tokens, in display order, for the "your stack" line
-     * @param minMentions     drop ranking technologies mentioned in fewer than this many posts
-     * @param maxTech         keep at most this many technologies in the main ranking
+     * @param threadUrl   link to the current thread
+     * @param current     current month's mention snapshot (label + counts + total)
+     * @param previous    previous month's mention snapshot, or {@code null} if no previous thread;
+     *                    an empty/zero-total snapshot also disables month-over-month deltas
+     * @param priority    the reader's stack tokens, in display order, for the "your stack" line
+     * @param minMentions drop ranking technologies mentioned in fewer than this many posts
+     * @param maxTech     keep at most this many technologies in the main ranking
      */
     public static TechDemandSignal assemble(
-            String monthLabel, String prevMonthLabel, String threadUrl,
-            Map<String, Integer> current, int currentTotal,
-            Map<String, Integer> previous, int previousTotal,
+            String threadUrl, MonthMentions current, MonthMentions previous,
             List<String> priority, int minMentions, int maxTech) {
 
-        boolean hasPrevious = previous != null && !previous.isEmpty() && previousTotal > 0;
+        boolean hasPrevious = previous != null && !previous.counts().isEmpty() && previous.total() > 0;
+        Map<String, Integer> previousCounts = hasPrevious ? previous.counts() : null;
+        int previousTotal = hasPrevious ? previous.total() : 0;
 
         List<TechDemandEntry> ranking = new ArrayList<>();
-        for (Map.Entry<String, Integer> e : current.entrySet()) {
+        for (Map.Entry<String, Integer> e : current.counts().entrySet()) {
             if (e.getValue() >= minMentions) {
-                ranking.add(entry(e.getKey(), e.getValue(), currentTotal,
-                        hasPrevious ? previous : null, previousTotal));
+                ranking.add(entry(e.getKey(), e.getValue(), current.total(), previousCounts, previousTotal));
             }
         }
         ranking.sort(Comparator
@@ -50,14 +46,13 @@ public final class TechDemandPulse {
         List<TechDemandEntry> stackEntries = new ArrayList<>();
         if (priority != null) {
             for (String token : priority) {
-                int count = current.getOrDefault(token, 0);
-                stackEntries.add(entry(token, count, currentTotal,
-                        hasPrevious ? previous : null, previousTotal));
+                int count = current.counts().getOrDefault(token, 0);
+                stackEntries.add(entry(token, count, current.total(), previousCounts, previousTotal));
             }
         }
 
         return new TechDemandSignal(
-                monthLabel, hasPrevious ? prevMonthLabel : null, threadUrl, currentTotal,
+                current.label(), hasPrevious ? previous.label() : null, threadUrl, current.total(),
                 null, List.copyOf(entries), List.copyOf(stackEntries));
     }
 

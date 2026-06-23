@@ -26,7 +26,7 @@ class ReportEmailBuilderTest {
 
     @Test
     void buildSubjectUsesDigestPrefix() {
-        assertThat(builder.buildSubject(fullReport())).contains("PulseDigest");
+        assertThat(builder.buildSubject()).contains("PulseDigest");
     }
 
     @Test

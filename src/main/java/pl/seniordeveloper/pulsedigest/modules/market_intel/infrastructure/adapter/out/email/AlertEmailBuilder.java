@@ -3,6 +3,7 @@ package pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapt
 import org.springframework.stereotype.Component;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.QuotaAlert;
 
+import java.time.ZoneOffset;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
@@ -31,7 +32,7 @@ public class AlertEmailBuilder {
      * returning empty), so a broken run is never silent.
      */
     public String buildHtml(QuotaAlert alert) {
-        String today = LocalDate.now().format(DATE_FMT);
+        String today = LocalDate.now(ZoneOffset.UTC).format(DATE_FMT);
         boolean hasAccounts = alert.exhaustedAccounts() != null && !alert.exhaustedAccounts().isEmpty();
         String detail = alert.detail() != null && !alert.detail().isBlank()
                 ? "<p style=\"margin:14px 0 0;color:#9ca3af;font-size:12px;font-family:monospace;"

@@ -109,7 +109,7 @@ class ExternalRestClientsTest {
     private void assertThatRequestCompletes(String path) {
         try {
             client.get().uri(path).retrieve().toBodilessEntity();
-        } catch (RuntimeException ignored) {
+        } catch (RuntimeException _) {
             // status-based exceptions from the final response do not block metric assertions
         }
     }

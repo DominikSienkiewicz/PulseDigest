@@ -68,7 +68,7 @@ public class MastodonSearchAdapter {
     private List<SocialPost> fetchTag(String tag, int limit) {
         URI uri = UriComponentsBuilder.fromUriString(props.mastodon().instanceUrl())
                 .path("/api/v1/timelines/tag/" + tag)
-                .queryParam("limit", Math.max(1, Math.min(limit, 40)))
+                .queryParam("limit", Math.clamp(limit, 1, 40))
                 .build()
                 .toUri();
         String json = restClient.get().uri(uri).retrieve().body(String.class);

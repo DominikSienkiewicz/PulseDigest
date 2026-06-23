@@ -12,9 +12,11 @@ import pl.seniordeveloper.pulsedigest.shared.infrastructure.http.QuotaErrors;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ConferenceTalk;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ConferenceTalksProperties;
 
+import java.time.ZoneOffset;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Optional;
 import java.util.List;
 
 /**
@@ -88,26 +90,13 @@ public class ConferenceTalksAdapter {
     }
 
     List<ConferenceTalk> parseSearchResults(String json, String channelName, String conferenceName) {
-        LocalDateTime cutoff = LocalDateTime.now().minusDays(properties.lookbackDays());
+        LocalDateTime cutoff = LocalDateTime.now(ZoneOffset.UTC).minusDays(properties.lookbackDays());
         try {
             JsonNode root = objectMapper.readTree(json);
             JsonNode items = root.path("items");
             List<ConferenceTalk> result = new ArrayList<>();
             for (JsonNode item : items) {
-                JsonNode snippet = item.path("snippet");
-                String title = snippet.path("title").asText("");
-                String publishedStr = snippet.path("publishedAt").asText("");
-                LocalDateTime publishedAt = parseTimestamp(publishedStr);
-                if (publishedAt == null || publishedAt.isBefore(cutoff)) {
-                    continue;
-                }
-                JsonNode idNode = item.path("id");
-                String videoId = idNode.path("videoId").asText("");
-                String url = videoId.isBlank() ? "" : "https://www.youtube.com/watch?v=" + videoId;
-                if (title.isBlank()) {
-                    continue;
-                }
-                result.add(new ConferenceTalk(title, channelName, conferenceName, url, publishedAt, 0));
+                parseItem(item, channelName, conferenceName, cutoff).ifPresent(result::add);
             }
             return result;
         } catch (Exception e) {
@@ -116,13 +105,31 @@ public class ConferenceTalksAdapter {
         }
     }
 
+    private Optional<ConferenceTalk> parseItem(
+            JsonNode item, String channelName, String conferenceName, LocalDateTime cutoff) {
+        JsonNode snippet = item.path("snippet");
+        String title = snippet.path("title").asText("");
+        String publishedStr = snippet.path("publishedAt").asText("");
+        LocalDateTime publishedAt = parseTimestamp(publishedStr);
+        if (publishedAt == null || publishedAt.isBefore(cutoff)) {
+            return Optional.empty();
+        }
+        JsonNode idNode = item.path("id");
+        String videoId = idNode.path("videoId").asText("");
+        String url = videoId.isBlank() ? "" : "https://www.youtube.com/watch?v=" + videoId;
+        if (title.isBlank()) {
+            return Optional.empty();
+        }
+        return Optional.of(new ConferenceTalk(title, channelName, conferenceName, url, publishedAt, 0));
+    }
+
     private LocalDateTime parseTimestamp(String raw) {
         if (raw == null || raw.isBlank()) {
             return null;
         }
         try {
             return LocalDateTime.parse(raw, DateTimeFormatter.ISO_DATE_TIME);
-        } catch (Exception e) {
+        } catch (Exception _) {
             return null;
         }
     }

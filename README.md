@@ -8,6 +8,8 @@ Headless batch application that collects tech news from 16 sources three times a
 ![Spring AI 2.0](https://img.shields.io/badge/Spring_AI-2.0.0--SNAPSHOT-blue?style=for-the-badge)
 ![Supabase](https://img.shields.io/badge/Supabase-Postgres-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)
 ![Architecture](https://img.shields.io/badge/Architecture-Hexagonal-orange?style=for-the-badge)
+![Quality Gate](https://img.shields.io/sonar/quality_gate/DominikSienkiewicz_PulseDigest?server=https%3A%2F%2Fsonarcloud.io&style=for-the-badge&logo=sonarcloud&label=Quality%20Gate)
+![Coverage](https://img.shields.io/sonar/coverage/DominikSienkiewicz_PulseDigest?server=https%3A%2F%2Fsonarcloud.io&style=for-the-badge&logo=sonarcloud)
 
 ## 🧠 The Vision: Signal over Noise
 In the era of AI-driven information overload, this tool is my personal solution to maintain high-level situational awareness without manual scrolling. It applies **Principal-level scoring logic** to filter out noise and focus only on high-impact architectural and AI shifts. It's not just a scraper; it's a cognitive filter designed for elite engineers.
@@ -137,6 +139,7 @@ The receiver itself lives outside this repo (the batch only ever *reads* feedbac
 - **Bean Validation** — startup validation for required report/Twitter configuration
 - **Micrometer (core only)** — counters/timers registered into a `SimpleMeterRegistry`; on shutdown a `MetricsLogger` dumps every meter as a structured log line (no HTTP scrape, since the batch has no web server). Currently instruments `http.client.retries` per host/reason; new meters can be added with `Metrics.counter(...)` from anywhere.
 - **ArchUnit + JaCoCo** — architecture boundaries and minimum coverage gate
+- **SonarCloud** — CI-based static analysis & coverage tracking (via the `org.sonarqube` Gradle plugin)
 - **Gradle 9** (Kotlin DSL)
 - **Project Loom** — Virtual Threads for all I/O
 
@@ -192,16 +195,19 @@ The `reports` table is created automatically on first run via `spring.sql.init.m
 ./gradlew compileJava      # compile only
 ./gradlew bootJar          # production JAR → build/libs/
 ./gradlew test             # unit + integration tests
+./gradlew sonar            # SonarCloud analysis (needs SONAR_TOKEN; run after test + jacocoTestReport)
 ./run.sh                   # run locally (sources .env automatically)
 ```
 
 ## GitHub Actions
 
-The workflow at [`.github/workflows/digest.yml`](.github/workflows/digest.yml) runs `./gradlew check` on `push`/`pull_request`. The digest job runs on a **Mon/Wed/Fri schedule** at **04:00 UTC** (= 06:00 CEST / 05:00 CET) via `cron: '0 4 * * 1,3,5'`, and can also be triggered manually via `workflow_dispatch`.
+The workflow at [`.github/workflows/digest.yml`](.github/workflows/digest.yml) runs `./gradlew check` on `push`/`pull_request`, plus a parallel **`sonarcloud`** job that runs `./gradlew test jacocoTestReport sonar` to push code + JaCoCo coverage to [SonarCloud](https://sonarcloud.io/project/overview?id=DominikSienkiewicz_PulseDigest) (project key / organization live in [`build.gradle.kts`](build.gradle.kts)). The digest job runs on a **Mon/Wed/Fri schedule** at **04:00 UTC** (= 06:00 CEST / 05:00 CET) via `cron: '0 4 * * 1,3,5'`, and can also be triggered manually via `workflow_dispatch`.
+
+> **SonarCloud — one-time setup.** The scan step is gated on `SONAR_TOKEN` and is **skipped** until you set it, so CI never breaks before configuration. To enable it: (1) create a **`SONAR_TOKEN`** repository secret (SonarCloud → *My Account → Security*); (2) in SonarCloud, **disable *Automatic Analysis*** (*Administration → Analysis Method*) — CI-based and automatic analysis cannot both run on one project, and only the CI scan uploads the JaCoCo coverage report the "Sonar way" gate (≥ 80% on new code) needs.
 
 The scheduled job is hardened against silent failure: it runs the full `./gradlew check` gate **before** building the JAR (so a broken pre-release SNAPSHOT is caught instead of shipping into the digest), a job-level `concurrency` guard prevents a manual dispatch from overlapping the scheduled run (no double-send / double-spend of OpenAI credits), and an `if: failure()` step emails the recipient via Resend whenever the run fails for **any** reason — including a crash or `EMAIL_FAILED` where the app itself couldn't send its own alert. [`.github/dependabot.yml`](.github/dependabot.yml) keeps the Actions and test/tooling dependencies current (Spring Boot / Spring AI SNAPSHOTs are intentionally excluded).
 
-Required repository **secrets**: `TWITTER_BEARER_TOKEN`, `OPENAI_API_KEY`, `RESEND_API_KEY`, `DIGEST_FROM_EMAIL`, `DIGEST_TO_EMAIL`, `SUPABASE_DB_URL`, `SUPABASE_DB_USERNAME`, `SUPABASE_DB_PASSWORD`. Optional secrets: `PRODUCTHUNT_DEVELOPER_TOKEN`, `YOUTUBE_API_KEY`. Repository **variable** (non-sensitive, read via `vars.*`): `FEEDBACK_RECEIVER_URL` — the public feedback-receiver endpoint; it lives in *Variables* rather than *Secrets* because, on a public repo, secrets are masked in Action logs but variables are not, and a public URL has nothing to hide. Blank/unset → no 👍/👎 links. (All injected by the workflow; adapters/email links no-op gracefully when absent.)
+Required repository **secrets**: `TWITTER_BEARER_TOKEN`, `OPENAI_API_KEY`, `RESEND_API_KEY`, `DIGEST_FROM_EMAIL`, `DIGEST_TO_EMAIL`, `SUPABASE_DB_URL`, `SUPABASE_DB_USERNAME`, `SUPABASE_DB_PASSWORD`. Optional secrets: `PRODUCTHUNT_DEVELOPER_TOKEN`, `YOUTUBE_API_KEY`, `SONAR_TOKEN` (enables the SonarCloud scan — the `sonarcloud` job is skipped without it). Repository **variable** (non-sensitive, read via `vars.*`): `FEEDBACK_RECEIVER_URL` — the public feedback-receiver endpoint; it lives in *Variables* rather than *Secrets* because, on a public repo, secrets are masked in Action logs but variables are not, and a public URL has nothing to hide. Blank/unset → no 👍/👎 links. (All injected by the workflow; adapters/email links no-op gracefully when absent.)
 
 **Managing the secrets** — two helper scripts (require the [GitHub CLI](https://cli.github.com), authenticated via `gh auth login`). Both derive the required set **straight from `.github/workflows/*.yml`** (every `secrets.*` / `vars.*` reference, minus the auto-injected `GITHUB_TOKEN`), so the list never drifts from the workflow:
 

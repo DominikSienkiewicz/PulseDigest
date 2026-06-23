@@ -29,6 +29,37 @@ jobs:
       - name: Check
         run: ./gradlew check --no-daemon
 
+  sonarcloud:
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # One-time SonarCloud setup (see README → "SonarCloud"):
+    #   1. Create a SONAR_TOKEN repository secret (SonarCloud → My Account → Security).
+    #   2. Disable "Automatic Analysis" in SonarCloud (Administration → Analysis Method) —
+    #      CI-based and automatic analysis cannot both run on one project.
+    # Project key / organization live in build.gradle.kts (sonar {} block). The scan step
+    # is skipped until SONAR_TOKEN exists, so this job never blocks CI before it's set up.
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+    steps:
+      - uses: actions/checkout@v4.2.2
+        with:
+          fetch-depth: 0  # full history → accurate new-code detection & blame attribution
+
+      - uses: actions/setup-java@v4.7.0
+        with:
+          distribution: oracle
+          java-version: '26'
+          cache: gradle
+
+      # Runs tests, produces the JaCoCo XML report, then the Gradle Sonar plugin uploads
+      # sources + bytecode + coverage to SonarCloud. Skipped until SONAR_TOKEN is set
+      # (e.g. on fork PRs, where secrets are unavailable).
+      - name: SonarCloud Scan
+        if: ${{ env.SONAR_TOKEN != '' }}
+        run: ./gradlew test jacocoTestReport sonar --no-daemon
+
   digest:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest

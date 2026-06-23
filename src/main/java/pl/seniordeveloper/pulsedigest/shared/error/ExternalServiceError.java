@@ -6,6 +6,8 @@ package pl.seniordeveloper.pulsedigest.shared.error;
 public record ExternalServiceError(
         String code, String message, String serviceName, String originalError) implements DomainError {
 
+    private static final String SERVICE_PREFIX = "External service '";
+
     public ExternalServiceError {
         java.util.Objects.requireNonNull(code, "Error code cannot be null");
         java.util.Objects.requireNonNull(message, "Error message cannot be null");
@@ -14,13 +16,13 @@ public record ExternalServiceError(
 
     public static ExternalServiceError timeout(String serviceName) {
         return new ExternalServiceError(
-                "SERVICE_TIMEOUT", "External service '" + serviceName + "' timed out", serviceName, null);
+                "SERVICE_TIMEOUT", SERVICE_PREFIX + serviceName + "' timed out", serviceName, null);
     }
 
     public static ExternalServiceError unavailable(String serviceName) {
         return new ExternalServiceError(
                 "SERVICE_UNAVAILABLE",
-                "External service '" + serviceName + "' is unavailable",
+                SERVICE_PREFIX + serviceName + "' is unavailable",
                 serviceName,
                 null);
     }
@@ -28,7 +30,7 @@ public record ExternalServiceError(
     public static ExternalServiceError error(String serviceName, String details) {
         return new ExternalServiceError(
                 "SERVICE_ERROR",
-                "External service '" + serviceName + "' returned an error",
+                SERVICE_PREFIX + serviceName + "' returned an error",
                 serviceName,
                 details);
     }

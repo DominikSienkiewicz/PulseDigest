@@ -16,10 +16,12 @@ import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.RssProperties
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.StringReader;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.Optional;
 import java.util.List;
 import java.util.Locale;
 
@@ -103,24 +105,27 @@ public class RssFeedAdapter {
         }
 
         int lookbackHours = cfg.lookbackHours() > 0 ? cfg.lookbackHours() : 24;
-        ZonedDateTime cutoff = ZonedDateTime.now().minusHours(lookbackHours);
+        ZonedDateTime cutoff = ZonedDateTime.now(ZoneOffset.UTC).minusHours(lookbackHours);
         List<RssItem> items = new ArrayList<>();
         for (int i = 0; i < nodes.getLength() && items.size() < limit; i++) {
             Element el = (Element) nodes.item(i);
-            String title = text(el, "title");
-            String url = isAtom ? atomLink(el) : text(el, "link");
-            String desc = text(el, isAtom ? "summary" : "description");
-            String dateRaw = isAtom ? firstOf(el, "updated", "published") : text(el, "pubDate");
-
-            if (title.isBlank() || url.isBlank()) {
-                continue;
-            }
-            if (!isWithinWindow(dateRaw, cutoff)) {
-                continue;
-            }
-            items.add(new RssItem(title, url, truncate(desc, 300), feedName));
+            parseItem(el, isAtom, cutoff, feedName).ifPresent(items::add);
         }
         return items;
+    }
+
+    private Optional<RssItem> parseItem(Element el, boolean isAtom, ZonedDateTime cutoff, String feedName) {
+        String title = text(el, "title");
+        String url = isAtom ? atomLink(el) : text(el, "link");
+        String desc = text(el, isAtom ? "summary" : "description");
+        String dateRaw = isAtom ? firstOf(el, "updated", "published") : text(el, "pubDate");
+        if (title.isBlank() || url.isBlank()) {
+            return Optional.empty();
+        }
+        if (!isWithinWindow(dateRaw, cutoff)) {
+            return Optional.empty();
+        }
+        return Optional.of(new RssItem(title, url, truncate(desc, 300), feedName));
     }
 
     private String text(Element parent, String tag) {
@@ -169,14 +174,14 @@ public class RssFeedAdapter {
         try {
             ZonedDateTime parsed = ZonedDateTime.parse(dateRaw, DateTimeFormatter.ISO_DATE_TIME);
             return parsed.isAfter(cutoff);
-        } catch (DateTimeParseException ignored) {
-            // ignored
+        } catch (DateTimeParseException _) {
+            // unparseable in this format → fall through to the next parse attempt
         }
         try {
             ZonedDateTime parsed = ZonedDateTime.parse(dateRaw.trim(), RFC_822);
             return parsed.isAfter(cutoff);
-        } catch (DateTimeParseException ignored) {
-            // ignored
+        } catch (DateTimeParseException _) {
+            // unparseable in this format → fall through to the next parse attempt
         }
         return true;
     }

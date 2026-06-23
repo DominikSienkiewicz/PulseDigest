@@ -2,6 +2,7 @@ package pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Stream;
 
 /**
  * Aggregate of all raw data collected from external intelligence sources.
@@ -129,56 +130,12 @@ public record ResearchResult(
     }
 
     public int activeSourceCount() {
-        int n = 0;
-        if (!tweets.isEmpty()) {
-            n++;
-        }
-        if (!hackerNewsPosts.isEmpty()) {
-            n++;
-        }
-        if (!githubRepos.isEmpty()) {
-            n++;
-        }
-        if (!rssItems.isEmpty()) {
-            n++;
-        }
-        if (!redditPosts.isEmpty()) {
-            n++;
-        }
-        if (!papers.isEmpty()) {
-            n++;
-        }
-        if (!releases.isEmpty()) {
-            n++;
-        }
-        if (!huggingFaceModels.isEmpty()) {
-            n++;
-        }
-        if (!productHuntPosts.isEmpty()) {
-            n++;
-        }
-        if (!securityAdvisories.isEmpty()) {
-            n++;
-        }
-        if (!jepUpdates.isEmpty()) {
-            n++;
-        }
-        if (!cncfProjectUpdates.isEmpty()) {
-            n++;
-        }
-        if (!radarEntries.isEmpty()) {
-            n++;
-        }
-        if (!conferenceTalks.isEmpty()) {
-            n++;
-        }
-        if (!labAnnouncements.isEmpty()) {
-            n++;
-        }
-        if (!socialPosts.isEmpty()) {
-            n++;
-        }
-        return n;
+        return (int) Stream.of(
+                        tweets, hackerNewsPosts, githubRepos, rssItems, redditPosts, papers, releases,
+                        huggingFaceModels, productHuntPosts, securityAdvisories, jepUpdates,
+                        cncfProjectUpdates, radarEntries, conferenceTalks, labAnnouncements, socialPosts)
+                .filter(list -> !list.isEmpty())
+                .count();
     }
 
     public String summary() {

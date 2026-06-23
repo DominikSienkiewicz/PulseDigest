@@ -10,6 +10,7 @@ class PulseDigestApplicationTests {
 
     @Test
     void contextLoads() {
+        // Intentionally empty: a passing run proves the Spring context boots and all beans wire.
     }
 
 }

@@ -27,7 +27,7 @@ class GetLatestMarketReportServiceTest {
                 tracker,
                 storageWith(storedReport));
 
-        Result<ReportData, MarketIntelError> result = service.handle(new GetLatestMarketReportQuery());
+        Result<ReportData, MarketIntelError> result = service.handle();
 
         assertThat(result).isInstanceOf(Result.Success.class);
         assertThat(result.getValue()).isSameAs(memoryReport);
@@ -42,7 +42,7 @@ class GetLatestMarketReportServiceTest {
                 tracker,
                 storageWith(storedReport));
 
-        Result<ReportData, MarketIntelError> result = service.handle(new GetLatestMarketReportQuery());
+        Result<ReportData, MarketIntelError> result = service.handle();
 
         assertThat(result.getValue()).isSameAs(storedReport);
     }
@@ -53,7 +53,7 @@ class GetLatestMarketReportServiceTest {
                 new MarketIntelJobTracker(),
                 storageWith(null));
 
-        Result<ReportData, MarketIntelError> result = service.handle(new GetLatestMarketReportQuery());
+        Result<ReportData, MarketIntelError> result = service.handle();
 
         assertThat(result).isInstanceOf(Result.Failure.class);
         assertThat(result.getError()).isInstanceOf(MarketIntelError.ReportNotAvailable.class);
@@ -63,6 +63,7 @@ class GetLatestMarketReportServiceTest {
         return new ReportStoragePort() {
             @Override
             public void save(PersistedReport persistedReport) {
+                // no-op: this fake only exercises the getLatest() read path
             }
 
             @Override

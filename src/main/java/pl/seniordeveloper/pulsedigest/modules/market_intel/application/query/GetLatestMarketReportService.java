@@ -21,7 +21,7 @@ public class GetLatestMarketReportService {
     private final MarketIntelJobTracker jobTracker;
     private final ReportStoragePort storagePort;
 
-    public Result<ReportData, MarketIntelError> handle(GetLatestMarketReportQuery query) {
+    public Result<ReportData, MarketIntelError> handle() {
         return jobTracker.getAll().stream()
                 .filter(j -> j.status().hasReportAvailable())
                 .map(ReportJob::report)

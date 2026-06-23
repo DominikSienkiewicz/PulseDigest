@@ -15,6 +15,7 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TechDema
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TrendInsight;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.FeedbackProperties;
 
+import java.time.ZoneOffset;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -37,14 +38,20 @@ public class ReportEmailBuilder {
     private static final int TOP_PICK_THRESHOLD = 8;
     private static final int SIGNAL_THRESHOLD = 6;
 
+    private static final String CLOSE_DIV = "</div>";
+    private static final String CLOSE_LIST_DIV = "</ul></div>";
+    private static final String CLOSE_LI = "</li>";
+    private static final String CLOSE_SPAN = "</span>";
+    private static final String MIDDOT = " &middot; ";
+
     private final FeedbackProperties feedbackProperties;
 
-    public String buildSubject(ReportData report) {
-        return "📡 PulseDigest " + LocalDate.now().format(DATE_FMT);
+    public String buildSubject() {
+        return "📡 PulseDigest " + LocalDate.now(ZoneOffset.UTC).format(DATE_FMT);
     }
 
     public String buildHtml(ReportData report, ResearchResult research) {
-        String today = LocalDate.now().format(DATE_FMT);
+        String today = LocalDate.now(ZoneOffset.UTC).format(DATE_FMT);
         String preheader = report.emailPreview() != null && !report.emailPreview().isBlank()
                 ? report.emailPreview()
                 : "Twój digest tech news z ostatnich kilku dni";
@@ -91,7 +98,7 @@ public class ReportEmailBuilder {
         return "<div style=\"display:none!important;max-height:0;overflow:hidden;"
                 + "mso-hide:all;font-size:1px;line-height:1px;opacity:0;color:transparent\">"
                 + escapeHtml(preview)
-                + "</div>";
+                + CLOSE_DIV;
     }
 
     private String buildHeader(String today) {
@@ -99,7 +106,7 @@ public class ReportEmailBuilder {
                 + "<h1 style=\"color:#fff;margin:0;font-size:22px\">&#128225; PulseDigest</h1>"
                 + "<p style=\"color:#94a3b8;margin:4px 0 0;font-size:14px\">"
                 + today + " &middot; powered by GPT-4o</p>"
-                + "</div>";
+                + CLOSE_DIV;
     }
 
     // Top-of-digest banner: names every API account whose quota/rate limit was exhausted this run,
@@ -124,7 +131,7 @@ public class ReportEmailBuilder {
         for (String account : accounts) {
             sb.append("<li><strong>").append(escapeHtml(account)).append("</strong></li>");
         }
-        sb.append("</ul></div>");
+        sb.append(CLOSE_LIST_DIV);
         return sb.toString();
     }
 
@@ -158,9 +165,9 @@ public class ReportEmailBuilder {
                 + "font-size:14px;line-height:1.7\">");
         for (String insight : insights) {
             sb.append("<li style=\"margin-bottom:6px\">").append(escapeHtml(insight))
-                    .append("</li>");
+                    .append(CLOSE_LI);
         }
-        sb.append("</ul></div>");
+        sb.append(CLOSE_LIST_DIV);
         return sb.toString();
     }
 
@@ -181,23 +188,28 @@ public class ReportEmailBuilder {
             sb.append("<li style=\"margin-bottom:8px\">")
                     .append("<strong>").append(escapeHtml(t.category())).append("</strong>")
                     .append(" <span style=\"color:#7c3aed;font-weight:600\">&times;")
-                    .append(t.occurrences()).append("</span>")
+                    .append(t.occurrences()).append(CLOSE_SPAN)
                     .append(narrative);
-            if (t.exampleTitles() != null && !t.exampleTitles().isEmpty()) {
-                sb.append("<div style=\"color:#6b21a8;font-size:12px;margin-top:2px;"
-                        + "opacity:.85\">np. ");
-                for (int i = 0; i < t.exampleTitles().size() && i < 2; i++) {
-                    if (i > 0) {
-                        sb.append(" &middot; ");
-                    }
-                    sb.append(escapeHtml(t.exampleTitles().get(i)));
-                }
-                sb.append("</div>");
-            }
-            sb.append("</li>");
+            appendTrendExamples(sb, t);
+            sb.append(CLOSE_LI);
         }
-        sb.append("</ul></div>");
+        sb.append(CLOSE_LIST_DIV);
         return sb.toString();
+    }
+
+    private void appendTrendExamples(StringBuilder sb, TrendInsight t) {
+        if (t.exampleTitles() == null || t.exampleTitles().isEmpty()) {
+            return;
+        }
+        sb.append("<div style=\"color:#6b21a8;font-size:12px;margin-top:2px;")
+                .append("opacity:.85\">np. ");
+        for (int i = 0; i < t.exampleTitles().size() && i < 2; i++) {
+            if (i > 0) {
+                sb.append(MIDDOT);
+            }
+            sb.append(escapeHtml(t.exampleTitles().get(i)));
+        }
+        sb.append(CLOSE_DIV);
     }
 
     // Monthly job-market demand pulse (HN "Who is hiring?"). Rendered only when a fresh signal exists.
@@ -207,12 +219,12 @@ public class ReportEmailBuilder {
         }
         String ranking = demand.entries().stream()
                 .map(e -> demandChip(e, true))
-                .collect(Collectors.joining(" &middot; "));
+                .collect(Collectors.joining(MIDDOT));
         String stackLine = demand.stackEntries().isEmpty() ? ""
                 : "<p style=\"margin:8px 0 0;color:#0e7490;font-size:13px;line-height:1.7\">"
                 + "<span style=\"color:#155e75;font-weight:600\">Twój stack:</span> "
                 + demand.stackEntries().stream().map(e -> demandChip(e, false))
-                        .collect(Collectors.joining(" &middot; "))
+                        .collect(Collectors.joining(MIDDOT))
                 + "</p>";
         String narrative = demand.narrative() != null && !demand.narrative().isBlank()
                 ? "<p style=\"margin:0 0 10px;color:#0f172a;font-size:14px;line-height:1.6;font-style:italic\">"
@@ -229,10 +241,10 @@ public class ReportEmailBuilder {
                 + "<p style=\"margin:0;color:#0e7490;font-size:14px;line-height:1.7\">" + ranking + "</p>"
                 + stackLine
                 + "<p style=\"margin:8px 0 0;color:#64748b;font-size:12px\">"
-                + "na podstawie " + demand.totalPostings() + " ogłoszeń" + vsPrev + " &middot; "
+                + "na podstawie " + demand.totalPostings() + " ogłoszeń" + vsPrev + MIDDOT
                 + "<a href=\"" + safeHref(demand.threadUrl()) + "\" style=\"color:#0891b2;text-decoration:none\">"
                 + "HN Who-is-hiring</a></p>"
-                + "</div>";
+                + CLOSE_DIV;
     }
 
     // Renders "name 26% ▲3" — share as percentage, optional month-over-month delta arrow.
@@ -255,8 +267,8 @@ public class ReportEmailBuilder {
         }
         long rounded = Math.round(Math.abs(deltaPp));
         return deltaPp > 0
-                ? " <span style=\"color:#16a34a;font-size:12px\">&#9650;" + rounded + "</span>"
-                : " <span style=\"color:#dc2626;font-size:12px\">&#9660;" + rounded + "</span>";
+                ? " <span style=\"color:#16a34a;font-size:12px\">&#9650;" + rounded + CLOSE_SPAN
+                : " <span style=\"color:#dc2626;font-size:12px\">&#9660;" + rounded + CLOSE_SPAN;
     }
 
     private String buildCriticalTrendsSection(List<Signal> criticals) {
@@ -275,22 +287,22 @@ public class ReportEmailBuilder {
                     : " <span style=\"color:#9f1239;font-size:11px;font-weight:600\">"
                     + "[" + signal.sourceDomains().stream()
                             .map(d -> escapeHtml(d.name()))
-                            .collect(Collectors.joining(" &middot; "))
+                            .collect(Collectors.joining(MIDDOT))
                     + "]</span>";
             String summaryPart = (it.summary() != null && !it.summary().isBlank())
                     ? "<div style=\"color:#991b1b;font-size:12px;margin-top:3px\">"
-                    + escapeHtml(it.summary()) + " &mdash; " + escapeHtml(it.source()) + "</div>"
+                    + escapeHtml(it.summary()) + " &mdash; " + escapeHtml(it.source()) + CLOSE_DIV
                     : "<div style=\"color:#991b1b;font-size:12px;margin-top:3px\">"
-                    + escapeHtml(it.source()) + "</div>";
+                    + escapeHtml(it.source()) + CLOSE_DIV;
             sb.append("<li style=\"margin-bottom:10px\">")
                     .append("<a href=\"").append(safeHref(it.url()))
                     .append("\" style=\"color:#b91c1c;font-weight:600;text-decoration:none;font-size:14px\">")
                     .append(escapeHtml(it.title())).append("</a>")
                     .append(domainLabel)
                     .append(summaryPart)
-                    .append("</li>");
+                    .append(CLOSE_LI);
         }
-        sb.append("</ul></div>");
+        sb.append(CLOSE_LIST_DIV);
         return sb.toString();
     }
 
@@ -359,9 +371,6 @@ public class ReportEmailBuilder {
     }
 
     private String buildTopPickRow(DigestItem item, SignalRank rank) {
-        String scoreColor = item.score() >= 7 ? "#16a34a"
-                : item.score() >= 4 ? "#ca8a04"
-                  : "#dc2626";
         return buildRow(item, "", rank);
     }
 
@@ -369,10 +378,18 @@ public class ReportEmailBuilder {
         return buildRow(item, "background:" + rowBg, rank);
     }
 
+    private static String scoreColor(int score) {
+        if (score >= 7) {
+            return "#16a34a";
+        }
+        if (score >= 4) {
+            return "#ca8a04";
+        }
+        return "#dc2626";
+    }
+
     private String buildRow(DigestItem item, String rowStyle, SignalRank rank) {
-        String scoreColor = item.score() >= 7 ? "#16a34a"
-                : item.score() >= 4 ? "#ca8a04"
-                  : "#dc2626";
+        String scoreColor = scoreColor(item.score());
         String safeUrl = safeHref(item.url());
         String rankPrefix = rank != null ? rankEmoji(rank) : "";
         String safeTitle = rankPrefix + escapeHtml(item.title());
@@ -400,7 +417,7 @@ public class ReportEmailBuilder {
                 + "white-space:nowrap;color:#6b7280;font-size:12px\">"
                 + safeSource
                 + (engagementBadge.isEmpty() ? "" : "<div style=\"color:#9ca3af;"
-                        + "font-size:11px;margin-top:2px\">" + engagementBadge + "</div>")
+                        + "font-size:11px;margin-top:2px\">" + engagementBadge + CLOSE_DIV)
                 + "</td>"
                 + "<td style=\"padding:10px 12px;border-bottom:1px solid #f0f0f0;"
                 + "text-align:center\"><span style=\"color:" + scoreColor
@@ -414,13 +431,13 @@ public class ReportEmailBuilder {
         long failedSources = research != null
                 ? research.sourceFetchReports().stream().filter(r -> r.status() == SourceFetchStatus.FAILED).count()
                 : 0;
-        String sourceHealth = failedSources > 0 ? " &middot; " + failedSources + " źródła z ostrzeżeniem" : "";
+        String sourceHealth = failedSources > 0 ? MIDDOT + failedSources + " źródła z ostrzeżeniem" : "";
         return "<div style=\"padding:16px 28px;background:#f9fafb;text-align:center;"
                 + "color:#9ca3af;font-size:12px\">"
                 + "Wybrano " + selectedCount + " z " + rawTotal + " itemów &middot; "
                 + sources + " &#378;róde&#322;" + sourceHealth + " &middot; okno pn/śr/pt"
                 + "<br>Wygenerowano przez GPT-4o &middot; PulseDigest"
-                + "</div>";
+                + CLOSE_DIV;
     }
 
     private static String rankEmoji(SignalRank rank) {

@@ -160,32 +160,14 @@ public class TwitterSearchAdapter {
             TwitterApiResponse response = objectMapper.readValue(json, TwitterApiResponse.class);
 
             if (response.data() == null || response.data().isEmpty()) {
-                if (json.contains("\"errors\"") || json.contains("\"error\"")) {
-                    log.warn("X API zwróciło błąd: {}", json.substring(0, Math.min(500, json.length())));
-                } else {
-                    log.info("X API: brak wyników (data[] puste)");
-                }
+                logEmptyResponse(json);
                 return List.of();
             }
 
-            Map<String, TwitterApiResponse.UserData> usersById = response.includes() != null
-                    ? response.includes().users().stream()
-                      .collect(Collectors.toMap(TwitterApiResponse.UserData::id,
-                              Function.identity(), (a, b) -> a))
-                    : Map.of();
-
+            Map<String, TwitterApiResponse.UserData> usersById = buildUsersById(response);
             List<Tweet> result = new ArrayList<>();
             for (TwitterApiResponse.TweetData td : response.data()) {
-                TwitterApiResponse.UserData user = usersById.get(td.authorId());
-                int likes = td.publicMetrics() != null ? td.publicMetrics().likeCount() : 0;
-                int rt = td.publicMetrics() != null ? td.publicMetrics().retweetCount() : 0;
-                int reply = td.publicMetrics() != null ? td.publicMetrics().replyCount() : 0;
-                result.add(new Tweet(
-                        td.id(), td.text(),
-                        user != null ? user.username() : td.authorId(),
-                        user != null ? user.name() : "",
-                        td.createdAt(), likes, rt, reply
-                ));
+                result.add(toTweet(td, usersById));
             }
             log.info("Sparsowano {} tweetów", result.size());
             return result;
@@ -195,6 +177,35 @@ public class TwitterSearchAdapter {
                     e.getMessage(), json.substring(0, Math.min(300, json.length())));
             return List.of();
         }
+    }
+
+    private void logEmptyResponse(String json) {
+        if (json.contains("\"errors\"") || json.contains("\"error\"")) {
+            log.warn("X API zwróciło błąd: {}", json.substring(0, Math.min(500, json.length())));
+        } else {
+            log.info("X API: brak wyników (data[] puste)");
+        }
+    }
+
+    private static Map<String, TwitterApiResponse.UserData> buildUsersById(TwitterApiResponse response) {
+        if (response.includes() == null) {
+            return Map.of();
+        }
+        return response.includes().users().stream()
+                .collect(Collectors.toMap(TwitterApiResponse.UserData::id, Function.identity(), (a, b) -> a));
+    }
+
+    private static Tweet toTweet(
+            TwitterApiResponse.TweetData td, Map<String, TwitterApiResponse.UserData> usersById) {
+        TwitterApiResponse.UserData user = usersById.get(td.authorId());
+        int likes = td.publicMetrics() != null ? td.publicMetrics().likeCount() : 0;
+        int rt = td.publicMetrics() != null ? td.publicMetrics().retweetCount() : 0;
+        int reply = td.publicMetrics() != null ? td.publicMetrics().replyCount() : 0;
+        return new Tweet(
+                td.id(), td.text(),
+                user != null ? user.username() : td.authorId(),
+                user != null ? user.name() : "",
+                td.createdAt(), likes, rt, reply);
     }
 
     // ── X API v2 response shape ───────────────────────────────────────────────

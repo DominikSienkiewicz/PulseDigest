@@ -11,10 +11,12 @@ import pl.seniordeveloper.pulsedigest.shared.infrastructure.http.ExternalRestCli
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.JepUpdate;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.OpenJdkProperties;
 
+import java.time.ZoneOffset;
 import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Optional;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -56,7 +58,7 @@ public class OpenJdkJepAdapter {
 
     public List<JepUpdate> fetchJepUpdates() {
         // HTTP errors propagate so MarketResearchService.fetchSource marks the source FAILED.
-        String since = ZonedDateTime.now()
+        String since = ZonedDateTime.now(ZoneOffset.UTC)
                 .minusDays(properties.lookbackDays())
                 .format(DateTimeFormatter.ISO_INSTANT);
         String json = restClient.get()
@@ -81,36 +83,40 @@ public class OpenJdkJepAdapter {
             List<JepUpdate> result = new ArrayList<>();
             Set<String> seenJeps = new HashSet<>();
             for (JsonNode commit : arr) {
-                String message = commit.path("commit").path("message").asText("");
-                Matcher jepMatcher = JEP_ID_PATTERN.matcher(message);
-                if (!jepMatcher.find()) {
-                    continue;
-                }
-                String jepNumber = jepMatcher.group(1);
-                String jepId = "JEP-" + jepNumber;
-                if (seenJeps.contains(jepId)) {
-                    continue;
-                }
-                Matcher statusMatcher = STATUS_PATTERN.matcher(message);
-                if (!statusMatcher.find()) {
-                    continue;
-                }
-                String status = statusMatcher.group(1);
-                if (!relevantStatuses.isEmpty() && !relevantStatuses.contains(status.toLowerCase(Locale.ROOT))) {
-                    continue;
-                }
-                String titleLine = extractTitleLine(message, jepId);
-                LocalDateTime date = parseTimestamp(
-                        commit.path("commit").path("committer").path("date").asText(""));
-                String url = "https://openjdk.org/jeps/" + jepNumber;
-                seenJeps.add(jepId);
-                result.add(new JepUpdate(jepId, titleLine, status, date, url));
+                parseCommit(commit, relevantStatuses, seenJeps).ifPresent(result::add);
             }
             return result;
         } catch (Exception e) {
             log.warn("OpenJDK JEP parse failed: {}", e.getMessage());
             return List.of();
         }
+    }
+
+    private Optional<JepUpdate> parseCommit(JsonNode commit, Set<String> relevantStatuses, Set<String> seenJeps) {
+        String message = commit.path("commit").path("message").asText("");
+        Matcher jepMatcher = JEP_ID_PATTERN.matcher(message);
+        if (!jepMatcher.find()) {
+            return Optional.empty();
+        }
+        String jepNumber = jepMatcher.group(1);
+        String jepId = "JEP-" + jepNumber;
+        if (seenJeps.contains(jepId)) {
+            return Optional.empty();
+        }
+        Matcher statusMatcher = STATUS_PATTERN.matcher(message);
+        if (!statusMatcher.find()) {
+            return Optional.empty();
+        }
+        String status = statusMatcher.group(1);
+        if (!relevantStatuses.isEmpty() && !relevantStatuses.contains(status.toLowerCase(Locale.ROOT))) {
+            return Optional.empty();
+        }
+        String titleLine = extractTitleLine(message, jepId);
+        LocalDateTime date = parseTimestamp(
+                commit.path("commit").path("committer").path("date").asText(""));
+        String url = "https://openjdk.org/jeps/" + jepNumber;
+        seenJeps.add(jepId);
+        return Optional.of(new JepUpdate(jepId, titleLine, status, date, url));
     }
 
     private String extractTitleLine(String message, String jepId) {
@@ -137,7 +143,7 @@ public class OpenJdkJepAdapter {
         }
         try {
             return LocalDateTime.parse(raw, DateTimeFormatter.ISO_DATE_TIME);
-        } catch (Exception e) {
+        } catch (Exception _) {
             return null;
         }
     }

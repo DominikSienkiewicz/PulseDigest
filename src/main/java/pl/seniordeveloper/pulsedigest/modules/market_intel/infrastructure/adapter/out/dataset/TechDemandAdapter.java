@@ -10,6 +10,7 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.util.UriComponentsBuilder;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.MonthMentions;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TechDemandAggregator;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TechDemandPulse;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TechDemandSignal;
@@ -91,10 +92,11 @@ public class TechDemandAdapter {
             }
 
             TechDemandSignal signal = TechDemandPulse.assemble(
-                    monthLabel(current), previous != null ? monthLabel(previous) : null,
                     "https://news.ycombinator.com/item?id=" + current.objectID(),
-                    currentCounts, currentPosts.size(),
-                    previousCounts, previousTotal,
+                    new MonthMentions(monthLabel(current), currentCounts, currentPosts.size()),
+                    previous != null
+                            ? new MonthMentions(monthLabel(previous), previousCounts, previousTotal)
+                            : null,
                     props.priorityTechnologies(), props.minMentions(), props.maxTechnologies());
 
             if (signal.isEmpty()) {
@@ -150,7 +152,7 @@ public class TechDemandAdapter {
 
     private boolean isFresh(long createdAtEpochSeconds) {
         long ageSeconds = Instant.now().getEpochSecond() - createdAtEpochSeconds;
-        return ageSeconds <= (long) props.lookbackDays() * 86_400L;
+        return ageSeconds <= props.lookbackDays() * 86_400L;
     }
 
     private String monthLabel(Story story) {

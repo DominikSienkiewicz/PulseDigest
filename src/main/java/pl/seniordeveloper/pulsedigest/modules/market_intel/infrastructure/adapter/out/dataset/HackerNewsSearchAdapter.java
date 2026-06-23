@@ -82,17 +82,7 @@ public class HackerNewsSearchAdapter {
 
         List<KeywordOutcome> outcomes = futures.stream().map(CompletableFuture::join).toList();
         long failed = outcomes.stream().filter(KeywordOutcome::failed).count();
-        if (failed > 0 && failed == outcomes.size()) {
-            Throwable lastError = outcomes.stream()
-                    .map(KeywordOutcome::error)
-                    .filter(java.util.Objects::nonNull)
-                    .reduce((a, b) -> b)
-                    .orElse(null);
-            throw new IllegalStateException(
-                    "All " + failed + " HN keyword fetches failed; last error: "
-                            + (lastError != null ? lastError.getMessage() : "unknown"),
-                    lastError);
-        }
+        throwIfAllFailed(outcomes, failed);
 
         List<HnHit> allHits = outcomes.stream()
                 .map(KeywordOutcome::hits)
@@ -110,16 +100,34 @@ public class HackerNewsSearchAdapter {
         List<HackerNewsPost> posts = deduped.stream()
                 .filter(hit -> hit.points() != null && hit.points() >= minScore)
                 .limit(limit)
-                .map(hit -> new HackerNewsPost(
-                        hit.title() != null ? hit.title() : "(Brak tytułu)",
-                        hit.url() != null ? hit.url() : "https://news.ycombinator.com/item?id=" + hit.objectID(),
-                        hit.points() != null ? hit.points() : 0
-                ))
+                .map(HackerNewsSearchAdapter::toPost)
                 .toList();
 
         log.info("Znaleziono {} postów na Hacker News (score >= {}, {} keywords failed).",
                 posts.size(), minScore, failed);
         return posts;
+    }
+
+    private void throwIfAllFailed(List<KeywordOutcome> outcomes, long failed) {
+        if (failed == 0 || failed != outcomes.size()) {
+            return;
+        }
+        Throwable lastError = outcomes.stream()
+                .map(KeywordOutcome::error)
+                .filter(java.util.Objects::nonNull)
+                .reduce((a, b) -> b)
+                .orElse(null);
+        throw new IllegalStateException(
+                "All " + failed + " HN keyword fetches failed; last error: "
+                        + (lastError != null ? lastError.getMessage() : "unknown"),
+                lastError);
+    }
+
+    private static HackerNewsPost toPost(HnHit hit) {
+        return new HackerNewsPost(
+                hit.title() != null ? hit.title() : "(Brak tytułu)",
+                hit.url() != null ? hit.url() : "https://news.ycombinator.com/item?id=" + hit.objectID(),
+                hit.points() != null ? hit.points() : 0);
     }
 
     private KeywordOutcome fetchKeywordSafely(String keyword, long since) {

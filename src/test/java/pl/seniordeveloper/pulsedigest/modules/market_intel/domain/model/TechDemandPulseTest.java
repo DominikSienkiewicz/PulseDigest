@@ -17,7 +17,7 @@ class TechDemandPulseTest {
         Map<String, Integer> current = Map.of("python", 50, "go", 25, "java", 5);
 
         TechDemandSignal signal = TechDemandPulse.assemble(
-                "June 2026", null, "url", current, 100, null, 0, PRIORITY, 1, 8);
+                "url", new MonthMentions("June 2026", current, 100), null, PRIORITY, 1, 8);
 
         assertThat(signal.entries()).extracting(TechDemandEntry::name).containsExactly("python", "go", "java");
         assertThat(signal.entries().get(0).share()).isCloseTo(0.50, within(0.001));
@@ -30,7 +30,8 @@ class TechDemandPulseTest {
         Map<String, Integer> previous = Map.of("rust", 8);   // 8/50  = 16%
 
         TechDemandSignal signal = TechDemandPulse.assemble(
-                "June 2026", "May 2026", "url", current, 100, previous, 50, PRIORITY, 1, 8);
+                "url", new MonthMentions("June 2026", current, 100),
+                new MonthMentions("May 2026", previous, 50), PRIORITY, 1, 8);
 
         assertThat(signal.previousMonthLabel()).isEqualTo("May 2026");
         assertThat(signal.entries().get(0).deltaPp()).isCloseTo(4.0, within(0.001)); // 20% - 16%
@@ -39,7 +40,7 @@ class TechDemandPulseTest {
     @Test
     void leavesDeltaNullWhenNoPreviousThread() {
         TechDemandSignal signal = TechDemandPulse.assemble(
-                "June 2026", "May 2026", "url", Map.of("go", 10), 100, null, 0, PRIORITY, 1, 8);
+                "url", new MonthMentions("June 2026", Map.of("go", 10), 100), null, PRIORITY, 1, 8);
 
         assertThat(signal.previousMonthLabel()).isNull();
         assertThat(signal.entries().get(0).deltaPp()).isNull();
@@ -50,7 +51,7 @@ class TechDemandPulseTest {
         Map<String, Integer> current = Map.of("python", 40, "go", 30); // java/spring absent
 
         TechDemandSignal signal = TechDemandPulse.assemble(
-                "June 2026", null, "url", current, 100, null, 0, PRIORITY, 5, 8);
+                "url", new MonthMentions("June 2026", current, 100), null, PRIORITY, 5, 8);
 
         // java & spring don't clear minMentions for the ranking, but still appear in the stack line.
         assertThat(signal.entries()).extracting(TechDemandEntry::name).doesNotContain("java", "spring");
@@ -65,7 +66,7 @@ class TechDemandPulseTest {
         Map<String, Integer> current = Map.of("a", 9, "b", 8, "c", 7, "d", 1);
 
         TechDemandSignal signal = TechDemandPulse.assemble(
-                "m", null, "url", current, 100, null, 0, List.of(), 5, 2);
+                "url", new MonthMentions("m", current, 100), null, List.of(), 5, 2);
 
         assertThat(signal.entries()).extracting(TechDemandEntry::name).containsExactly("a", "b");
     }

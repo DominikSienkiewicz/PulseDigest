@@ -67,7 +67,7 @@ public class BlueskySearchAdapter {
         URI uri = UriComponentsBuilder.fromUriString(props.bluesky().baseUrl())
                 .path("/xrpc/app.bsky.feed.getAuthorFeed")
                 .queryParam("actor", handle)
-                .queryParam("limit", Math.max(1, Math.min(limit, 100)))
+                .queryParam("limit", Math.clamp(limit, 1, 100))
                 .build()
                 .toUri();
         String json = restClient.get().uri(uri).retrieve().body(String.class);
@@ -97,7 +97,7 @@ public class BlueskySearchAdapter {
         }
     }
 
-    // at://did:plc:xxx/app.bsky.feed.post/{rkey} -> https://bsky.app/profile/{handle}/post/{rkey}
+    // Maps an AT-URI post reference to its public bsky.app profile-post web address.
     private String toWebUrl(String handle, String atUri) {
         if (atUri == null || handle == null) {
             return "";

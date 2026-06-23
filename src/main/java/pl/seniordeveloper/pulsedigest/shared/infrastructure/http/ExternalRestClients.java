@@ -105,13 +105,13 @@ public final class ExternalRestClients {
         String value = headerValue.strip();
         try {
             return Long.parseLong(value) * 1000L;
-        } catch (NumberFormatException ignored) {
+        } catch (NumberFormatException _) {
             // not delta-seconds — try HTTP-date below
         }
         try {
             ZonedDateTime when = ZonedDateTime.parse(value, DateTimeFormatter.RFC_1123_DATE_TIME);
             return Math.max(0L, Duration.between(Instant.now(), when.toInstant()).toMillis());
-        } catch (DateTimeParseException ignored) {
+        } catch (DateTimeParseException _) {
             return -1;
         }
     }
@@ -129,8 +129,8 @@ public final class ExternalRestClients {
         return statusCode.value() == 429 || statusCode.is5xxServerError();
     }
 
-    // Honors a server-provided Retry-After (capped) when present, otherwise uses linear backoff;
-    // a small random jitter is always added so parallel source fetches don't retry in lock-step.
+    // Honors a server-provided Retry-After header (capped) when present, otherwise linear backoff.
+    // A small random jitter is always added so parallel source fetches do not retry in lock-step.
     private static void sleepBeforeNextAttempt(int attempt, long retryAfterMillis) throws IOException {
         long base = retryAfterMillis >= 0
                 ? Math.min(retryAfterMillis, MAX_BACKOFF_MILLIS)

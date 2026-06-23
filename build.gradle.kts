@@ -6,6 +6,7 @@ plugins {
     id("io.spring.dependency-management") version "1.1.7"
     checkstyle
     jacoco
+    id("org.sonarqube") version "7.3.1.8318"
 }
 
 group = "pl.seniordeveloper"
@@ -169,6 +170,45 @@ tasks.jacocoTestCoverageVerification {
 
 tasks.check {
     dependsOn(tasks.jacocoTestCoverageVerification)
+}
+
+// ── SonarCloud ─────────────────────────────────────────────────────────────────
+//
+// CI-based analysis (run via `./gradlew test jacocoTestReport sonar` in the
+// `sonarcloud` job in .github/workflows/digest.yml). The Gradle plugin auto-detects
+// sources, tests, compiled bytecode and libraries; we only pin the project identity,
+// the JaCoCo report path and the coverage exclusions.
+//
+// Sonar derives its own "lines to cover" from the source parser (NOT from JaCoCo), so
+// the structural exclusions used by JaCoCo above must be declared again here — otherwise
+// records/enums/DTOs/config would count as uncovered and sink the "coverage on new code"
+// gate. These globs mirror `coverageExclusions` (the static half) on the `.java` sources.
+val sonarCoverageExclusions = listOf(
+    "**/*Application.java",
+    "**/*Bootstrap.java",
+    "**/*Command.java",
+    "**/*Config.java",
+    "**/*Dto.java",
+    "**/*Error.java",
+    "**/*Properties.java",
+    "**/*Query.java",
+    "**/*View.java",
+    "**/DigestRunner.java",
+    "**/shared/error/**"
+)
+
+sonar {
+    properties {
+        property("sonar.projectKey", "DominikSienkiewicz_PulseDigest")
+        property("sonar.organization", "dominiksienkiewicz")
+        property("sonar.host.url", "https://sonarcloud.io")
+        // Java 26 + --enable-preview (sealed pattern matching in switch): the analyzer
+        // must parse preview syntax or it silently skips those files.
+        property("sonar.java.enablePreview", "true")
+        // Written by the jacocoTestReport task (default location); run it before `sonar`.
+        property("sonar.coverage.jacoco.xmlReportPaths", "build/reports/jacoco/test/jacocoTestReport.xml")
+        property("sonar.coverage.exclusions", sonarCoverageExclusions.joinToString(","))
+    }
 }
 
 tasks.bootJar {

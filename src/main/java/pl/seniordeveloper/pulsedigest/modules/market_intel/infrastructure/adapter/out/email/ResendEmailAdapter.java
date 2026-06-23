@@ -47,7 +47,7 @@ public class ResendEmailAdapter implements EmailDeliveryPort {
                     "Email not configured: RESEND_API_KEY, DIGEST_FROM_EMAIL and DIGEST_TO_EMAIL are required");
         }
 
-        return sendHtml(emailBuilder.buildSubject(report), emailBuilder.buildHtml(report, research));
+        return sendHtml(emailBuilder.buildSubject(), emailBuilder.buildHtml(report, research));
     }
 
     @Override

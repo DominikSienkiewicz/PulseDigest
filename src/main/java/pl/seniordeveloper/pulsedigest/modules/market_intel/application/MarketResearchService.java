@@ -200,7 +200,7 @@ public class MarketResearchService {
                 rawTalks.stream().map(MarketResearchService::canonicalize).toList(),
                 rawAnnouncements,
                 rawSocial.stream().map(MarketResearchService::canonicalize).toList(),
-                LocalDateTime.now(),
+                LocalDateTime.now(ZoneOffset.UTC),
                 rawInfluencer.size() + rawTopic.size() + rawAnthropic.size(),
                 rawHn.size(), rawGh.size(), rawRss.size(), rawReddit.size(),
                 sourceFetchReports,
@@ -324,7 +324,7 @@ public class MarketResearchService {
         try {
             ZonedDateTime tweetTime = ZonedDateTime.parse(createdAt, DateTimeFormatter.ISO_DATE_TIME);
             return tweetTime.isAfter(cutoff);
-        } catch (Exception e) {
+        } catch (Exception _) {
             return true;
         }
     }

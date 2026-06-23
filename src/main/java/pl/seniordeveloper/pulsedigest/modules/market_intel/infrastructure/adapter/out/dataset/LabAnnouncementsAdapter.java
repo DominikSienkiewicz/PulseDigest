@@ -40,26 +40,28 @@ public class LabAnnouncementsAdapter {
 
     private static final Pattern SANITY_ENTRY = Pattern.compile(
             "\"publishedOn\":\"([0-9T:.\\-Z]+)\""
-                    + "[\\s\\S]{0,400}?\"current\":\"([a-z0-9-]+)\""
-                    + "(?:[\\s\\S]{0,2000}?\"summary\":\"([^\"]*)\")?"
-                    + "[\\s\\S]{0,2000}?\"title\":\"([^\"]+)\"",
+                    + ".{0,400}?\"current\":\"([a-z0-9-]+)\""
+                    + "(?:.{0,2000}?\"summary\":\"([^\"]*)\")?"
+                    + ".{0,2000}?\"title\":\"([^\"]+)\"",
             Pattern.DOTALL);
     private static final Pattern JSONLD_DATE = Pattern.compile(
             "\"datePublished\"\\s*:\\s*\"([^\"]+)\"");
+    // Reluctant [^>]+? (not greedy) matches up to the first attribute inside one <meta> tag and
+    // avoids the super-linear backtracking greedy [^>]+ triggers on long tags.
     private static final Pattern OG_TITLE = Pattern.compile(
-            "<meta[^>]+property=\"og:title\"[^>]+content=\"([^\"]+)\""
-                    + "|<meta[^>]+content=\"([^\"]+)\"[^>]+property=\"og:title\"",
+            "<meta[^>]+?property=\"og:title\"[^>]+?content=\"([^\"]+)\""
+                    + "|<meta[^>]+?content=\"([^\"]+)\"[^>]+?property=\"og:title\"",
             Pattern.CASE_INSENSITIVE);
     private static final Pattern META_DESCRIPTION = Pattern.compile(
-            "<meta[^>]+name=\"description\"[^>]+content=\"([^\"]+)\""
-                    + "|<meta[^>]+content=\"([^\"]+)\"[^>]+name=\"description\"",
+            "<meta[^>]+?name=\"description\"[^>]+?content=\"([^\"]+)\""
+                    + "|<meta[^>]+?content=\"([^\"]+)\"[^>]+?name=\"description\"",
             Pattern.CASE_INSENSITIVE);
     // developers.openai.com card: link, then a short date, title (line-clamp-2), description (line-clamp-3).
     private static final Pattern OPENAI_CARD = Pattern.compile(
             "href=\"(/blog/[a-z0-9-]+)\""
-                    + "[\\s\\S]{0,800}?text-secondary[^>]*>([A-Z][a-z]{2} \\d{1,2})</div>"
-                    + "[\\s\\S]{0,300}?line-clamp-2\">([^<]+)</div>"
-                    + "(?:[\\s\\S]{0,300}?line-clamp-3[^>]*>([^<]*)</p>)?",
+                    + ".{0,800}?text-secondary[^>]*>([A-Z][a-z]{2} \\d{1,2})</div>"
+                    + ".{0,300}?line-clamp-2\">([^<]+)</div>"
+                    + "(?:.{0,300}?line-clamp-3[^>]*>([^<]*)</p>)?",
             Pattern.DOTALL);
 
     private static final DateTimeFormatter MONTH_DAY_YEAR =
@@ -79,7 +81,7 @@ public class LabAnnouncementsAdapter {
     }
 
     public List<LabAnnouncement> fetchAnnouncements() {
-        LocalDateTime cutoff = LocalDateTime.now().minusHours(properties.lookbackHours());
+        LocalDateTime cutoff = LocalDateTime.now(ZoneOffset.UTC).minusHours(properties.lookbackHours());
         List<LabAnnouncement> result = new ArrayList<>();
         int failed = 0;
         Exception lastError = null;
@@ -131,23 +133,28 @@ public class LabAnnouncementsAdapter {
 
         Matcher m = SANITY_ENTRY.matcher(unescaped);
         while (m.find()) {
-            String slug = m.group(2);
-            if (!seenSlugs.add(slug)) {
-                continue;
-            }
-            LocalDateTime publishedAt = parseFlexibleDate(m.group(1));
-            if (publishedAt == null || publishedAt.isBefore(cutoff)) {
-                continue;
-            }
-            String summary = m.group(3) != null ? m.group(3).trim() : "";
-            result.add(new LabAnnouncement(
-                    m.group(4).trim(),
-                    baseHost + pathPrefix + "/" + slug,
-                    summary,
-                    source.name(),
-                    publishedAt));
+            sanityEntry(m, seenSlugs, baseHost, pathPrefix, source, cutoff).ifPresent(result::add);
         }
         return result;
+    }
+
+    private Optional<LabAnnouncement> sanityEntry(Matcher m, Set<String> seenSlugs, String baseHost,
+            String pathPrefix, LabAnnouncementsProperties.Source source, LocalDateTime cutoff) {
+        String slug = m.group(2);
+        if (!seenSlugs.add(slug)) {
+            return Optional.empty();
+        }
+        LocalDateTime publishedAt = parseFlexibleDate(m.group(1));
+        if (publishedAt == null || publishedAt.isBefore(cutoff)) {
+            return Optional.empty();
+        }
+        String summary = m.group(3) != null ? m.group(3).trim() : "";
+        return Optional.of(new LabAnnouncement(
+                m.group(4).trim(),
+                baseHost + pathPrefix + "/" + slug,
+                summary,
+                source.name(),
+                publishedAt));
     }
 
     // ── JSONLD: claude.com/blog, blog.google (listing → per-post datePublished) ──
@@ -220,19 +227,24 @@ public class LabAnnouncementsAdapter {
 
         Matcher m = OPENAI_CARD.matcher(html);
         while (m.find()) {
-            String slug = m.group(1);
-            if (!seen.add(slug)) {
-                continue;
-            }
-            LocalDateTime publishedAt = parseShortDate(m.group(2));
-            if (publishedAt == null || publishedAt.isBefore(cutoffDate)) {
-                continue;
-            }
-            String summary = m.group(4) != null ? m.group(4).trim() : "";
-            result.add(new LabAnnouncement(
-                    m.group(3).trim(), baseHost + slug, summary, source.name(), publishedAt));
+            openAiCard(m, seen, baseHost, source, cutoffDate).ifPresent(result::add);
         }
         return result;
+    }
+
+    private Optional<LabAnnouncement> openAiCard(Matcher m, Set<String> seen, String baseHost,
+            LabAnnouncementsProperties.Source source, LocalDateTime cutoffDate) {
+        String slug = m.group(1);
+        if (!seen.add(slug)) {
+            return Optional.empty();
+        }
+        LocalDateTime publishedAt = parseShortDate(m.group(2));
+        if (publishedAt == null || publishedAt.isBefore(cutoffDate)) {
+            return Optional.empty();
+        }
+        String summary = m.group(4) != null ? m.group(4).trim() : "";
+        return Optional.of(new LabAnnouncement(
+                m.group(3).trim(), baseHost + slug, summary, source.name(), publishedAt));
     }
 
     // ── Shared helpers ───────────────────────────────────────────────────────
@@ -257,31 +269,31 @@ public class LabAnnouncementsAdapter {
         String s = raw.trim();
         try {
             return ZonedDateTime.parse(s).withZoneSameInstant(ZoneOffset.UTC).toLocalDateTime();
-        } catch (Exception ignored) {
+        } catch (Exception _) {
             // not an offset datetime
         }
         try {
             return LocalDate.parse(s, MONTH_DAY_YEAR).atStartOfDay();
-        } catch (Exception ignored) {
+        } catch (Exception _) {
             // not a "Month d, yyyy" date
         }
         try {
             return LocalDate.parse(s).atStartOfDay();
-        } catch (Exception ignored) {
+        } catch (Exception _) {
             return null;
         }
     }
 
     /** Parses a yearless {@code "Feb 4"} date, assuming the most recent matching year. */
     private LocalDateTime parseShortDate(String raw) {
-        int year = Year.now().getValue();
+        int year = Year.now(ZoneOffset.UTC).getValue();
         try {
             LocalDate parsed = LocalDate.parse(raw.trim() + " " + year, MONTH_DAY_SHORT_YEAR);
-            if (parsed.isAfter(LocalDate.now())) {
+            if (parsed.isAfter(LocalDate.now(ZoneOffset.UTC))) {
                 parsed = LocalDate.parse(raw.trim() + " " + (year - 1), MONTH_DAY_SHORT_YEAR);
             }
             return parsed.atStartOfDay();
-        } catch (Exception e) {
+        } catch (Exception _) {
             return null;
         }
     }
@@ -303,7 +315,7 @@ public class LabAnnouncementsAdapter {
             URI uri = URI.create(url);
             String authority = uri.getHost() + (uri.getPort() > 0 ? ":" + uri.getPort() : "");
             return uri.getScheme() + "://" + authority;
-        } catch (Exception e) {
+        } catch (Exception _) {
             return "";
         }
     }

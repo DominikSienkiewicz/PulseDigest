@@ -14,6 +14,7 @@ import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.HuggingFacePr
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Optional;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -68,23 +69,7 @@ public class HuggingFaceTrendingAdapter {
             JsonNode arr = objectMapper.readTree(json);
             List<HuggingFaceModel> result = new ArrayList<>();
             for (JsonNode node : arr) {
-                String id = node.path("modelId").asText(node.path("id").asText(""));
-                if (id.isBlank()) {
-                    continue;
-                }
-                String pipelineTag = node.path("pipeline_tag").asText("");
-                if (!relevantPipelines.isEmpty() && !relevantPipelines.contains(pipelineTag)) {
-                    continue;
-                }
-                long downloads = node.path("downloads").asLong(0);
-                long likes = node.path("likes").asLong(0);
-                if (likes < properties.minLikes() && downloads < properties.minDownloads()) {
-                    continue;
-                }
-                LocalDateTime lastModified = parseTimestamp(node.path("lastModified").asText(""));
-                String author = id.contains("/") ? id.substring(0, id.indexOf('/')) : "";
-                String url = "https://huggingface.co/" + id;
-                result.add(new HuggingFaceModel(id, author, downloads, likes, lastModified, pipelineTag, url));
+                parseNode(node, relevantPipelines).ifPresent(result::add);
             }
             return result;
         } catch (Exception e) {
@@ -93,13 +78,33 @@ public class HuggingFaceTrendingAdapter {
         }
     }
 
+    private Optional<HuggingFaceModel> parseNode(JsonNode node, Set<String> relevantPipelines) {
+        String id = node.path("modelId").asText(node.path("id").asText(""));
+        if (id.isBlank()) {
+            return Optional.empty();
+        }
+        String pipelineTag = node.path("pipeline_tag").asText("");
+        if (!relevantPipelines.isEmpty() && !relevantPipelines.contains(pipelineTag)) {
+            return Optional.empty();
+        }
+        long downloads = node.path("downloads").asLong(0);
+        long likes = node.path("likes").asLong(0);
+        if (likes < properties.minLikes() && downloads < properties.minDownloads()) {
+            return Optional.empty();
+        }
+        LocalDateTime lastModified = parseTimestamp(node.path("lastModified").asText(""));
+        String author = id.contains("/") ? id.substring(0, id.indexOf('/')) : "";
+        String url = "https://huggingface.co/" + id;
+        return Optional.of(new HuggingFaceModel(id, author, downloads, likes, lastModified, pipelineTag, url));
+    }
+
     private LocalDateTime parseTimestamp(String raw) {
         if (raw == null || raw.isBlank()) {
             return null;
         }
         try {
             return LocalDateTime.parse(raw, DateTimeFormatter.ISO_DATE_TIME);
-        } catch (Exception e) {
+        } catch (Exception _) {
             return null;
         }
     }

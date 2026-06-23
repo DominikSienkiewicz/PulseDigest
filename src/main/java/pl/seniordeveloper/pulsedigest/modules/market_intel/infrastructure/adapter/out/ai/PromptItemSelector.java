@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Predicate;
 
 /**
  * Picks the best items per source (by engagement desc), then trims to a hard total cap using a
@@ -59,38 +60,31 @@ final class PromptItemSelector {
         List<Map<String, Object>> talks       = new ArrayList<>();
         List<Map<String, Object>> social      = new ArrayList<>();
 
+        // Ordered first-match-wins routing (preserves the original if/else-if precedence).
+        List<Route> routes = List.of(
+                new Route(s -> s.startsWith("Twitter"), twitter),
+                new Route(s -> s.startsWith("Hacker News"), hn),
+                new Route(s -> s.equals("GitHub"), github),
+                new Route(s -> s.startsWith("RSS"), rss),
+                new Route(s -> s.startsWith("Reddit"), reddit),
+                new Route(s -> s.startsWith("arXiv"), arxiv),
+                new Route(s -> s.equals("GitHub Releases"), releases),
+                new Route(s -> s.equals("Hugging Face"), hf),
+                new Route(s -> s.equals("Product Hunt"), productHunt),
+                new Route(s -> s.equals("Security Advisories"), advisories),
+                new Route(s -> s.equals("OpenJDK JEP"), jep),
+                new Route(s -> s.startsWith("CNCF"), cncf),
+                new Route(s -> s.equals("Tech Radar"), radar),
+                new Route(s -> s.startsWith("YouTube"), talks),
+                new Route(s -> s.equals("Bluesky") || s.equals("Mastodon"), social));
+
         for (var item : all) {
             String src = (String) item.get("source");
-            if (src.startsWith("Twitter")) {
-                twitter.add(item);
-            } else if (src.startsWith("Hacker News")) {
-                hn.add(item);
-            } else if (src.equals("GitHub")) {
-                github.add(item);
-            } else if (src.startsWith("RSS")) {
-                rss.add(item);
-            } else if (src.startsWith("Reddit")) {
-                reddit.add(item);
-            } else if (src.startsWith("arXiv")) {
-                arxiv.add(item);
-            } else if (src.equals("GitHub Releases")) {
-                releases.add(item);
-            } else if (src.equals("Hugging Face")) {
-                hf.add(item);
-            } else if (src.equals("Product Hunt")) {
-                productHunt.add(item);
-            } else if (src.equals("Security Advisories")) {
-                advisories.add(item);
-            } else if (src.equals("OpenJDK JEP")) {
-                jep.add(item);
-            } else if (src.startsWith("CNCF")) {
-                cncf.add(item);
-            } else if (src.equals("Tech Radar")) {
-                radar.add(item);
-            } else if (src.startsWith("YouTube")) {
-                talks.add(item);
-            } else if (src.equals("Bluesky") || src.equals("Mastodon")) {
-                social.add(item);
+            for (Route route : routes) {
+                if (route.match().test(src)) {
+                    route.bucket().add(item);
+                    break;
+                }
             }
         }
 
@@ -152,5 +146,8 @@ final class PromptItemSelector {
                                 ((Number) m.get("engagement_score")).intValue())))
                 .limit(cap)
                 .toList();
+    }
+
+    private record Route(Predicate<String> match, List<Map<String, Object>> bucket) {
     }
 }

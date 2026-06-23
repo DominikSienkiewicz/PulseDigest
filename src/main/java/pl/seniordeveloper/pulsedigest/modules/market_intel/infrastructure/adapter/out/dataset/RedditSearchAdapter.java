@@ -103,7 +103,7 @@ public class RedditSearchAdapter {
         if (data.url() != null && !data.url().contains("reddit.com/r/")) {
             return data.url();
         }
-        return "https://www.reddit.com" + data.permalink();
+        return BASE_URL + data.permalink();
     }
 
     // ── Reddit JSON response shape ────────────────────────────────────────────

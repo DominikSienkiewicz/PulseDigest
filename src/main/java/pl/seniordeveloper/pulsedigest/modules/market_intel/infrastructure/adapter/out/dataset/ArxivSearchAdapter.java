@@ -16,6 +16,7 @@ import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ArxivProperti
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.StringReader;
+import java.time.ZoneOffset;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -78,7 +79,7 @@ public class ArxivSearchAdapter {
                 .map(String::trim)
                 .map(String::toLowerCase)
                 .collect(Collectors.toSet());
-        LocalDateTime cutoff = LocalDateTime.now().minusHours(lookbackHours);
+        LocalDateTime cutoff = LocalDateTime.now(ZoneOffset.UTC).minusHours(lookbackHours);
 
         try {
             DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
@@ -118,7 +119,7 @@ public class ArxivSearchAdapter {
         LocalDateTime publishedAt;
         try {
             publishedAt = LocalDateTime.parse(published, DateTimeFormatter.ISO_DATE_TIME);
-        } catch (Exception e) {
+        } catch (Exception _) {
             return Optional.empty();
         }
 

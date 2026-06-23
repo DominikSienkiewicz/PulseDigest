@@ -12,9 +12,11 @@ import pl.seniordeveloper.pulsedigest.shared.infrastructure.http.ExternalRestCli
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ProductHuntPost;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ProductHuntProperties;
 
+import java.time.ZoneOffset;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Optional;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -80,41 +82,45 @@ public class ProductHuntAdapter {
     }
 
     List<ProductHuntPost> parsePosts(String json) {
-        LocalDateTime cutoff = LocalDateTime.now().minusHours(properties.lookbackHours());
+        LocalDateTime cutoff = LocalDateTime.now(ZoneOffset.UTC).minusHours(properties.lookbackHours());
         Set<String> relevantTopics = lowerSet(properties.relevantTopics());
         try {
             JsonNode root = objectMapper.readTree(json);
             JsonNode edges = root.path("data").path("posts").path("edges");
             List<ProductHuntPost> result = new ArrayList<>();
             for (JsonNode edge : edges) {
-                JsonNode node = edge.path("node");
-                int votes = node.path("votesCount").asInt(0);
-                if (votes < properties.minVotes()) {
-                    continue;
-                }
-                LocalDateTime createdAt = parseTimestamp(node.path("createdAt").asText(""));
-                if (createdAt == null || createdAt.isBefore(cutoff)) {
-                    continue;
-                }
-                List<String> topics = extractTopics(node);
-                if (!relevantTopics.isEmpty()
-                        && topics.stream().map(t -> t.toLowerCase(Locale.ROOT))
-                                .noneMatch(relevantTopics::contains)) {
-                    continue;
-                }
-                String name = node.path("name").asText("");
-                String tagline = node.path("tagline").asText("");
-                String url = node.path("url").asText("");
-                if (name.isBlank() || url.isBlank()) {
-                    continue;
-                }
-                result.add(new ProductHuntPost(name, tagline, url, votes, topics, createdAt));
+                parseEdge(edge, relevantTopics, cutoff).ifPresent(result::add);
             }
             return result;
         } catch (Exception e) {
             log.warn("Product Hunt parse failed: {}", e.getMessage());
             return List.of();
         }
+    }
+
+    private Optional<ProductHuntPost> parseEdge(JsonNode edge, Set<String> relevantTopics, LocalDateTime cutoff) {
+        JsonNode node = edge.path("node");
+        int votes = node.path("votesCount").asInt(0);
+        if (votes < properties.minVotes()) {
+            return Optional.empty();
+        }
+        LocalDateTime createdAt = parseTimestamp(node.path("createdAt").asText(""));
+        if (createdAt == null || createdAt.isBefore(cutoff)) {
+            return Optional.empty();
+        }
+        List<String> topics = extractTopics(node);
+        if (!relevantTopics.isEmpty()
+                && topics.stream().map(t -> t.toLowerCase(Locale.ROOT))
+                        .noneMatch(relevantTopics::contains)) {
+            return Optional.empty();
+        }
+        String name = node.path("name").asText("");
+        String tagline = node.path("tagline").asText("");
+        String url = node.path("url").asText("");
+        if (name.isBlank() || url.isBlank()) {
+            return Optional.empty();
+        }
+        return Optional.of(new ProductHuntPost(name, tagline, url, votes, topics, createdAt));
     }
 
     private List<String> extractTopics(JsonNode node) {
@@ -134,7 +140,7 @@ public class ProductHuntAdapter {
         }
         try {
             return LocalDateTime.parse(raw, DateTimeFormatter.ISO_DATE_TIME);
-        } catch (Exception e) {
+        } catch (Exception _) {
             return null;
         }
     }

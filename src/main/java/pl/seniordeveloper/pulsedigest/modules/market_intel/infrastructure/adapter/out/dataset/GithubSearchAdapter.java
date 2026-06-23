@@ -16,8 +16,8 @@ import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.GithubPropert
 
 import java.net.URI;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * Szuka najciekawszych repozytoriów na GitHubie jako dowód adopcji technologicznej (kod > słowa).
@@ -48,7 +48,7 @@ public class GithubSearchAdapter {
         }
 
         int lookbackDays = props.lookbackDays() > 0 ? props.lookbackDays() : 1;
-        String pushedSince = LocalDate.now().minusDays(lookbackDays).toString();
+        String pushedSince = LocalDate.now(ZoneOffset.UTC).minusDays(lookbackDays).toString();
         String query = props.query() + " pushed:>=" + pushedSince;
         log.info("Przeszukuję GitHub: {}", query);
         int limit = props.limit() > 0 ? props.limit() : 5;
@@ -88,7 +88,7 @@ public class GithubSearchAdapter {
                         it.stargazersCount() != null ? it.stargazersCount() : 0,
                         it.htmlUrl() != null ? it.htmlUrl() : ""
                 ))
-                .collect(Collectors.toList());
+                .toList();
 
         log.info("Znaleziono {} repozytoriów na platformie GitHub.", repos.size());
         return repos;

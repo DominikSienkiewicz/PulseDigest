@@ -11,9 +11,11 @@ import pl.seniordeveloper.pulsedigest.shared.infrastructure.http.ExternalRestCli
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SecurityAdvisory;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.SecurityAdvisoriesProperties;
 
+import java.time.ZoneOffset;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Optional;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -65,39 +67,44 @@ public class SecurityAdvisoryAdapter {
     }
 
     List<SecurityAdvisory> parseAdvisories(String json) {
-        LocalDateTime cutoff = LocalDateTime.now().minusHours(properties.lookbackHours());
+        LocalDateTime cutoff = LocalDateTime.now(ZoneOffset.UTC).minusHours(properties.lookbackHours());
         Set<String> minSeverities = upperSet(properties.minSeverities());
         Set<String> relevantEcosystems = lowerSet(properties.relevantEcosystems());
         try {
             JsonNode arr = objectMapper.readTree(json);
             List<SecurityAdvisory> result = new ArrayList<>();
             for (JsonNode node : arr) {
-                String severity = node.path("severity").asText("").toUpperCase(Locale.ROOT);
-                if (!minSeverities.isEmpty() && !minSeverities.contains(severity)) {
-                    continue;
-                }
-                LocalDateTime publishedAt = parseTimestamp(node.path("published_at").asText(""));
-                if (publishedAt == null || publishedAt.isBefore(cutoff)) {
-                    continue;
-                }
-                List<String> ecosystems = extractEcosystems(node);
-                if (!relevantEcosystems.isEmpty()
-                        && ecosystems.stream().noneMatch(relevantEcosystems::contains)) {
-                    continue;
-                }
-                String ghsaId = node.path("ghsa_id").asText("");
-                String summary = node.path("summary").asText("");
-                String url = node.path("html_url").asText("");
-                if (ghsaId.isBlank() || url.isBlank()) {
-                    continue;
-                }
-                result.add(new SecurityAdvisory(ghsaId, summary, severity, publishedAt, ecosystems, url));
+                parseNode(node, minSeverities, relevantEcosystems, cutoff).ifPresent(result::add);
             }
             return result;
         } catch (Exception e) {
             log.warn("Security Advisories parse failed: {}", e.getMessage());
             return List.of();
         }
+    }
+
+    private Optional<SecurityAdvisory> parseNode(
+            JsonNode node, Set<String> minSeverities, Set<String> relevantEcosystems, LocalDateTime cutoff) {
+        String severity = node.path("severity").asText("").toUpperCase(Locale.ROOT);
+        if (!minSeverities.isEmpty() && !minSeverities.contains(severity)) {
+            return Optional.empty();
+        }
+        LocalDateTime publishedAt = parseTimestamp(node.path("published_at").asText(""));
+        if (publishedAt == null || publishedAt.isBefore(cutoff)) {
+            return Optional.empty();
+        }
+        List<String> ecosystems = extractEcosystems(node);
+        if (!relevantEcosystems.isEmpty()
+                && ecosystems.stream().noneMatch(relevantEcosystems::contains)) {
+            return Optional.empty();
+        }
+        String ghsaId = node.path("ghsa_id").asText("");
+        String summary = node.path("summary").asText("");
+        String url = node.path("html_url").asText("");
+        if (ghsaId.isBlank() || url.isBlank()) {
+            return Optional.empty();
+        }
+        return Optional.of(new SecurityAdvisory(ghsaId, summary, severity, publishedAt, ecosystems, url));
     }
 
     private List<String> extractEcosystems(JsonNode advisory) {
@@ -117,7 +124,7 @@ public class SecurityAdvisoryAdapter {
         }
         try {
             return LocalDateTime.parse(raw, DateTimeFormatter.ISO_DATE_TIME);
-        } catch (Exception e) {
+        } catch (Exception _) {
             return null;
         }
     }

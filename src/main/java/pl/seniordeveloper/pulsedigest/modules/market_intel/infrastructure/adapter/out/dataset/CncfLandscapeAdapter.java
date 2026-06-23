@@ -11,10 +11,12 @@ import pl.seniordeveloper.pulsedigest.shared.infrastructure.http.ExternalRestCli
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.CncfProjectUpdate;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.CncfLandscapeProperties;
 
+import java.time.ZoneOffset;
 import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Optional;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -31,7 +33,7 @@ public class CncfLandscapeAdapter {
     private static final Pattern STATUS_PATTERN = Pattern.compile(
             "\\b(sandbox|incubating|graduated|archived)\\b", Pattern.CASE_INSENSITIVE);
     private static final Pattern PROJECT_PATTERN = Pattern.compile(
-            "^(?:Add|Update|Move|Promote)\\s+(?:the\\s+)?(?:CNCF\\s+)?(?:project\\s+)?([\\w.\\-]+)",
+            "^(?:Add|Update|Move|Promote)\\s++(?:the\\s++)?(?:CNCF\\s++)?(?:project\\s++)?([\\w.\\-]+)",
             Pattern.CASE_INSENSITIVE);
 
     private final CncfLandscapeProperties properties;
@@ -56,7 +58,7 @@ public class CncfLandscapeAdapter {
 
     public List<CncfProjectUpdate> fetchCncfLandscapeChanges() {
         // HTTP errors propagate so MarketResearchService.fetchSource marks the source FAILED.
-        String since = ZonedDateTime.now()
+        String since = ZonedDateTime.now(ZoneOffset.UTC)
                 .minusDays(properties.lookbackDays())
                 .format(DateTimeFormatter.ISO_INSTANT);
         String json = restClient.get()
@@ -81,23 +83,7 @@ public class CncfLandscapeAdapter {
             JsonNode arr = objectMapper.readTree(json);
             List<CncfProjectUpdate> result = new ArrayList<>();
             for (JsonNode commit : arr) {
-                String message = commit.path("commit").path("message").asText("");
-                Matcher statusMatcher = STATUS_PATTERN.matcher(message);
-                if (!statusMatcher.find()) {
-                    continue;
-                }
-                String status = statusMatcher.group(1).toLowerCase(java.util.Locale.ROOT);
-                if (!relevantStatuses.isEmpty() && !relevantStatuses.contains(status)) {
-                    continue;
-                }
-                String projectName = extractProjectName(message);
-                String category = extractCategory(message);
-                String url = "https://landscape.cncf.io/?item=" + projectName.replace(' ', '-').toLowerCase(java.util.Locale.ROOT);
-                LocalDateTime date = parseTimestamp(
-                        commit.path("commit").path("committer").path("date").asText(""));
-                result.add(new CncfProjectUpdate(projectName, category,
-                        status.substring(0, 1).toUpperCase(java.util.Locale.ROOT) + status.substring(1),
-                        message.split("\n")[0].trim(), url, date));
+                parseCommit(commit, relevantStatuses).ifPresent(result::add);
             }
             return result;
         } catch (Exception e) {
@@ -106,13 +92,33 @@ public class CncfLandscapeAdapter {
         }
     }
 
+    private Optional<CncfProjectUpdate> parseCommit(JsonNode commit, Set<String> relevantStatuses) {
+        String message = commit.path("commit").path("message").asText("");
+        Matcher statusMatcher = STATUS_PATTERN.matcher(message);
+        if (!statusMatcher.find()) {
+            return Optional.empty();
+        }
+        String status = statusMatcher.group(1).toLowerCase(java.util.Locale.ROOT);
+        if (!relevantStatuses.isEmpty() && !relevantStatuses.contains(status)) {
+            return Optional.empty();
+        }
+        String projectName = extractProjectName(message);
+        String category = extractCategory(message);
+        String url = "https://landscape.cncf.io/?item=" + projectName.replace(' ', '-').toLowerCase(java.util.Locale.ROOT);
+        LocalDateTime date = parseTimestamp(
+                commit.path("commit").path("committer").path("date").asText(""));
+        return Optional.of(new CncfProjectUpdate(projectName, category,
+                status.substring(0, 1).toUpperCase(java.util.Locale.ROOT) + status.substring(1),
+                message.split("\n")[0].trim(), url, date));
+    }
+
     private String extractProjectName(String message) {
         Matcher m = PROJECT_PATTERN.matcher(message);
         if (m.find()) {
             return m.group(1);
         }
         String firstLine = message.split("\n")[0].trim();
-        String name = firstLine.replaceAll("^(?:Add|Update|Move|Promote)\\s+(?:the\\s+)?(?:CNCF\\s+)?(?:project\\s+)?", "");
+        String name = firstLine.replaceAll("^(?:Add|Update|Move|Promote)\\s++(?:the\\s++)?(?:CNCF\\s++)?(?:project\\s++)?", "");
         name = name.replaceAll("\\s+to\\s+(?:sandbox|incubating|graduated|archived).*$", "").trim();
         if (name.length() > 60) {
             name = name.substring(0, 60);
@@ -142,7 +148,7 @@ public class CncfLandscapeAdapter {
         }
         try {
             return LocalDateTime.parse(raw, DateTimeFormatter.ISO_DATE_TIME);
-        } catch (Exception e) {
+        } catch (Exception _) {
             return null;
         }
     }

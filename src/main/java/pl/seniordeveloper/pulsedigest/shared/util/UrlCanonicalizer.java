@@ -45,7 +45,7 @@ public final class UrlCanonicalizer {
             }
             String stripped = stripTracking(uri.getRawQuery());
             return rebuild(uri, stripped);
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException _) {
             return url;
         }
     }
