@@ -119,7 +119,7 @@ public class CncfLandscapeAdapter {
         }
         String firstLine = message.split("\n")[0].trim();
         String name = firstLine.replaceAll("^(?:Add|Update|Move|Promote)\\s++(?:the\\s++)?(?:CNCF\\s++)?(?:project\\s++)?", "");
-        name = name.replaceAll("\\s+to\\s+(?:sandbox|incubating|graduated|archived).*$", "").trim();
+        name = name.replaceAll("\\bto\\s++(?:sandbox|incubating|graduated|archived).*$", "").trim();
         if (name.length() > 60) {
             name = name.substring(0, 60);
         }

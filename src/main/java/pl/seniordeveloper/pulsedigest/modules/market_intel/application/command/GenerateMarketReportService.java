@@ -26,8 +26,8 @@ public class GenerateMarketReportService {
 
     public synchronized Result<String, MarketIntelError> handle(GenerateMarketReportCommand command) {
         Result<Void, MarketIntelError> rateLimit = enforceRateLimit();
-        if (rateLimit instanceof Result.Failure<Void, MarketIntelError> failure) {
-            return Result.failure(failure.error());
+        if (rateLimit instanceof Result.Failure(var error)) {
+            return Result.failure(error);
         }
 
         ReportJob job = ReportJob.pending(command.jobId());

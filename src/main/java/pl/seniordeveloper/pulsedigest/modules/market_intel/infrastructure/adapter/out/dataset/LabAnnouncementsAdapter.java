@@ -46,20 +46,21 @@ public class LabAnnouncementsAdapter {
             Pattern.DOTALL);
     private static final Pattern JSONLD_DATE = Pattern.compile(
             "\"datePublished\"\\s*:\\s*\"([^\"]+)\"");
-    // Reluctant [^>]+? (not greedy) matches up to the first attribute inside one <meta> tag and
-    // avoids the super-linear backtracking greedy [^>]+ triggers on long tags.
+    // Reluctant, length-bounded [^>]{1,300}? matches up to the first attribute inside one <meta> tag.
+    // The bound keeps backtracking linear (an unbounded reluctant gap is still polynomial on tags
+    // that never reach the required attribute); 300 chars far exceeds any real <meta> attribute list.
     private static final Pattern OG_TITLE = Pattern.compile(
-            "<meta[^>]+?property=\"og:title\"[^>]+?content=\"([^\"]+)\""
-                    + "|<meta[^>]+?content=\"([^\"]+)\"[^>]+?property=\"og:title\"",
+            "<meta[^>]{1,300}?property=\"og:title\"[^>]{1,300}?content=\"([^\"]+)\""
+                    + "|<meta[^>]{1,300}?content=\"([^\"]+)\"[^>]{1,300}?property=\"og:title\"",
             Pattern.CASE_INSENSITIVE);
     private static final Pattern META_DESCRIPTION = Pattern.compile(
-            "<meta[^>]+?name=\"description\"[^>]+?content=\"([^\"]+)\""
-                    + "|<meta[^>]+?content=\"([^\"]+)\"[^>]+?name=\"description\"",
+            "<meta[^>]{1,300}?name=\"description\"[^>]{1,300}?content=\"([^\"]+)\""
+                    + "|<meta[^>]{1,300}?content=\"([^\"]+)\"[^>]{1,300}?name=\"description\"",
             Pattern.CASE_INSENSITIVE);
     // developers.openai.com card: link, then a short date, title (line-clamp-2), description (line-clamp-3).
     private static final Pattern OPENAI_CARD = Pattern.compile(
             "href=\"(/blog/[a-z0-9-]+)\""
-                    + ".{0,800}?text-secondary[^>]*>([A-Z][a-z]{2} \\d{1,2})</div>"
+                    + ".{0,800}?text-secondary[^>]*>([A-Za-z]{3} \\d{1,2})</div>"
                     + ".{0,300}?line-clamp-2\">([^<]+)</div>"
                     + "(?:.{0,300}?line-clamp-3[^>]*>([^<]*)</p>)?",
             Pattern.DOTALL);

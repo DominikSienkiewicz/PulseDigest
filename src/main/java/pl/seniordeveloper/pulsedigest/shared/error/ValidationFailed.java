@@ -8,7 +8,7 @@ import java.util.List;
 public record ValidationFailed(String code, String message, List<FieldError> fieldErrors)
         implements DomainError {
 
-    private static final String CODE = "VALIDATION_FAILED";
+    private static final String DEFAULT_CODE = "VALIDATION_FAILED";
 
     public ValidationFailed {
         java.util.Objects.requireNonNull(code, "Error code cannot be null");
@@ -18,16 +18,16 @@ public record ValidationFailed(String code, String message, List<FieldError> fie
 
     public static ValidationFailed of(String field, String message) {
         return new ValidationFailed(
-                CODE, "Validation failed", List.of(new FieldError(field, message)));
+                DEFAULT_CODE, "Validation failed", List.of(new FieldError(field, message)));
     }
 
     public static ValidationFailed of(List<FieldError> errors) {
         return new ValidationFailed(
-                CODE, "Validation failed for " + errors.size() + " field(s)", errors);
+                DEFAULT_CODE, "Validation failed for " + errors.size() + " field(s)", errors);
     }
 
     public static ValidationFailed single(String message) {
-        return new ValidationFailed(CODE, message, List.of());
+        return new ValidationFailed(DEFAULT_CODE, message, List.of());
     }
 
     public record FieldError(String field, String message) {

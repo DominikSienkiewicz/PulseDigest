@@ -35,8 +35,8 @@ public class DigestRunner implements ApplicationRunner {
         Result<String, MarketIntelError> startResult =
                 generateService.handle(new GenerateMarketReportCommand(jobId));
 
-        if (startResult instanceof Result.Failure<String, MarketIntelError> failure) {
-            log.error("Pipeline rejected: {}", failure.error().message());
+        if (startResult instanceof Result.Failure(var error)) {
+            log.error("Pipeline rejected: {}", error.message());
             System.exit(1);
             return;
         }
