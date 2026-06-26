@@ -50,6 +50,6 @@ class DigestRunnerTest {
     }
 
     private static ReportData emptyReport() {
-        return new ReportData(null, null, null, null, null, null);
+        return new ReportData(null, null, null, null, null);
     }
 }

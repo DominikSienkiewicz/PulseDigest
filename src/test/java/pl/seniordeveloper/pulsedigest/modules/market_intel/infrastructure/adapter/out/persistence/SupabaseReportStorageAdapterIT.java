@@ -15,7 +15,6 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.DigestItem;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.PersistedReport;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportData;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TrendInsight;
 
 import javax.sql.DataSource;
 import java.nio.charset.StandardCharsets;
@@ -100,27 +99,11 @@ class SupabaseReportStorageAdapterIT {
         assertThat(rowCount).isEqualTo(1);
     }
 
-    @Test
-    void roundTripsTrendsInsidePayload() {
-        ReportData reportData = new ReportData(
-                "preview", "editorial", List.of("insight"),
-                List.of(new DigestItem("t", "u", "src", "Cat", "RELEASE", 9, 100, "sum", "why")),
-                List.of(new TrendInsight("Security/Privacy", 3, "narr", List.of("a", "b")))
-        );
-        adapter.save(new PersistedReport(reportData, "job-trends",
-                Instant.parse("2026-05-04T10:00:00Z"), 10, 5, 2));
-
-        PersistedReport loaded = adapter.getLatest().orElseThrow();
-        assertThat(loaded.report().trends()).hasSize(1);
-        assertThat(loaded.report().trends().getFirst().narrative()).isEqualTo("narr");
-    }
-
     private static PersistedReport sampleReport(String jobId, Instant generatedAt) {
         ReportData data = new ReportData(
                 "preview", "editorial", List.of("i1"),
                 List.of(new DigestItem("title", "https://x", "Twitter",
-                        "AI/LLM", "RELEASE", 8, 50, "sum", "why")),
-                List.of()
+                        "AI/LLM", "RELEASE", 8, 50, "sum", "why"))
         );
         return new PersistedReport(data, jobId, generatedAt, 10, 0, 0);
     }

@@ -26,7 +26,6 @@ import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.RssProperties
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.SocialProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.SecurityAdvisoriesProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.TechnologyRadarProperties;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.TrendProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.TwitterProperties;
 
 @SpringBootApplication
@@ -42,7 +41,6 @@ import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.TwitterProper
         RedditProperties.class,
         ArxivProperties.class,
         GithubReleasesProperties.class,
-        TrendProperties.class,
         HuggingFaceProperties.class,
         ProductHuntProperties.class,
         SecurityAdvisoriesProperties.class,

@@ -24,7 +24,6 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.TechD
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -179,7 +178,6 @@ class GenerateMarketReportProcessorTest {
                 synthesisPort,
                 storagePort,
                 emailPort,
-                Optional.empty(),
                 new SignalScoringService(),
                 techDemandNarrator,
                 feedbackPort,

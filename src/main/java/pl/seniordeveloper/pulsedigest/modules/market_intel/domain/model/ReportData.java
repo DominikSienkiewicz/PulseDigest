@@ -7,8 +7,8 @@ import pl.seniordeveloper.pulsedigest.shared.util.UrlCanonicalizer;
 import java.util.List;
 
 /**
- * Wynik syntezy digest: editorial lead, top-3 insights dnia, lista ocenionych itemów,
- * opcjonalne trendy oraz sygnały z ocenami cross-source.
+ * Wynik syntezy digest: editorial lead, top-3 insights dnia, lista ocenionych itemów
+ * oraz sygnały z ocenami cross-source.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record ReportData(
@@ -16,27 +16,16 @@ public record ReportData(
         String editorial,
         @JsonProperty("top_insights") List<String> topInsights,
         List<DigestItem> items,
-        List<TrendInsight> trends,
         List<Signal> signals
 ) {
 
-    /** Convenience constructor — no trends, no signals (used by LLM deserialization). */
+    /** Convenience constructor — no signals (used by LLM deserialization and tests). */
     public ReportData(String emailPreview, String editorial, List<String> topInsights, List<DigestItem> items) {
-        this(emailPreview, editorial, topInsights, items, List.of(), List.of());
-    }
-
-    /** Convenience constructor — no signals (used in tests and trend enrichment). */
-    public ReportData(String emailPreview, String editorial,
-                      List<String> topInsights, List<DigestItem> items, List<TrendInsight> trends) {
-        this(emailPreview, editorial, topInsights, items, trends, List.of());
-    }
-
-    public ReportData withTrends(List<TrendInsight> newTrends) {
-        return new ReportData(emailPreview, editorial, topInsights, items, newTrends, signals);
+        this(emailPreview, editorial, topInsights, items, List.of());
     }
 
     public ReportData withSignals(List<Signal> newSignals) {
-        return new ReportData(emailPreview, editorial, topInsights, items, trends, newSignals);
+        return new ReportData(emailPreview, editorial, topInsights, items, newSignals);
     }
 
     /**
@@ -54,6 +43,6 @@ public record ReportData(
                         i.source(), i.category(), i.type(),
                         i.score(), i.engagementScore(), i.summary(), i.whyItMatters()))
                 .toList();
-        return new ReportData(emailPreview, editorial, topInsights, cleaned, trends, signals);
+        return new ReportData(emailPreview, editorial, topInsights, cleaned, signals);
     }
 }

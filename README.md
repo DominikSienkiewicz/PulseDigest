@@ -1,7 +1,7 @@
 # 🚀 PulseDigest
 **Architected & Developed by [Dominik](https://www.linkedin.com/in/dominik-sienkiewicz/)** *Principal AI Engineer | Full Stack Architect*
 
-Headless batch application that collects tech news from 16 sources three times a week (Mon/Wed/Fri), scores items with GPT-4o, **detects cross-source signals** (the same topic surfacing in Science + Code + Business = 🔴 Critical Trend), **detects recurring trends across the last 7 days** (Supabase-backed history), tracks per-source health, and delivers a tier'd, prioritized digest to your inbox — with a must-know hero block, deals & tools, critical trends, top picks, signals, and a weekly trend section.
+Headless batch application that collects tech news from 16 sources three times a week (Mon/Wed/Fri), scores items with GPT-4o, **detects cross-source signals** (the same topic surfacing in Science + Code + Business = 🔴 Critical Trend), tracks per-source health, and delivers a tier'd, prioritized digest to your inbox — with a must-know hero block, deals & tools, critical trends, top picks, and signals.
 
 ![Java 26](https://img.shields.io/badge/Java-26-red?style=for-the-badge&logo=openjdk&logoColor=white)
 ![Spring Boot 4.1](https://img.shields.io/badge/Spring_Boot-4.1.0--SNAPSHOT-green?style=for-the-badge&logo=springboot&logoColor=white)
@@ -21,13 +21,13 @@ Twitter/X             ──┐
 Hacker News             ┤
 GitHub                  ┤
 RSS feeds (30)          ┤
-Reddit (8 subs)         ┤                                            ┌─► trend_analytics ─┐
-arXiv                   ┤                                            │   (last 7 days from │
-GitHub Releases         ┤                                            │   Supabase + LLM   │
-Hugging Face Hub        ├─► MarketResearchService ─► GPT-4o synth ──┤   narratives)      ├─► Supabase save
-Product Hunt            ┤   (parallel fetch,         (score 1-10,    │                    │   ↓
-GitHub Advisories       ┤    URL canonicalization,    category, type,│                    │   Resend email
-OpenJDK JEP             ┤    2-10 day window)         editorial, PL)  └────────────────────┘
+Reddit (8 subs)         ┤
+arXiv                   ┤
+GitHub Releases         ┤
+Hugging Face Hub        ├─► MarketResearchService ─► GPT-4o synth ──► Supabase save ─► Resend email
+Product Hunt            ┤   (parallel fetch,         (score 1-10,
+GitHub Advisories       ┤    URL canonicalization,    category, type,
+OpenJDK JEP             ┤    2-10 day window)         editorial, PL)
 CNCF Landscape          ┤
 Tech Radar              ┤
 YouTube Conferences     ┤
@@ -39,10 +39,9 @@ Social (Bsky/Mastodon)  ┘
 2. **Canonicalize URLs** — strip tracking params (`utm_*`, `fbclid`, `gclid`, etc.) right after fetch, before LLM sees anything. Prevents duplicate items from same article via different campaigns and avoids leaking our UTMs to advertisers when readers click.
 3. **Score** — `ReportPromptBuilder` first suppresses items by URL — **cross-edition duplicates** (already published in an edition from the last `dedup.lookback-days` days, read from the `reports` table) and **reader down-votes** (🟥 "less like this" feedback from the last `feedback.lookback-days` days, read from the `feedback` table) — so the wider lookback windows don't re-surface the same item and the reader can mute things; both cover every source incl. tweets. It then selects up to 100 items using per-source caps and a **weighted pre-score** (`round(sourceWeight×100) + min(50, engagement/1000)`) to resolve overflow: a low-engagement GitHub Releases item (pre-score=95) survives over a viral tweet (max pre-score=90). Source weights are tuned to the reader's profile — usable tools/launches (Product Hunt, Hugging Face) and stack releases rank above research papers (arXiv demoted). GPT-4o then deduplicates, scores each surviving item 1–10 for an AI-native architect profile (returning **only score ≥ 6** — quality over quantity), assigns a **category** (topic) and **type** (signal kind, incl. `PROMOTION` for deals), and writes a 1–2 sentence Polish summary plus a one-sentence **`why_it_matters`** action line.
 4. **Synthesize** — GPT-4o produces an editorial lead (meta-thesis of the day) + top-3 insights + email preheader text. Token `usage` is logged per call for cost visibility; a response truncated at the token cap (`finish_reason=length`) fails fast with an actionable error instead of a cryptic JSON-parse failure. The system prompt instructs the model to treat all scraped item text as untrusted data, never as instructions (prompt-injection defense).
-5. **Trend enrichment** — `trend_analytics` module reads the last 7 days of reports from Supabase (JSONB query), counts recurring categories with frequency analysis, runs **one batched GPT-4o-mini call** to generate 1-sentence narratives ("trzeci dzień z rzędu CVE w popularnych narzędziach"), and adds them to the report. Graceful — if history is empty or LLM fails, mail still ships without the trend section.
-6. **Signal scoring** — `SignalScoringService` groups items by LLM-assigned category, resolves each source to a domain type (`SCIENCE` / `CODE` / `BUSINESS` / `SOCIAL` / `SECURITY`), and computes a deterministic score: `round(sourceWeight × 100) + min(50, engagement / 1000)`, where `sourceWeight` is the base credibility weight **nudged by accumulated reader feedback** (see the **Feedback loop** section). Categories that surface across **3+ distinct source domains** in the same digest receive a +50 cross-source bonus and are promoted to 🔴 **CRITICAL**. Every item is wrapped in a `Signal` with rank `CRITICAL → STRONG → MODERATE → WEAK`. Output: `List<Signal>` sorted by rank then score descending.
-7. **Persist** — full enriched `PersistedReport` saved to Supabase (`reports` table, JSONB payload) for tomorrow's trend analysis to read. Job status moves through `GENERATED → PERSISTED`.
-8. **Deliver** — HTML email via Resend with a CV-targeted layout: ⚡ Must-know (top items + `why_it_matters`) · 🛠️ Deals & Tools · 🔴 Critical Trends · 🔄 Weekly trends · ⭐ Top picks (score ≥ 8) · 🔌 Signals (6–7). Both item tiers render the same full table — title, summary, category, type badge, source, engagement, score — differentiated only by header style and row background; items below score 6 are dropped (no long-tail padding). Every article link is scheme-allow-listed (only `http`/`https`; a `javascript:`/`data:` URL slipped in via scraped content collapses to `#`). The process exits successfully only after Resend confirms delivery (`DELIVERED`); email failure becomes `EMAIL_FAILED`.
+5. **Signal scoring** — `SignalScoringService` groups items by LLM-assigned category, resolves each source to a domain type (`SCIENCE` / `CODE` / `BUSINESS` / `SOCIAL` / `SECURITY`), and computes a deterministic score: `round(sourceWeight × 100) + min(50, engagement / 1000)`, where `sourceWeight` is the base credibility weight **nudged by accumulated reader feedback** (see the **Feedback loop** section). Categories that surface across **3+ distinct source domains** in the same digest receive a +50 cross-source bonus and are promoted to 🔴 **CRITICAL**. Every item is wrapped in a `Signal` with rank `CRITICAL → STRONG → MODERATE → WEAK`. Output: `List<Signal>` sorted by rank then score descending.
+6. **Persist** — full `PersistedReport` saved to Supabase (`reports` table, JSONB payload) for cross-edition dedup on later runs to read. Job status moves through `GENERATED → PERSISTED`.
+7. **Deliver** — HTML email via Resend with a CV-targeted layout: ⚡ Must-know (top items + `why_it_matters`) · 🛠️ Deals & Tools · 🔴 Critical Trends · ⭐ Top picks (score ≥ 8) · 🔌 Signals (6–7). Both item tiers render the same full table — title, summary, category, type badge, source, engagement, score — differentiated only by header style and row background; items below score 6 are dropped (no long-tail padding). Every article link is scheme-allow-listed (only `http`/`https`; a `javascript:`/`data:` URL slipped in via scraped content collapses to `#`). The process exits successfully only after Resend confirms delivery (`DELIVERED`); email failure becomes `EMAIL_FAILED`.
 
 ## Sources
 
@@ -103,7 +102,6 @@ The delivered HTML email is a structured digest, not just a link list:
 - **⚡ Must-know** — hero block: the up-to-5 highest-score items (score ≥ 7), each with a one-sentence **"why it matters to you"** action line generated against the reader's profile (`why_it_matters`). When `feedback.receiver-url` is set, each item also carries 👍/👎 links (the feedback loop, see below). The "if you read nothing else" section. Skipped when no item clears the bar.
 - **🔑 Top insights** — top-3 takeaways extracted from the day.
 - **🛠️ Deals & Tools** — up-to-5 adoptable items of type `LAUNCH` / `RELEASE` / `FEATURE` / `PROMOTION` (score ≥ 6): new tools the reader can use and deals/offers worth claiming. Skipped when none qualify.
-- **🔄 Weekly trends** — recurring categories from the last 7 days with LLM-generated narratives ("Trzeci dzień z rzędu CVE…"). Skipped if history is empty or no category passes the `min-occurrences` threshold.
 - **📈 Puls rynku (tech-demand pulse)** — demand ranking from the monthly HN "Who is hiring?" thread, computed **outside** the core item budget. Shows: a one-line **LLM interpretation**; technologies by **share of hiring posts** with month-over-month **▲/▼ delta** (e.g. "Python 26% ▲3 · TypeScript 23% ▼1 · Rust 9% ▲4"); a **"Twój stack"** line with demand for the reader's own JVM/Python-AI core (`tech-demand.priority-technologies`) even when outside the top ranking; and a "vs <prev month>" footnote. The delta is stateless — the adapter also fetches the **previous** month's thread and compares share in percentage points. Shown only in the ~week after a new monthly thread drops (`tech-demand.lookback-days`), then absent — so it never repeats every run. Off when no technology clears `min-mentions`.
 - **🔴 Critical Trends** — items whose LLM-assigned category appears in 3+ distinct source domains (e.g., Science + Code + Business) in the current digest. Red-bordered block with domain labels. Skipped when no CRITICAL signals are present.
 - **⭐ Top picks** — score ≥ 8, white background.
@@ -143,13 +141,13 @@ The receiver itself lives outside this repo (the batch only ever *reads* feedbac
 - **Gradle 9** (Kotlin DSL)
 - **Project Loom** — Virtual Threads for all I/O
 
-Architecture follows [Hexagonal (Ports & Adapters)](docs/adr/0002-hexagonal-architecture.md). Two bounded contexts: `market_intel` (fetching + scoring + persistence) and `trend_analytics` (historical analysis). Cross-module wiring via inverted port (`ReportEnrichmentPort` defined in `market_intel/domain`, implemented by `trend_analytics/infrastructure` — strzałka zależności idzie tylko w jedną stronę).
+Architecture follows [Hexagonal (Ports & Adapters)](docs/adr/0002-hexagonal-architecture.md). One bounded context: `market_intel` (fetching + scoring + persistence + delivery). The domain depends only on its own ports; Spring adapters in `infrastructure` implement them and the dependency arrow points inward only (`infrastructure → application → domain`).
 
 ## Prerequisites
 
 - JDK 26 (Oracle EA or Temurin)
 - Twitter API v2 Bearer Token
-- OpenAI API key (GPT-4o + GPT-4o-mini for trend narratives)
+- OpenAI API key (GPT-4o + GPT-4o-mini for the tech-demand narrative)
 - Resend account + API key
 - Supabase project (free tier — Postgres for report history)
 - Docker Desktop (for Testcontainers when running `./gradlew test`)
@@ -268,10 +266,6 @@ defaults, not per-environment knobs.
 | `product-hunt.lookback-hours`  | `80`                     | Product Hunt launch age window                     |
 | `security-advisories.lookback-hours` | `72`               | Security Advisory age window                       |
 | `security-advisories.limit`    | `20`                     | Max advisories fetched per run                     |
-| `trend.enabled`                | `true`                   | Toggle trend section in email                      |
-| `trend.lookback-days`          | `7`                      | History window for trend detection                 |
-| `trend.min-occurrences`        | `2`                      | Minimum category occurrences to qualify as a trend |
-| `trend.max-clusters`           | `5`                      | Max trend clusters shown in email                  |
 | `tech-demand.enabled`          | `true`                   | Toggle the 📈 tech-demand pulse                    |
 | `tech-demand.lookback-days`    | `7`                      | Render only when HN Who-is-hiring thread is this fresh |
 | `tech-demand.max-comments`     | `1000`                   | Cap on hiring posts (comments) analyzed            |

@@ -402,12 +402,6 @@ report:
     max-results: 20
     lookback-hours: 80         # było 48 — daily-shaped okno gubiło treść w gapie Fri->Mon (72h)
 
-  trend:
-    enabled: true
-    lookback-days: 7
-    min-occurrences: 2
-    max-clusters: 5
-
   github-releases:
     lookback-hours: 80         # było 72 — dorównać max gap (72h) + margines, by release nie wypadł
     repositories:

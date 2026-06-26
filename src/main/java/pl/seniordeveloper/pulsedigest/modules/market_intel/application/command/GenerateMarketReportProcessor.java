@@ -22,7 +22,6 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceFe
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.EmailDeliveryPort;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.FeedbackPort;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.LlmSynthesisPort;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.ReportEnrichmentPort;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.ReportStoragePort;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.TechDemandNarratorPort;
 
@@ -37,8 +36,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * Runs the end-to-end market report pipeline synchronously: research → synthesis → enrichment →
- * scoring → persistence → email delivery. Each terminal outcome (DELIVERED / EMAIL_FAILED / ERROR)
+ * Runs the end-to-end market report pipeline synchronously: research → synthesis → scoring →
+ * persistence → email delivery. Each terminal outcome (DELIVERED / EMAIL_FAILED / ERROR)
  * is recorded in the job tracker so the caller can map it to a process exit code.
  */
 @Slf4j
@@ -51,7 +50,6 @@ public class GenerateMarketReportProcessor {
     private final LlmSynthesisPort synthesisPort;
     private final ReportStoragePort storagePort;
     private final EmailDeliveryPort emailPort;
-    private final Optional<ReportEnrichmentPort> enrichmentPort;
     private final SignalScoringService signalScoringService;
     private final TechDemandNarratorPort techDemandNarrator;
     private final FeedbackPort feedbackPort;
@@ -89,18 +87,12 @@ public class GenerateMarketReportProcessor {
             ReportData report = synthesisPort.synthesize(research);
             ReportData cleaned = report.withCanonicalizedUrls();
 
-            ReportData enriched = enrichmentPort.map(p -> p.enrich(cleaned)).orElse(cleaned);
-            if (enriched != cleaned) {
-                int trendCount = enriched.trends() != null ? enriched.trends().size() : 0;
-                log.info("[{}] Report enriched with {} trend cluster(s)", jobId, trendCount);
-            }
-
             Map<String, Integer> netVotesBySource = feedbackNudgePolicy.enabled()
                     ? feedbackPort.netVotesBySource(feedbackNudgePolicy.lookbackDays())
                     : Map.of();
             List<Signal> signals = signalScoringService.score(
-                    enriched.items() != null ? enriched.items() : List.of(), netVotesBySource);
-            ReportData finalReport = enriched.withSignals(signals);
+                    cleaned.items() != null ? cleaned.items() : List.of(), netVotesBySource);
+            ReportData finalReport = cleaned.withSignals(signals);
             long criticalCount = signals.stream().filter(Signal::isCriticalTrend).count();
             log.info("[{}] Signal scoring: {} signals ({} CRITICAL)", jobId, signals.size(), criticalCount);
 

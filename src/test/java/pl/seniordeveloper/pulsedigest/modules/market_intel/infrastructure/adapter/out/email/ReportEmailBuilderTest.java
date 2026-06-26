@@ -12,7 +12,6 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceDo
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceFetchReport;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TechDemandEntry;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TechDemandSignal;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TrendInsight;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.FeedbackProperties;
 
 import java.time.LocalDateTime;
@@ -37,7 +36,6 @@ class ReportEmailBuilderTest {
                 .contains("PulseDigest")
                 .contains("Top insights dnia")
                 .contains("Krytyczne trendy")
-                .contains("W tym tygodniu wraca")
                 .contains("Top picks (1)")
                 .contains("Signals (2)")
                 .contains("z ostrze")
@@ -100,7 +98,7 @@ class ReportEmailBuilderTest {
 
     @Test
     void buildHtmlHandlesEmptyOptionalSections() {
-        ReportData report = new ReportData(null, null, null, null, null, null);
+        ReportData report = new ReportData(null, null, null, null, null);
 
         String html = builder.buildHtml(report, null);
 
@@ -216,7 +214,6 @@ class ReportEmailBuilderTest {
                 "Editorial lead",
                 List.of("Insight one"),
                 List.of(top, strong, moderate, weak),
-                List.of(new TrendInsight("Java", 3, "Trend narrative", List.of("Example A", "Example B"))),
                 List.of(
                         new Signal(top, SignalRank.CRITICAL, 120,
                                 List.of(SourceDomain.CODE, SourceDomain.SCIENCE, SourceDomain.BUSINESS)),

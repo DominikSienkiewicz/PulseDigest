@@ -12,7 +12,6 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceFe
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceFetchStatus;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TechDemandEntry;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TechDemandSignal;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TrendInsight;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.FeedbackProperties;
 
 import java.time.ZoneOffset;
@@ -57,7 +56,6 @@ public class ReportEmailBuilder {
                 : "Twój digest tech news z ostatnich kilku dni";
         List<String> insights = report.topInsights() != null ? report.topInsights() : List.of();
         List<DigestItem> items = report.items() != null ? report.items() : List.of();
-        List<TrendInsight> trends = report.trends() != null ? report.trends() : List.of();
         List<Signal> signals = report.signals() != null ? report.signals() : List.of();
         String editorial = report.editorial();
 
@@ -85,7 +83,6 @@ public class ReportEmailBuilder {
                 + buildInsightsSection(insights)
                 + DigestHighlightBuilder.buildDealsAndToolsSection(items)
                 + buildCriticalTrendsSection(criticals)
-                + buildTrendsSection(trends)
                 + buildTechDemandSection(research != null ? research.techDemand() : null)
                 + buildItemsSection(items, rankByUrl)
                 + buildFooter(items.size(), research)
@@ -169,47 +166,6 @@ public class ReportEmailBuilder {
         }
         sb.append(CLOSE_LIST_DIV);
         return sb.toString();
-    }
-
-    private String buildTrendsSection(List<TrendInsight> trends) {
-        if (trends == null || trends.isEmpty()) {
-            return "";
-        }
-        StringBuilder sb = new StringBuilder();
-        sb.append("<div style=\"padding:20px 28px;background:#f5f3ff;"
-                + "border-bottom:1px solid #ede9fe\">");
-        sb.append("<h2 style=\"color:#5b21b6;font-size:15px;margin:0 0 10px\">")
-                .append("&#128260; W tym tygodniu wraca</h2>");
-        sb.append("<ul style=\"margin:0;padding-left:20px;color:#4c1d95;"
-                + "font-size:14px;line-height:1.7;list-style:none\">");
-        for (TrendInsight t : trends) {
-            String narrative = t.narrative() != null && !t.narrative().isBlank()
-                    ? " &mdash; " + escapeHtml(t.narrative()) : "";
-            sb.append("<li style=\"margin-bottom:8px\">")
-                    .append("<strong>").append(escapeHtml(t.category())).append("</strong>")
-                    .append(" <span style=\"color:#7c3aed;font-weight:600\">&times;")
-                    .append(t.occurrences()).append(CLOSE_SPAN)
-                    .append(narrative);
-            appendTrendExamples(sb, t);
-            sb.append(CLOSE_LI);
-        }
-        sb.append(CLOSE_LIST_DIV);
-        return sb.toString();
-    }
-
-    private void appendTrendExamples(StringBuilder sb, TrendInsight t) {
-        if (t.exampleTitles() == null || t.exampleTitles().isEmpty()) {
-            return;
-        }
-        sb.append("<div style=\"color:#6b21a8;font-size:12px;margin-top:2px;")
-                .append("opacity:.85\">np. ");
-        for (int i = 0; i < t.exampleTitles().size() && i < 2; i++) {
-            if (i > 0) {
-                sb.append(MIDDOT);
-            }
-            sb.append(escapeHtml(t.exampleTitles().get(i)));
-        }
-        sb.append(CLOSE_DIV);
     }
 
     // Monthly job-market demand pulse (HN "Who is hiring?"). Rendered only when a fresh signal exists.

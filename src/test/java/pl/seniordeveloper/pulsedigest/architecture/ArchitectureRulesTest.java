@@ -40,16 +40,6 @@ final class ArchitectureRulesTest {
         FORBIDDEN_LOMBOK_ANNOTATIONS_ARE_NOT_USED.check(productionClasses());
     }
 
-    @Test
-    void marketIntelDoesNotDependOnTrendAnalyticsInternals() {
-        MARKET_INTEL_DOES_NOT_DEPEND_ON_TREND_ANALYTICS_INTERNALS.check(importedClasses());
-    }
-
-    @Test
-    void trendAnalyticsDoesNotDependOnMarketIntelApplicationOrInfrastructure() {
-        TREND_ANALYTICS_DOES_NOT_DEPEND_ON_MARKET_INTEL_APPLICATION_OR_INFRASTRUCTURE.check(importedClasses());
-    }
-
     private JavaClasses importedClasses() {
         return new ClassFileImporter().importPackages("pl.seniordeveloper.pulsedigest");
     }
@@ -105,30 +95,5 @@ final class ArchitectureRulesTest {
             .orShould().dependOnClassesThat().haveFullyQualifiedName("lombok.experimental.UtilityClass")
             .orShould().dependOnClassesThat().haveFullyQualifiedName("lombok.SneakyThrows")
             .because("CLAUDE.md forbids @Data, @UtilityClass, @SneakyThrows — prefer records or explicit code");
-
-    /**
-     * Cross-module isolation: market_intel learns about trend_analytics only via the inverted
-     * {@code ReportEnrichmentPort} (defined in market_intel/domain, implemented by
-     * trend_analytics/infrastructure). Any direct import of trend_analytics application or
-     * infrastructure types from market_intel would break that inversion.
-     */
-    private static final ArchRule MARKET_INTEL_DOES_NOT_DEPEND_ON_TREND_ANALYTICS_INTERNALS = noClasses()
-            .that().resideInAPackage("..modules.market_intel..")
-            .should().dependOnClassesThat().resideInAnyPackage(
-                    "..modules.trend_analytics.application..",
-                    "..modules.trend_analytics.infrastructure..")
-            .because("market_intel must only depend on trend_analytics via the domain port it owns");
-
-    /**
-     * Symmetric guard: trend_analytics consumes market_intel's domain (DigestItem, ReportData,
-     * ReportEnrichmentPort) but must not reach into its application services or adapters.
-     */
-    private static final ArchRule TREND_ANALYTICS_DOES_NOT_DEPEND_ON_MARKET_INTEL_APPLICATION_OR_INFRASTRUCTURE =
-            noClasses()
-                    .that().resideInAPackage("..modules.trend_analytics..")
-                    .should().dependOnClassesThat().resideInAnyPackage(
-                            "..modules.market_intel.application..",
-                            "..modules.market_intel.infrastructure..")
-                    .because("cross-module wiring goes through market_intel's domain ports only");
 
 }
