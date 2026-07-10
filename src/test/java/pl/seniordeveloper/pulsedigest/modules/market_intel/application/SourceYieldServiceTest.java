@@ -2,7 +2,9 @@ package pl.seniordeveloper.pulsedigest.modules.market_intel.application;
 
 import org.junit.jupiter.api.Test;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.PastEdition;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.PastTopic;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.DigestItem;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Signal;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceDomain;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SignalRank;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceYield;
 
@@ -18,8 +20,10 @@ class SourceYieldServiceTest {
 
     private final SourceYieldService service = new SourceYieldService();
 
-    private static PastTopic topic(String source, SignalRank rank) {
-        return new PastTopic("t-" + source + rank, "Title", "https://example.com/" + source, rank, source);
+    private static Signal topic(String source, SignalRank rank) {
+        DigestItem item = new DigestItem("Title", "https://example.com/" + source + rank, source,
+                "AI/LLM", "RELEASE", 8, 10, "Summary", null, "t-" + source + rank);
+        return new Signal(item, rank, 100, List.of(SourceDomain.CODE));
     }
 
     @Test
@@ -77,8 +81,10 @@ class SourceYieldServiceTest {
 
     @Test
     void topicsWithoutASourceAreIgnoredRatherThanBucketedUnderTheEmptyString() {
-        PastEdition edition = new PastEdition(RUN, List.of(
-                new PastTopic("t", "Title", "https://example.com/x", SignalRank.CRITICAL, null)));
+        DigestItem sourceless = new DigestItem("Title", "https://example.com/x", null,
+                "AI/LLM", "RELEASE", 8, 10, "Summary", null, "t");
+        PastEdition edition = new PastEdition(RUN,
+                List.of(new Signal(sourceless, SignalRank.CRITICAL, 100, List.of(SourceDomain.CODE))));
 
         assertThat(service.scoreboard(List.of(edition))).isEmpty();
     }

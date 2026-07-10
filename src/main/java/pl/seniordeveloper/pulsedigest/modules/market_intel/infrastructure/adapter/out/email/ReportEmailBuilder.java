@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ApiAccounts;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.DigestItem;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RadarAccuracy;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportData;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ResearchResult;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Signal;
@@ -115,8 +116,8 @@ public class ReportEmailBuilder {
         String editorial = report.editorial();
 
         List<Signal> criticals = signals.stream().filter(Signal::isCriticalTrend).toList();
-        Map<String, SignalRank> rankByUrl = signals.stream()
-                .collect(Collectors.toMap(s -> s.item().url(), Signal::rank, (a, b) -> a));
+        Map<String, Signal> signalByUrl = signals.stream()
+                .collect(Collectors.toMap(s -> s.item().url(), s -> s, (a, b) -> a));
 
         List<SourceFetchReport> exhausted = research != null
                 ? research.sourceFetchReports().stream().filter(SourceFetchReport::isQuotaExhausted).toList()
@@ -141,8 +142,8 @@ public class ReportEmailBuilder {
                 + WeeklyRecapBuilder.buildWeeklyRecapSection(report.weeklyRecap())
                 + WatchlistBuilder.buildWatchlistSection(scanWatchlist(research))
                 + buildTechDemandSection(research != null ? research.techDemand() : null)
-                + buildItemsSection(items, rankByUrl)
-                + buildFooter(items.size(), research)
+                + buildItemsSection(items, signalByUrl)
+                + buildFooter(items.size(), research, report.radarAccuracy())
                 + "</div></body></html>";
     }
 
@@ -341,7 +342,7 @@ public class ReportEmailBuilder {
                 + confirmations + CLOSE_DIV;
     }
 
-    private String buildItemsSection(List<DigestItem> items, Map<String, SignalRank> rankByUrl) {
+    private String buildItemsSection(List<DigestItem> items, Map<String, Signal> signalByUrl) {
         if (items.isEmpty()) {
             return "";
         }
@@ -353,12 +354,12 @@ public class ReportEmailBuilder {
                 .toList();
 
         StringBuilder sb = new StringBuilder();
-        sb.append(buildTopPicksSection(topPicks, rankByUrl));
-        sb.append(buildMidTierSection(midTier, rankByUrl));
+        sb.append(buildTopPicksSection(topPicks, signalByUrl));
+        sb.append(buildMidTierSection(midTier, signalByUrl));
         return sb.toString();
     }
 
-    private String buildTopPicksSection(List<DigestItem> items, Map<String, SignalRank> rankByUrl) {
+    private String buildTopPicksSection(List<DigestItem> items, Map<String, Signal> signalByUrl) {
         if (items.isEmpty()) {
             return "";
         }
@@ -375,14 +376,14 @@ public class ReportEmailBuilder {
         sb.append(th("Score"));
         sb.append("</tr></thead><tbody>");
         for (DigestItem item : items) {
-            sb.append(buildTopPickRow(item, rankByUrl.get(item.url())));
+            sb.append(buildTopPickRow(item, signalByUrl.get(item.url())));
         }
         sb.append("</tbody></table></div>");
         return sb.toString();
     }
 
     // Renders the "Signals" email section (LLM score 5–8); named mid-tier to avoid collision with the Signal domain type.
-    private String buildMidTierSection(List<DigestItem> items, Map<String, SignalRank> rankByUrl) {
+    private String buildMidTierSection(List<DigestItem> items, Map<String, Signal> signalByUrl) {
         if (items.isEmpty()) {
             return "";
         }
@@ -399,18 +400,18 @@ public class ReportEmailBuilder {
         sb.append(th("Score"));
         sb.append("</tr></thead><tbody>");
         for (DigestItem item : items) {
-            sb.append(buildTieredRow(item, "#fafafa", rankByUrl.get(item.url())));
+            sb.append(buildTieredRow(item, "#fafafa", signalByUrl.get(item.url())));
         }
         sb.append("</tbody></table></div>");
         return sb.toString();
     }
 
-    private String buildTopPickRow(DigestItem item, SignalRank rank) {
-        return buildRow(item, "", rank);
+    private String buildTopPickRow(DigestItem item, Signal signal) {
+        return buildRow(item, "", signal);
     }
 
-    private String buildTieredRow(DigestItem item, String rowBg, SignalRank rank) {
-        return buildRow(item, "background:" + rowBg, rank);
+    private String buildTieredRow(DigestItem item, String rowBg, Signal signal) {
+        return buildRow(item, "background:" + rowBg, signal);
     }
 
     private static String scoreColor(int score) {
@@ -423,11 +424,12 @@ public class ReportEmailBuilder {
         return "#dc2626";
     }
 
-    private String buildRow(DigestItem item, String rowStyle, SignalRank rank) {
+    private String buildRow(DigestItem item, String rowStyle, Signal signal) {
         String scoreColor = scoreColor(item.score());
         String safeUrl = safeHref(item.url());
-        String rankPrefix = rank != null ? rankEmoji(rank) : "";
-        String safeTitle = rankPrefix + escapeHtml(item.title());
+        String rankPrefix = signal != null ? rankEmoji(signal.rank()) : "";
+        String radarPrefix = TrendBadgeBuilder.candidateMarker(signal);
+        String safeTitle = rankPrefix + radarPrefix + escapeHtml(item.title());
         String safeSummary = escapeHtml(item.summary());
         String safeSource = escapeHtml(item.source());
         String safeCategory = escapeHtml(item.category() != null ? item.category() : "Other");
@@ -460,7 +462,7 @@ public class ReportEmailBuilder {
                 + "</tr>";
     }
 
-    private String buildFooter(int selectedCount, ResearchResult research) {
+    private String buildFooter(int selectedCount, ResearchResult research, RadarAccuracy radarAccuracy) {
         int rawTotal = research != null ? research.rawTotalCount() : 0;
         int sources = research != null ? research.activeSourceCount() : 0;
         long failedSources = research != null
@@ -471,6 +473,7 @@ public class ReportEmailBuilder {
                 + "color:#9ca3af;font-size:12px\">"
                 + "Wybrano " + selectedCount + " z " + rawTotal + " itemów &middot; "
                 + sources + " &#378;róde&#322;" + sourceHealth + " &middot; okno pn/śr/pt"
+                + TrendBadgeBuilder.buildRadarAccuracyLine(radarAccuracy)
                 + "<br>Wygenerowano przez GPT-4o &middot; PulseDigest"
                 + CLOSE_DIV;
     }

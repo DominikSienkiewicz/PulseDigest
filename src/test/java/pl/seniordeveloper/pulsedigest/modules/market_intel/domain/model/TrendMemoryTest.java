@@ -22,7 +22,7 @@ class TrendMemoryTest {
 
     private static PastEdition edition(Instant at, String... topicKeys) {
         return new PastEdition(at, List.of(topicKeys).stream()
-                .map(k -> new PastTopic(k, "Past title", "https://example.com/" + k, SignalRank.MODERATE))
+                .map(k -> signal(k, SignalRank.MODERATE))
                 .toList());
     }
 

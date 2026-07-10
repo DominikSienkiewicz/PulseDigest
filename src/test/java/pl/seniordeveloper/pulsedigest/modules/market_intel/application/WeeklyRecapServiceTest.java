@@ -3,7 +3,6 @@ package pl.seniordeveloper.pulsedigest.modules.market_intel.application;
 import org.junit.jupiter.api.Test;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.DigestItem;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.PastEdition;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.PastTopic;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RecapChange;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RecapEntry;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Signal;
@@ -34,8 +33,7 @@ class WeeklyRecapServiceTest {
     }
 
     private static PastEdition edition(Instant at, String topicKey, SignalRank rank) {
-        return new PastEdition(at, List.of(
-                new PastTopic(topicKey, "Story " + topicKey, "https://example.com/" + topicKey, rank)));
+        return new PastEdition(at, List.of(signal(topicKey, rank)));
     }
 
     @Test

@@ -1,5 +1,6 @@
 package pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapter.out.email;
 
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RadarAccuracy;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Signal;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TrendRecurrence;
 
@@ -37,5 +38,26 @@ final class TrendBadgeBuilder {
                 + "&#128200; narasta &mdash; " + recurrence.editionStreak() + ". edycja z rzędu"
                 + firstSeen
                 + "</div>";
+    }
+
+    /**
+     * The 🟠 prefix on a story the radar expects to break next. Deliberately a title marker, not a
+     * new {@code SignalRank}: candidacy is orthogonal to rank (a STRONG signal can be a candidate),
+     * and folding it into the rank enum would corrupt the sort that rank exists to drive.
+     */
+    static String candidateMarker(Signal signal) {
+        return signal != null && signal.isCriticalCandidate() ? "&#128992; " : "";
+    }
+
+    /**
+     * The radar's published hit rate. Absent until at least one prediction's verdict window has
+     * closed — a feature that predicts must be willing to be measured, but not before it has data.
+     */
+    static String buildRadarAccuracyLine(RadarAccuracy accuracy) {
+        if (accuracy == null || !accuracy.hasVerdict()) {
+            return "";
+        }
+        return " &middot; radar: " + accuracy.confirmed() + "/" + accuracy.flagged()
+                + " kandydatów osiągnęło CRITICAL (" + Math.round(accuracy.hitRate() * 100) + "%)";
     }
 }

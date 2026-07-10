@@ -16,7 +16,8 @@ public record Signal(
         SignalRank rank,
         int signalScore,
         List<SourceDomain> sourceDomains,
-        TrendRecurrence recurrence
+        TrendRecurrence recurrence,
+        TrendVelocity velocity
 ) {
 
     public Signal {
@@ -34,12 +35,29 @@ public record Signal(
 
     /** A freshly scored signal, before report history has been consulted. */
     public Signal(DigestItem item, SignalRank rank, int signalScore, List<SourceDomain> sourceDomains) {
-        this(item, rank, signalScore, sourceDomains, null);
+        this(item, rank, signalScore, sourceDomains, null, null);
+    }
+
+    /** A signal carrying recurrence but no velocity (used by trend memory before the radar runs). */
+    public Signal(DigestItem item, SignalRank rank, int signalScore, List<SourceDomain> sourceDomains,
+                  TrendRecurrence recurrence) {
+        this(item, rank, signalScore, sourceDomains, recurrence, null);
     }
 
     /** Copy of this signal carrying its cross-edition recurrence. */
     public Signal withRecurrence(TrendRecurrence newRecurrence) {
-        return new Signal(item, rank, signalScore, sourceDomains, newRecurrence);
+        return new Signal(item, rank, signalScore, sourceDomains, newRecurrence, velocity);
+    }
+
+    /** Copy of this signal carrying its trend velocity and Critical-candidate prediction. */
+    public Signal withVelocity(TrendVelocity newVelocity) {
+        return new Signal(item, rank, signalScore, sourceDomains, recurrence, newVelocity);
+    }
+
+    /** Whether the radar predicts this story is one confirmation away from CRITICAL. */
+    @JsonIgnore
+    public boolean isCriticalCandidate() {
+        return velocity != null && velocity.criticalCandidate();
     }
 
     /**

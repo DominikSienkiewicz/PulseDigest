@@ -19,27 +19,33 @@ public record ReportData(
         @JsonProperty("top_insights") List<String> topInsights,
         List<DigestItem> items,
         List<Signal> signals,
-        @JsonProperty("weekly_recap") WeeklyRecap weeklyRecap
+        @JsonProperty("weekly_recap") WeeklyRecap weeklyRecap,
+        @JsonProperty("radar_accuracy") RadarAccuracy radarAccuracy
 ) {
 
     /** Convenience constructor — no signals (used by LLM deserialization and tests). */
     public ReportData(String emailPreview, String editorial, List<String> topInsights, List<DigestItem> items) {
-        this(emailPreview, editorial, topInsights, items, List.of(), null);
+        this(emailPreview, editorial, topInsights, items, List.of(), null, null);
     }
 
     /** Convenience constructor — scored but without a weekly recap (non-Friday editions and tests). */
     public ReportData(String emailPreview, String editorial, List<String> topInsights,
                       List<DigestItem> items, List<Signal> signals) {
-        this(emailPreview, editorial, topInsights, items, signals, null);
+        this(emailPreview, editorial, topInsights, items, signals, null, null);
     }
 
     public ReportData withSignals(List<Signal> newSignals) {
-        return new ReportData(emailPreview, editorial, topInsights, items, newSignals, weeklyRecap);
+        return new ReportData(emailPreview, editorial, topInsights, items, newSignals, weeklyRecap, radarAccuracy);
     }
 
     /** Copy of this report carrying the Friday "week in signals" block. */
     public ReportData withWeeklyRecap(WeeklyRecap recap) {
-        return new ReportData(emailPreview, editorial, topInsights, items, signals, recap);
+        return new ReportData(emailPreview, editorial, topInsights, items, signals, recap, radarAccuracy);
+    }
+
+    /** Copy of this report carrying the predictive radar's published hit rate. */
+    public ReportData withRadarAccuracy(RadarAccuracy accuracy) {
+        return new ReportData(emailPreview, editorial, topInsights, items, signals, weeklyRecap, accuracy);
     }
 
     /**
@@ -57,7 +63,7 @@ public record ReportData(
                         i.source(), i.category(), i.type(),
                         i.score(), i.engagementScore(), i.summary(), i.whyItMatters(), i.topicKey()))
                 .toList();
-        return new ReportData(emailPreview, editorial, topInsights, cleaned, signals, weeklyRecap);
+        return new ReportData(emailPreview, editorial, topInsights, cleaned, signals, weeklyRecap, radarAccuracy);
     }
 
     /**
@@ -74,7 +80,7 @@ public record ReportData(
                 .map(item -> rejoin(item, inputMeta))
                 .filter(Objects::nonNull)
                 .toList();
-        return new ReportData(emailPreview, editorial, topInsights, rejoined, signals, weeklyRecap);
+        return new ReportData(emailPreview, editorial, topInsights, rejoined, signals, weeklyRecap, radarAccuracy);
     }
 
     private static DigestItem rejoin(DigestItem item, Map<String, PromptItemMeta> inputMeta) {

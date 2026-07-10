@@ -3,6 +3,7 @@ package pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapt
 import org.junit.jupiter.api.Test;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.DigestItem;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.HackerNewsPost;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RadarAccuracy;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RecapChange;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RecapEntry;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportData;
@@ -16,6 +17,7 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceFe
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TechDemandEntry;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TechDemandSignal;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TrendRecurrence;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TrendVelocity;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.FeedbackProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.WatchlistProperties;
 
@@ -202,6 +204,42 @@ class ReportEmailBuilderTest {
     @Test
     void watchlistSectionIsAbsentWhenDisabled() {
         assertThat(builder.buildHtml(fullReport(), researchWithFailedSource())).doesNotContain("Twój radar");
+    }
+
+    @Test
+    void aCriticalCandidateIsMarkedOnItsRowSoTheReaderSeesItBeforeItBreaks() {
+        DigestItem item = topicItem("GitHub", "mcp", 9);
+        Signal candidate = new Signal(item, SignalRank.STRONG, 95,
+                List.of(SourceDomain.CODE, SourceDomain.SCIENCE), null, new TrendVelocity(1, 25, true));
+        ReportData report = new ReportData("Preview", "Lead", List.of(), List.of(item), List.of(candidate));
+
+        String html = builder.buildHtml(report, null);
+
+        assertThat(html).contains("&#128992; Title GitHub");
+    }
+
+    @Test
+    void anOrdinarySignalCarriesNoRadarMarker() {
+        DigestItem item = topicItem("GitHub", "mcp", 9);
+        Signal plain = new Signal(item, SignalRank.STRONG, 95,
+                List.of(SourceDomain.CODE, SourceDomain.SCIENCE), null, new TrendVelocity(0, 2, false));
+        ReportData report = new ReportData("Preview", "Lead", List.of(), List.of(item), List.of(plain));
+
+        assertThat(builder.buildHtml(report, null)).doesNotContain("&#128992;");
+    }
+
+    @Test
+    void footerPublishesTheRadarsOwnHitRate() {
+        ReportData report = fullReport().withRadarAccuracy(new RadarAccuracy(10, 7));
+
+        assertThat(builder.buildHtml(report, null)).contains("radar: 7/10 kandydatów osiągnęło CRITICAL (70%)");
+    }
+
+    @Test
+    void footerOmitsTheRadarLineUntilAPredictionHasBeenJudged() {
+        ReportData report = fullReport().withRadarAccuracy(new RadarAccuracy(0, 0));
+
+        assertThat(builder.buildHtml(report, null)).doesNotContain("radar:");
     }
 
     @Test
