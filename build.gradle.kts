@@ -7,6 +7,9 @@ plugins {
     checkstyle
     jacoco
     id("org.sonarqube") version "7.3.1.8318"
+    // Schema migrations. Run explicitly via `./gradlew flywayMigrate` — the app itself does not carry
+    // Flyway at runtime; migrating the database is a discrete deploy step (see GitHub Actions).
+    id("org.flywaydb.flyway") version "11.1.0"
 }
 
 group = "pl.seniordeveloper"
@@ -43,6 +46,12 @@ val springAiVersion = "2.0.0-SNAPSHOT"
 val archunitVersion = "1.4.2"
 val instancioVersion = "5.4.0"
 val testcontainersVersion = "1.20.4"
+val flywayVersion = "11.1.0"
+
+// Classpath for the `flywayMigrate` task only — the Postgres driver (declared runtimeOnly for the app,
+// so absent from compileClasspath) plus Flyway's Postgres module. Kept off the app's runtime classpath
+// on purpose: the app assumes the schema exists; migrating it is the CI step's job.
+val flywayMigration: Configuration by configurations.creating
 
 // ── BOM imports ───────────────────────────────────────────────────────────────
 dependencyManagement {
@@ -82,7 +91,22 @@ dependencies {
     testImplementation("org.wiremock:wiremock-standalone:3.13.0")
     testImplementation("org.testcontainers:postgresql:$testcontainersVersion")
     testImplementation("org.testcontainers:junit-jupiter:$testcontainersVersion")
+    // ITs apply the same V1 migration to their Testcontainers Postgres, so every PR proves the
+    // migration file applies cleanly to a fresh database before it ever reaches Supabase.
+    testImplementation("org.flywaydb:flyway-core:$flywayVersion")
+    testImplementation("org.flywaydb:flyway-database-postgresql:$flywayVersion")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+
+    // Only the flywayMigrate task needs these (see the flywayMigration configuration above).
+    flywayMigration("org.flywaydb:flyway-database-postgresql:$flywayVersion")
+    flywayMigration("org.postgresql:postgresql")
+}
+
+// Credentials come from the environment (FLYWAY_URL / FLYWAY_USER / FLYWAY_PASSWORD), so no database
+// coordinates live in the build file. `./gradlew flywayMigrate` is a no-op when the history is current.
+flyway {
+    locations = arrayOf("filesystem:src/main/resources/db/migration")
+    configurations = arrayOf("flywayMigration")
 }
 
 // ── Checkstyle ────────────────────────────────────────────────────────────────

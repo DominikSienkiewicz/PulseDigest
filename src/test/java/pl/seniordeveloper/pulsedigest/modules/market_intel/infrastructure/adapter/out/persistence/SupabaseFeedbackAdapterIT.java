@@ -12,13 +12,11 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import javax.sql.DataSource;
-import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -43,12 +41,7 @@ class SupabaseFeedbackAdapterIT {
         config.setMaximumPoolSize(2);
         dataSource = new HikariDataSource(config);
 
-        String schema = new String(Objects.requireNonNull(
-                SupabaseFeedbackAdapterIT.class.getResourceAsStream("/schema.sql"),
-                "schema.sql not found on classpath").readAllBytes(), StandardCharsets.UTF_8);
-        try (var conn = dataSource.getConnection(); var stmt = conn.createStatement()) {
-            stmt.execute(schema);
-        }
+        TestSchema.migrate(dataSource);
     }
 
     @BeforeEach

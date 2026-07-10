@@ -109,6 +109,17 @@ jobs:
       - name: Verify build and build JAR
         run: ./gradlew check bootJar --no-daemon
 
+      # Apply any pending schema migrations to Supabase before the app touches the database. Flyway
+      # records what it has already run in flyway_schema_history, so this is a no-op once the schema is
+      # current — on a fresh database it applies V1, on later runs only the new versions. The app does
+      # not migrate at startup; this is the one place the schema changes.
+      - name: Migrate database (Flyway)
+        run: ./gradlew flywayMigrate --no-daemon
+        env:
+          FLYWAY_URL: ${{ secrets.SUPABASE_DB_URL }}
+          FLYWAY_USER: ${{ secrets.SUPABASE_DB_USERNAME }}
+          FLYWAY_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+
       - name: Run digest
         run: java --enable-preview -jar build/libs/app.jar 2>&1 | tee digest.log
         env:

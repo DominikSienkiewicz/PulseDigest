@@ -21,11 +21,9 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SignalRa
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceDomain;
 
 import javax.sql.DataSource;
-import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
-import java.util.Objects;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -48,12 +46,7 @@ class SupabaseReportHistoryAdapterIT {
         config.setMaximumPoolSize(2);
         dataSource = new HikariDataSource(config);
 
-        String schema = new String(Objects.requireNonNull(
-                SupabaseReportHistoryAdapterIT.class.getResourceAsStream("/schema.sql"),
-                "schema.sql not found on classpath").readAllBytes(), StandardCharsets.UTF_8);
-        try (var conn = dataSource.getConnection(); var stmt = conn.createStatement()) {
-            stmt.execute(schema);
-        }
+        TestSchema.migrate(dataSource);
     }
 
     @BeforeEach

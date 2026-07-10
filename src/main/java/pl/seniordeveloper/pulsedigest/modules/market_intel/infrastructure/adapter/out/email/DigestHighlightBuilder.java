@@ -1,10 +1,12 @@
 package pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapter.out.email;
 
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.DigestItem;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Signal;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.FeedbackProperties;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapter.out.email.EmailFormatting.escapeHtml;
@@ -34,7 +36,8 @@ final class DigestHighlightBuilder {
     // Hero block: the few highest-score items (strong+, capped), each with a one-sentence
     // "why it matters to you" action line, plus 👍/👎 feedback links when a receiver URL is configured.
     // The "if you read nothing else" section.
-    static String buildMustKnowSection(List<DigestItem> items, FeedbackProperties feedback, String edition) {
+    static String buildMustKnowSection(List<DigestItem> items, Map<String, Signal> signalByUrl,
+                                      FeedbackProperties feedback, String edition) {
         List<DigestItem> mustKnow = items.stream()
                 .filter(i -> i.score() >= MUST_KNOW_THRESHOLD)
                 .sorted(Comparator.comparingInt(DigestItem::score).reversed())
@@ -61,6 +64,7 @@ final class DigestHighlightBuilder {
                     .append(item.score()).append("/10</span>")
                     .append(FeedbackLinkBuilder.render(item.url(), item.source(), item.category(), edition, feedback))
                     .append(why)
+                    .append(ScoreExplanationBuilder.buildWhyYouSeeThis(signalByUrl.get(item.url())))
                     .append("</li>");
         }
         sb.append("</ul></div>");
