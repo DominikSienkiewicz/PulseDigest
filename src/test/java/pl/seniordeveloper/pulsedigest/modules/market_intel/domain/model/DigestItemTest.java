@@ -31,6 +31,27 @@ class DigestItemTest {
     }
 
     @Test
+    void deserializesTopicKeyFromSnakeCaseJson() throws Exception {
+        String json = """
+                {
+                  "title": "t", "url": "https://x", "category": "AI/LLM", "type": "RELEASE",
+                  "score": 9, "summary": "s", "topic_key": "model-context-protocol"
+                }
+                """;
+
+        DigestItem item = objectMapper.readValue(json, DigestItem.class);
+
+        assertThat(item.topicKey()).isEqualTo("model-context-protocol");
+    }
+
+    @Test
+    void nineArgConstructorLeavesTopicKeyNull() {
+        DigestItem item = new DigestItem("t", "https://x", "GitHub", "Java", "RELEASE", 8, 50, "s", null);
+
+        assertThat(item.topicKey()).isNull();
+    }
+
+    @Test
     void whyItMattersIsNullWhenAbsentFromJson() throws Exception {
         String json = """
                 {

@@ -3,8 +3,11 @@ package pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapt
 import org.junit.jupiter.api.Test;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.DigestItem;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.HackerNewsPost;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RecapChange;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RecapEntry;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportData;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ResearchResult;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.WeeklyRecap;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RssItem;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Signal;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SignalRank;
@@ -12,8 +15,11 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceDo
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceFetchReport;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TechDemandEntry;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TechDemandSignal;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TrendRecurrence;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.FeedbackProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.WatchlistProperties;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -21,11 +27,70 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class ReportEmailBuilderTest {
 
-    private final ReportEmailBuilder builder = new ReportEmailBuilder(new FeedbackProperties(false, 30, ""));
+    private final ReportEmailBuilder builder =
+            new ReportEmailBuilder(new FeedbackProperties(false, 30, ""), new WatchlistProperties(false, List.of()));
 
     @Test
     void buildSubjectUsesDigestPrefix() {
-        assertThat(builder.buildSubject()).contains("PulseDigest");
+        assertThat(builder.buildSubject(null)).contains("PulseDigest");
+    }
+
+    @Test
+    void buildSubjectLeadsWithCriticalMarkerAndCarriesThePreview() {
+        // The inbox slot has to answer "read now or tonight?" without opening the mail.
+        String subject = builder.buildSubject(fullReport());
+
+        assertThat(subject)
+                .startsWith("🔴 ")
+                .contains("Preview")
+                .endsWith(today());
+    }
+
+    @Test
+    void buildSubjectUsesMustKnowMarkerWhenNoCriticalTrend() {
+        ReportData report = new ReportData("Spring Boot 4.2 GA", "Lead", List.of(),
+                List.of(itemWithScore(8)), List.of());
+
+        assertThat(builder.buildSubject(report)).startsWith("⚡ ").contains("Spring Boot 4.2 GA");
+    }
+
+    @Test
+    void buildSubjectUsesNeutralMarkerWhenNothingClearsTheMustKnowBar() {
+        ReportData report = new ReportData("Quiet day", "Lead", List.of(),
+                List.of(itemWithScore(6)), List.of());
+
+        assertThat(builder.buildSubject(report)).startsWith("📡 ").contains("Quiet day");
+    }
+
+    @Test
+    void buildSubjectFallsBackToDatedFormatWhenPreviewIsBlank() {
+        ReportData report = new ReportData("   ", "Lead", List.of(), List.of(itemWithScore(9)), List.of());
+
+        assertThat(builder.buildSubject(report)).isEqualTo("📡 PulseDigest " + today());
+    }
+
+    @Test
+    void buildSubjectTruncatesAnOverlongPreviewOnAWordBoundary() {
+        String longPreview = "Spring Boot 4.2 GA, Quarkus 4 native image, Kubernetes 1.35 sidecars, "
+                + "PyTorch 3 compile, Rust in the kernel";
+        ReportData report = new ReportData(longPreview, "Lead", List.of(), List.of(), List.of());
+
+        String subject = builder.buildSubject(report);
+
+        assertThat(subject).contains("…").endsWith(today());
+        assertThat(subject).doesNotContain("Rust in the kernel");
+        // Marker + preview + separator + date must stay inside the inbox-visible budget.
+        assertThat(subject.length()).isLessThanOrEqualTo(100);
+    }
+
+    private static String today() {
+        return java.time.LocalDate.now(java.time.ZoneOffset.UTC)
+                .format(java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy", java.util.Locale.of("pl", "PL")));
+    }
+
+    private static DigestItem itemWithScore(int score) {
+        return new DigestItem("Item", "https://example.com/item", "GitHub", "Java", "RELEASE",
+                score, 10, "Summary", null);
     }
 
     @Test
@@ -43,6 +108,100 @@ class ReportEmailBuilderTest {
                 .contains("12k &#9733;")
                 .contains("42 &#10084;")
                 .contains("8.8k pkt");
+    }
+
+    @Test
+    void criticalTrendNamesTheSourcesThatConfirmedTheTopic() {
+        // "Critical" must be legible as evidence, not as a colour: say who confirmed the story.
+        DigestItem paper = topicItem("arXiv/cs.AI", "mcp", 9);
+        DigestItem repo = topicItem("GitHub", "mcp", 8);
+        DigestItem discussion = topicItem("Hacker News", "mcp", 8);
+        ReportData report = new ReportData("Preview", "Lead", List.of(),
+                List.of(paper, repo, discussion),
+                List.of(
+                        new Signal(paper, SignalRank.CRITICAL, 120,
+                                List.of(SourceDomain.SCIENCE, SourceDomain.CODE, SourceDomain.BUSINESS)),
+                        new Signal(repo, SignalRank.CRITICAL, 135,
+                                List.of(SourceDomain.SCIENCE, SourceDomain.CODE, SourceDomain.BUSINESS)),
+                        new Signal(discussion, SignalRank.CRITICAL, 130,
+                                List.of(SourceDomain.SCIENCE, SourceDomain.CODE, SourceDomain.BUSINESS))));
+
+        String html = builder.buildHtml(report, null);
+
+        assertThat(html).contains("Potwierdzone w:");
+        assertThat(html).contains("arXiv/cs.AI").contains("GitHub").contains("Hacker News");
+    }
+
+    private static DigestItem topicItem(String source, String topicKey, int score) {
+        return new DigestItem("Title " + source, "https://example.com/" + source.hashCode(), source,
+                "AI/LLM", "RELEASE", score, 10, "Summary", null, topicKey);
+    }
+
+    @Test
+    void criticalTrendShowsHowLongTheStoryHasBeenBuildingAndWhenItFirstAppeared() {
+        DigestItem item = topicItem("GitHub", "mcp", 9);
+        Signal building = new Signal(item, SignalRank.CRITICAL, 130, List.of(SourceDomain.CODE),
+                new TrendRecurrence(3, LocalDate.of(2026, 6, 18)));
+        ReportData report = new ReportData("Preview", "Lead", List.of(), List.of(item), List.of(building));
+
+        String html = builder.buildHtml(report, null);
+
+        assertThat(html).contains("narasta").contains("3. edycja");
+        assertThat(html).contains("Pierwszy sygnał: 18.06.2026");
+    }
+
+    @Test
+    void aFirstTimeStoryCarriesNoRecurrenceBadge() {
+        DigestItem item = topicItem("GitHub", "gemini-3", 9);
+        Signal fresh = new Signal(item, SignalRank.CRITICAL, 130, List.of(SourceDomain.CODE),
+                new TrendRecurrence(1, null));
+        ReportData report = new ReportData("Preview", "Lead", List.of(), List.of(item), List.of(fresh));
+
+        String html = builder.buildHtml(report, null);
+
+        assertThat(html).doesNotContain("narasta").doesNotContain("Pierwszy sygnał");
+    }
+
+    @Test
+    void weeklyRecapSectionNamesWhatClimbedHeldAndFaded() {
+        WeeklyRecap recap = new WeeklyRecap(List.of(
+                new RecapEntry("MCP everywhere", "https://example.com/mcp",
+                        RecapChange.ESCALATED, SignalRank.MODERATE, SignalRank.CRITICAL),
+                new RecapEntry("Gemini 3", "https://example.com/gemini",
+                        RecapChange.CONFIRMED, SignalRank.CRITICAL, SignalRank.CRITICAL),
+                new RecapEntry("Hype train", "https://example.com/hype",
+                        RecapChange.FADED, SignalRank.CRITICAL, SignalRank.WEAK)));
+        ReportData report = new ReportData("Preview", "Lead", List.of(), List.of(), List.of())
+                .withWeeklyRecap(recap);
+
+        String html = builder.buildHtml(report, null);
+
+        assertThat(html).contains("Tydzień w sygnałach");
+        assertThat(html).contains("MCP everywhere").contains("Gemini 3").contains("Hype train");
+        assertThat(html).contains("urosło").contains("potwierdzony").contains("wygasł");
+    }
+
+    @Test
+    void weeklyRecapSectionIsAbsentOnNonFridayEditions() {
+        String html = builder.buildHtml(fullReport(), null);
+
+        assertThat(html).doesNotContain("Tydzień w sygnałach");
+    }
+
+    @Test
+    void watchlistSectionConfirmsSilenceForTechnologiesNobodyMentioned() {
+        ReportEmailBuilder withWatchlist = new ReportEmailBuilder(new FeedbackProperties(false, 30, ""),
+                new WatchlistProperties(true, List.of("spring ai", "kubernetes")));
+
+        String html = withWatchlist.buildHtml(fullReport(), researchWithFailedSource());
+
+        assertThat(html).contains("Twój radar");
+        assertThat(html).contains("spring ai").contains("0 wzmianek");
+    }
+
+    @Test
+    void watchlistSectionIsAbsentWhenDisabled() {
+        assertThat(builder.buildHtml(fullReport(), researchWithFailedSource())).doesNotContain("Twój radar");
     }
 
     @Test
@@ -68,7 +227,8 @@ class ReportEmailBuilderTest {
     @Test
     void buildHtmlRendersFeedbackLinksWhenReceiverConfigured() {
         ReportEmailBuilder withFeedback = new ReportEmailBuilder(
-                new FeedbackProperties(true, 30, "https://fb.example/vote"));
+                new FeedbackProperties(true, 30, "https://fb.example/vote"),
+                new WatchlistProperties(false, List.of()));
 
         String html = withFeedback.buildHtml(fullReport(), researchWithFailedSource());
 

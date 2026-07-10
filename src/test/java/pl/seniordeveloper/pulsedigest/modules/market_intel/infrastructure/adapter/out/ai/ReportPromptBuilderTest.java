@@ -11,6 +11,8 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.GithubRe
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.HackerNewsPost;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.HuggingFaceModel;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.JepUpdate;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.LabAnnouncement;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.PreScoringCandidate;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ProductHuntPost;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.PromptItemMeta;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RadarEntry;
@@ -23,9 +25,12 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SocialPo
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SoftwareRelease;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Tweet;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.FeedbackPort;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.PreScoringPort;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.PublishedUrlsPort;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.DedupProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.FeedbackProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.InterestProfileProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.PreScoringProperties;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -46,9 +51,37 @@ class ReportPromptBuilderTest {
     }
 
     private ReportPromptBuilder builder(Set<String> publishedUrls, Set<String> downvotedUrls) {
-        return new ReportPromptBuilder(objectMapper, lookbackDays -> publishedUrls,
+        return new ReportPromptBuilder(objectMapper, publishedUrlsPort(publishedUrls, List.of()),
                 new DedupProperties(true, 10), new InterestProfileProperties("Test Persona", List.of("java")),
-                feedbackPort(downvotedUrls), new FeedbackProperties(true, 30, ""));
+                feedbackPort(downvotedUrls), new FeedbackProperties(true, 30, ""),
+                noPreScoring(), new PreScoringProperties(false, 50));
+    }
+
+    private ReportPromptBuilder builderWithTitles(List<String> publishedTitles) {
+        return new ReportPromptBuilder(objectMapper, publishedUrlsPort(Set.of(), publishedTitles),
+                new DedupProperties(true, 10), new InterestProfileProperties("Test Persona", List.of("java")),
+                feedbackPort(Set.of()), new FeedbackProperties(true, 30, ""),
+                noPreScoring(), new PreScoringProperties(false, 50));
+    }
+
+    /** PreScoringPort test double — triage disabled by default so payload assertions stay deterministic. */
+    private static PreScoringPort noPreScoring() {
+        return candidates -> java.util.Map.of();
+    }
+
+    /** PublishedUrlsPort test double — fixed URLs for dedup, fixed titles for the semantic block. */
+    private static PublishedUrlsPort publishedUrlsPort(Set<String> urls, List<String> titles) {
+        return new PublishedUrlsPort() {
+            @Override
+            public Set<String> recentlyPublishedUrls(int lookbackDays) {
+                return urls;
+            }
+
+            @Override
+            public List<String> recentlyPublishedTitles(int lookbackDays, int maxTitles) {
+                return titles;
+            }
+        };
     }
 
     /** FeedbackPort test double — fixed down-votes, no per-source nudge (the prompt builder only reads down-votes). */
@@ -152,9 +185,10 @@ class ReportPromptBuilderTest {
                 throw JsonMappingException.fromUnexpectedIOE(new IOException("boom"));
             }
         };
-        ReportPromptBuilder builder = new ReportPromptBuilder(failingMapper, lookbackDays -> Set.of(),
+        ReportPromptBuilder builder = new ReportPromptBuilder(failingMapper, publishedUrlsPort(Set.of(), List.of()),
                 new DedupProperties(true, 10), new InterestProfileProperties("Test Persona", List.of("java")),
-                feedbackPort(Set.of()), new FeedbackProperties(true, 30, ""));
+                feedbackPort(Set.of()), new FeedbackProperties(true, 30, ""),
+                noPreScoring(), new PreScoringProperties(false, 50));
 
         String prompt = builder.buildUserPrompt(researchWithEverySource());
 
@@ -214,6 +248,73 @@ class ReportPromptBuilderTest {
         PromptPayload payload = builder(Set.of()).buildPrompt(researchWithEverySource(), 3);
 
         assertThat(payload.inputMeta()).hasSize(3);
+    }
+
+    @Test
+    void promptCarriesRecentlyPublishedTitlesSoTheModelCanSpotTheSameStoryTwice() {
+        // URL dedup misses the same story republished by InfoQ on Monday and Hacker News on Wednesday.
+        ReportPromptBuilder builder = builderWithTitles(List.of("Spring Boot 4.2 released", "MCP hits 1.0"));
+
+        String prompt = builder.buildUserPrompt(researchWithEverySource());
+
+        assertThat(prompt).contains("JUŻ OPUBLIKOWANE");
+        assertThat(prompt).contains("Spring Boot 4.2 released").contains("MCP hits 1.0");
+    }
+
+    @Test
+    void promptOmitsThePublishedBlockWhenNothingWasPublishedRecently() {
+        String prompt = builderWithTitles(List.of()).buildUserPrompt(researchWithEverySource());
+
+        assertThat(prompt).doesNotContain("JUŻ OPUBLIKOWANE");
+    }
+
+    @Test
+    void promptOmitsThePublishedBlockWhenDedupIsDisabled() {
+        ReportPromptBuilder builder = new ReportPromptBuilder(objectMapper,
+                publishedUrlsPort(Set.of(), List.of("Spring Boot 4.2 released")),
+                new DedupProperties(false, 10), new InterestProfileProperties("Test Persona", List.of("java")),
+                feedbackPort(Set.of()), new FeedbackProperties(false, 30, ""),
+                noPreScoring(), new PreScoringProperties(false, 50));
+
+        assertThat(builder.buildUserPrompt(researchWithEverySource())).doesNotContain("JUŻ OPUBLIKOWANE");
+    }
+
+    @Test
+    void preScoringTrimsThePayloadBeforeTheExpensiveModelReadsIt() throws Exception {
+        // The triage model dislikes everything; only the `keep` best-rated survive.
+        PreScoringPort dismissive = candidates -> candidates.stream()
+                .collect(java.util.stream.Collectors.toMap(PreScoringCandidate::url, c -> 1));
+        ReportPromptBuilder builder = new ReportPromptBuilder(objectMapper, publishedUrlsPort(Set.of(), List.of()),
+                new DedupProperties(true, 10), new InterestProfileProperties("Test Persona", List.of("java")),
+                feedbackPort(Set.of()), new FeedbackProperties(true, 30, ""),
+                dismissive, new PreScoringProperties(true, 3));
+
+        List<Map<String, Object>> payload = payload(builder.buildUserPrompt(researchWithEverySource()));
+
+        assertThat(payload).hasSize(3);
+        assertThat(payload)
+                .as("GitHub Releases pre-scores 95 — above the floor, so triage cannot cut it")
+                .extracting(item -> item.get("source"))
+                .contains("GitHub Releases");
+    }
+
+    @Test
+    void labAnnouncementsReachThePromptWithRealisticEngagement() throws Exception {
+        // Regression: lab labels matched no PromptItemSelector route, so the "highest-signal source"
+        // was silently dropped before the prompt — the fake engagement of 1_000_000 never even applied.
+        List<Map<String, Object>> payload = payload(builder(Set.of()).buildUserPrompt(researchWithLabAnnouncement()));
+
+        assertThat(payload).anySatisfy(item -> {
+            assertThat(item).containsEntry("source", "Anthropic News");
+            assertThat(item).containsEntry("engagement_score", 10_000);
+        });
+    }
+
+    @Test
+    void labAnnouncementSurvivesTotalCapAgainstAViralTweet() {
+        // preScore("Anthropic News", 10_000) = 95 + 10 = 105 > preScore("Twitter/X", huge) = 90.
+        assertThat(PromptItemSelector.preScore("Anthropic News", 10_000))
+                .isGreaterThan(PromptItemSelector.preScore("Twitter/X", 999_999));
     }
 
     @Test
@@ -305,6 +406,18 @@ class ReportPromptBuilderTest {
                 1,
                 1
         );
+    }
+
+    private static ResearchResult researchWithLabAnnouncement() {
+        LocalDateTime now = LocalDateTime.parse("2026-05-14T10:00:00");
+        return new ResearchResult(
+                List.of(), List.of(), List.of(), List.of(), List.of(),
+                List.of(), List.of(), List.of(), List.of(), List.of(),
+                List.of(), List.of(), List.of(), List.of(),
+                List.of(new LabAnnouncement("Claude 5 released", "https://www.anthropic.com/news/claude-5",
+                        "New frontier model", "Anthropic News", now)),
+                List.of(),
+                now, 0, 0, 0, 0, 0, List.of(), null);
     }
 
     private static ResearchResult researchWithNullOptionalFields() {

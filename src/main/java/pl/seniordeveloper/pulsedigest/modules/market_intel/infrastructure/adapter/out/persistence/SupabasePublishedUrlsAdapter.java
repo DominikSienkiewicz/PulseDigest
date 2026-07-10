@@ -27,7 +27,26 @@ public class SupabasePublishedUrlsAdapter implements PublishedUrlsPort {
             WHERE generated_at >= ? AND item->>'url' IS NOT NULL
             """;
 
+    private static final String RECENT_TITLES_SQL = """
+            SELECT item->>'title' AS title
+            FROM reports, jsonb_array_elements(payload->'report'->'items') AS item
+            WHERE generated_at >= ? AND item->>'title' IS NOT NULL
+            ORDER BY generated_at DESC
+            LIMIT ?
+            """;
+
     private final JdbcClient jdbcClient;
+
+    @Override
+    public List<String> recentlyPublishedTitles(int lookbackDays, int maxTitles) {
+        OffsetDateTime cutoff = OffsetDateTime.now(ZoneOffset.UTC).minusDays(lookbackDays);
+        List<String> titles = jdbcClient.sql(RECENT_TITLES_SQL)
+                .params(cutoff, maxTitles)
+                .query(String.class)
+                .list();
+        log.info("Semantic dedup: {} title(s) from editions over the last {}d", titles.size(), lookbackDays);
+        return titles;
+    }
 
     @Override
     public Set<String> recentlyPublishedUrls(int lookbackDays) {

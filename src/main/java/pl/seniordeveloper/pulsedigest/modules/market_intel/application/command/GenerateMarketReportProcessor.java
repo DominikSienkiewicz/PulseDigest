@@ -6,8 +6,13 @@ import org.springframework.stereotype.Service;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.MarketIntelJobTracker;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.MarketResearchService;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.SignalScoringService;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.application.SourceYieldService;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.application.WeeklyRecapService;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.policy.FeedbackNudgePolicy;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.application.policy.ReportHistoryPolicy;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ApiAccounts;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.PastEdition;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TrendMemory;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.EmailDeliveryReceipt;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.PersistedReport;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.QuotaAlert;
@@ -22,11 +27,14 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceFe
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.EmailDeliveryPort;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.FeedbackPort;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.LlmSynthesisPort;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.ReportHistoryPort;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.ReportStoragePort;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.TechDemandNarratorPort;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -54,6 +62,10 @@ public class GenerateMarketReportProcessor {
     private final TechDemandNarratorPort techDemandNarrator;
     private final FeedbackPort feedbackPort;
     private final FeedbackNudgePolicy feedbackNudgePolicy;
+    private final ReportHistoryPort reportHistoryPort;
+    private final WeeklyRecapService weeklyRecapService;
+    private final SourceYieldService sourceYieldService;
+    private final ReportHistoryPolicy reportHistoryPolicy;
 
     public void process(String jobId) {
         log.info("=== [{}] Starting Market Intelligence Pipeline ===", jobId);
@@ -90,18 +102,27 @@ public class GenerateMarketReportProcessor {
             Map<String, Integer> netVotesBySource = feedbackNudgePolicy.enabled()
                     ? feedbackPort.netVotesBySource(feedbackNudgePolicy.lookbackDays())
                     : Map.of();
+            List<PastEdition> history = readHistory();
             List<Signal> signals = signalScoringService.score(
                     cleaned.items() != null ? cleaned.items() : List.of(), netVotesBySource);
+            signals = TrendMemory.annotate(signals, history);
             ReportData finalReport = cleaned.withSignals(signals);
+            finalReport = weeklyRecapService
+                    .assemble(LocalDate.now(ZoneOffset.UTC), signals, history)
+                    .map(finalReport::withWeeklyRecap)
+                    .orElse(finalReport);
             long criticalCount = signals.stream().filter(Signal::isCriticalTrend).count();
             log.info("[{}] Signal scoring: {} signals ({} CRITICAL)", jobId, signals.size(), criticalCount);
 
             job = job.generated(finalReport);
             jobTracker.track(job);
 
+            sourceYieldService.logScoreboard(history);
+
             storagePort.save(new PersistedReport(
                     finalReport, jobId, Instant.now(),
-                    research.tweets().size(), research.hackerNewsPosts().size(), research.githubRepos().size()
+                    research.tweets().size(), research.hackerNewsPosts().size(), research.githubRepos().size(),
+                    research.sourceFetchReports()
             ));
 
             job = job.persisted();
@@ -128,6 +149,23 @@ public class GenerateMarketReportProcessor {
                 jobTracker.track(job.error(e.getMessage()));
                 sendFailureNotification(jobId, research, e, null);
             }
+        }
+    }
+
+    /**
+     * Past editions, read once and reused for both trend memory and the Friday recap. Runs before
+     * the report is persisted, so "3rd edition in a row" never counts the edition being assembled.
+     * A storage failure degrades to an amnesiac digest rather than losing the whole run.
+     */
+    private List<PastEdition> readHistory() {
+        if (!reportHistoryPolicy.enabled()) {
+            return List.of();
+        }
+        try {
+            return reportHistoryPort.recentEditions(reportHistoryPolicy.lookbackDays());
+        } catch (Exception e) {
+            log.warn("Report history unavailable — publishing without trend memory: {}", e.getMessage());
+            return List.of();
         }
     }
 

@@ -10,6 +10,14 @@ import java.util.Map;
 public final class SourceWeights {
 
     private static final Map<String, Double> WEIGHTS = Map.ofEntries(
+            // AI-lab announcements are the primary source for model/product news — the lab itself
+            // saying it, not someone reporting it. Keyed by lab prefix so every per-blog label
+            // ("Anthropic News", "Anthropic Engineering", …) resolves to one weight and one
+            // feedback bucket. "OpenAI" does not collide with the exact key "OpenJDK JEP".
+            Map.entry("Anthropic",           0.95),
+            Map.entry("Claude",              0.95),
+            Map.entry("Google Gemini",       0.95),
+            Map.entry("OpenAI",              0.95),
             // arXiv demoted from 1.00 — research papers are a background signal for this audience,
             // not the priority. Usable tools/launches (Product Hunt, Hugging Face) are upweighted instead.
             Map.entry("arXiv",               0.70),

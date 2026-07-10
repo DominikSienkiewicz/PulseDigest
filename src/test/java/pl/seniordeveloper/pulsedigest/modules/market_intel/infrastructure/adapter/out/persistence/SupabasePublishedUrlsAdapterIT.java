@@ -89,6 +89,29 @@ class SupabasePublishedUrlsAdapterIT {
         assertThat(publishedUrls.recentlyPublishedUrls(10)).isEmpty();
     }
 
+    @Test
+    void returnsTitlesOfRecentlyPublishedStoriesNewestFirst() {
+        storage.save(report("older", Instant.now().minus(5, ChronoUnit.DAYS), "https://example.com/old"));
+        storage.save(report("newer", Instant.now().minus(1, ChronoUnit.DAYS), "https://example.com/new"));
+
+        List<String> titles = publishedUrls.recentlyPublishedTitles(10, 50);
+
+        assertThat(titles).containsExactly("title", "title");
+    }
+
+    @Test
+    void titlesAreCappedSoThePromptBlockCannotGrowUnbounded() {
+        storage.save(report("recent", Instant.now().minus(1, ChronoUnit.DAYS),
+                "https://example.com/a", "https://example.com/b", "https://example.com/c"));
+
+        assertThat(publishedUrls.recentlyPublishedTitles(10, 2)).hasSize(2);
+    }
+
+    @Test
+    void returnsNoTitlesWhenNoHistory() {
+        assertThat(publishedUrls.recentlyPublishedTitles(10, 50)).isEmpty();
+    }
+
     private static PersistedReport report(String jobId, Instant generatedAt, String... urls) {
         List<DigestItem> items = Arrays.stream(urls)
                 .map(u -> new DigestItem("title", u, "GitHub", "Java", "RELEASE", 8, 10, "sum", "why"))

@@ -9,29 +9,16 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.CncfProjectUpdate;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ConferenceTalk;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.GithubRepo;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.HackerNewsPost;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.HuggingFaceModel;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.JepUpdate;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.LabAnnouncement;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ProductHuntPost;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.PreScoringCandidate;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.PromptItemMeta;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RadarEntry;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RedditPost;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ResearchPaper;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ResearchResult;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RssItem;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SecurityAdvisory;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SocialPost;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SoftwareRelease;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Tweet;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.FeedbackPort;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.PreScoringPort;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.PublishedUrlsPort;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.DedupProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.FeedbackProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.InterestProfileProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.PreScoringProperties;
 import pl.seniordeveloper.pulsedigest.shared.util.UrlCanonicalizer;
 
 import java.io.IOException;
@@ -43,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -54,6 +42,9 @@ public class ReportPromptBuilder {
     private static final String KEY_URL = "url";
     private static final String KEY_ENGAGEMENT = "engagement_score";
     private static final String KEY_TEXT_PREVIEW = "text_preview";
+    // ~50 titles ≈ 1–2k prompt tokens. Enough to cover three editions of Mon/Wed/Fri without
+    // letting the block grow with the archive.
+    private static final int MAX_PUBLISHED_TITLES = 50;
 
     private final ObjectMapper objectMapper;
     private final PublishedUrlsPort publishedUrlsPort;
@@ -61,6 +52,8 @@ public class ReportPromptBuilder {
     private final InterestProfileProperties interestProfile;
     private final FeedbackPort feedbackPort;
     private final FeedbackProperties feedbackProperties;
+    private final PreScoringPort preScoringPort;
+    private final PreScoringProperties preScoringProperties;
 
     @Value("classpath:prompts/system-prompt.txt")
     private Resource systemPromptResource;
@@ -101,26 +94,26 @@ public class ReportPromptBuilder {
     public PromptPayload buildPrompt(ResearchResult research, int totalCap) {
         List<Map<String, Object>> all = new ArrayList<>();
         List.of(
-                mapItems(research.tweets(), this::mapTweet),
-                mapItems(research.hackerNewsPosts(), this::mapHackerNews),
-                mapItems(research.githubRepos(), this::mapGithubRepo),
-                mapItems(research.rssItems(), this::mapRssItem),
-                mapItems(research.redditPosts(), this::mapRedditPost),
-                mapItems(research.papers(), this::mapPaper),
-                mapItems(research.releases(), this::mapRelease),
-                mapItems(research.huggingFaceModels(), this::mapHuggingFaceModel),
-                mapItems(research.productHuntPosts(), this::mapProductHuntPost),
-                mapItems(research.securityAdvisories(), this::mapSecurityAdvisory),
-                mapItems(research.jepUpdates(), this::mapJepUpdate),
-                mapItems(research.cncfProjectUpdates(), this::mapCncfProjectUpdate),
-                mapItems(research.radarEntries(), this::mapRadarEntry),
-                mapItems(research.conferenceTalks(), this::mapConferenceTalk),
-                mapItems(research.labAnnouncements(), this::mapLabAnnouncement),
-                mapItems(research.socialPosts(), this::mapSocialPost)
+                mapItems(research.tweets(), PromptItemMapper::mapTweet),
+                mapItems(research.hackerNewsPosts(), PromptItemMapper::mapHackerNews),
+                mapItems(research.githubRepos(), PromptItemMapper::mapGithubRepo),
+                mapItems(research.rssItems(), PromptItemMapper::mapRssItem),
+                mapItems(research.redditPosts(), PromptItemMapper::mapRedditPost),
+                mapItems(research.papers(), PromptItemMapper::mapPaper),
+                mapItems(research.releases(), PromptItemMapper::mapRelease),
+                mapItems(research.huggingFaceModels(), PromptItemMapper::mapHuggingFaceModel),
+                mapItems(research.productHuntPosts(), PromptItemMapper::mapProductHuntPost),
+                mapItems(research.securityAdvisories(), PromptItemMapper::mapSecurityAdvisory),
+                mapItems(research.jepUpdates(), PromptItemMapper::mapJepUpdate),
+                mapItems(research.cncfProjectUpdates(), PromptItemMapper::mapCncfProjectUpdate),
+                mapItems(research.radarEntries(), PromptItemMapper::mapRadarEntry),
+                mapItems(research.conferenceTalks(), PromptItemMapper::mapConferenceTalk),
+                mapItems(research.labAnnouncements(), PromptItemMapper::mapLabAnnouncement),
+                mapItems(research.socialPosts(), PromptItemMapper::mapSocialPost)
         ).forEach(all::addAll);
 
         all = filterAlreadyPublished(all);
-        List<Map<String, Object>> payload = PromptItemSelector.selectTopItems(all, totalCap);
+        List<Map<String, Object>> payload = preScore(PromptItemSelector.selectTopItems(all, totalCap));
 
         try {
             String json = objectMapper.writeValueAsString(payload);
@@ -144,11 +137,56 @@ public class ReportPromptBuilder {
                     research.conferenceTalks().size(),
                     research.socialPosts().size(),
                     research.labAnnouncements().size());
-            return new PromptPayload("Oto posty z ostatnich kilku dni:\n\n" + json, inputMetaOf(payload));
+            return new PromptPayload(
+                    alreadyPublishedBlock() + "Oto posty z ostatnich kilku dni:\n\n" + json,
+                    inputMetaOf(payload));
         } catch (JsonProcessingException e) {
             log.error("Błąd serializacji payloadu: {}", e.getMessage());
             return new PromptPayload("Oto posty z ostatnich kilku dni:\n\n[]", Map.of());
         }
+    }
+
+    /**
+     * Lists the stories already sent, by title, so the model can recognize a re-run of the same story
+     * from a different outlet — something URL dedup structurally cannot see. Empty (and free) when
+     * there is no history or cross-edition dedup is off.
+     */
+    private String alreadyPublishedBlock() {
+        if (!dedupProperties.enabled()) {
+            return "";
+        }
+        List<String> titles = publishedUrlsPort.recentlyPublishedTitles(
+                dedupProperties.lookbackDays(), MAX_PUBLISHED_TITLES);
+        if (titles.isEmpty()) {
+            return "";
+        }
+        return "== JUŻ OPUBLIKOWANE ==\n"
+                + "Te historie ukazały się w poprzednich wydaniach. Pomiń item, który opisuje tę samą\n"
+                + "historię — nawet jeśli pochodzi z innego źródła i ma inny URL. Wyjątek: nowy, istotny\n"
+                + "rozwój wydarzeń (np. GA po RC, wycofanie, kolejna wersja).\n"
+                + titles.stream().map(t -> "- " + t).collect(Collectors.joining("\n"))
+                + "\n\n";
+    }
+
+    /**
+     * Halves the payload with a cheap triage model before the expensive one reads it. Disabled — or
+     * when the triage call returns no opinion — the payload passes through untouched.
+     */
+    private List<Map<String, Object>> preScore(List<Map<String, Object>> payload) {
+        if (!preScoringProperties.enabled() || payload.size() <= preScoringProperties.keep()) {
+            return payload;
+        }
+        List<PreScoringCandidate> candidates = payload.stream()
+                .map(item -> new PreScoringCandidate(
+                        (String) item.get(KEY_URL),
+                        (String) item.get(KEY_TITLE),
+                        (String) item.get(KEY_SOURCE),
+                        ((Number) item.get(KEY_ENGAGEMENT)).intValue()))
+                .toList();
+        List<Map<String, Object>> kept =
+                PreScoringTriage.triage(payload, preScoringPort.score(candidates), preScoringProperties.keep());
+        log.info("Pre-scoring triage: {} → {} itemów do głównego modelu", payload.size(), kept.size());
+        return kept;
     }
 
     /**
@@ -169,197 +207,6 @@ public class ReportPromptBuilder {
 
     private static <T> List<Map<String, Object>> mapItems(List<T> items, Function<T, Map<String, Object>> fn) {
         return items.stream().map(fn).toList();
-    }
-
-    private Map<String, Object> mapTweet(Tweet tweet) {
-        String url = "https://x.com/" + tweet.authorUsername() + "/status/" + tweet.id();
-        String title = tweet.text().length() > 120
-                ? tweet.text().substring(0, 120).replace("\n", " ")
-                : tweet.text().replace("\n", " ");
-        return Map.of(
-                KEY_SOURCE, "Twitter/X",
-                KEY_TITLE, title,
-                KEY_URL, url,
-                KEY_ENGAGEMENT, tweet.likeCount(),
-                KEY_TEXT_PREVIEW, tweet.text().substring(0, Math.min(300, tweet.text().length()))
-        );
-    }
-
-    private Map<String, Object> mapHackerNews(HackerNewsPost hn) {
-        return Map.of(
-                KEY_SOURCE, "Hacker News",
-                KEY_TITLE, hn.title(),
-                KEY_URL, hn.url(),
-                KEY_ENGAGEMENT, hn.points(),
-                KEY_TEXT_PREVIEW, ""
-        );
-    }
-
-    private Map<String, Object> mapGithubRepo(GithubRepo repo) {
-        String desc = repo.description() != null ? repo.description() : "";
-        return Map.of(
-                KEY_SOURCE, "GitHub",
-                KEY_TITLE, repo.name(),
-                KEY_URL, repo.url(),
-                KEY_ENGAGEMENT, repo.stars(),
-                KEY_TEXT_PREVIEW, desc.substring(0, Math.min(200, desc.length()))
-        );
-    }
-
-    private Map<String, Object> mapRssItem(RssItem rss) {
-        String preview = rss.description() != null ? rss.description() : "";
-        return Map.of(
-                KEY_SOURCE, "RSS/" + rss.feedName(),
-                KEY_TITLE, rss.title(),
-                KEY_URL, rss.url(),
-                KEY_ENGAGEMENT, 0,
-                KEY_TEXT_PREVIEW, preview.substring(0, Math.min(300, preview.length()))
-        );
-    }
-
-    private Map<String, Object> mapRedditPost(RedditPost reddit) {
-        return Map.of(
-                KEY_SOURCE, "Reddit/r/" + reddit.subreddit(),
-                KEY_TITLE, reddit.title(),
-                KEY_URL, reddit.url(),
-                KEY_ENGAGEMENT, reddit.score(),
-                KEY_TEXT_PREVIEW, ""
-        );
-    }
-
-    private Map<String, Object> mapPaper(ResearchPaper paper) {
-        String authorsStr = paper.authors().isEmpty() ? "Unknown"
-                : String.join(", ", paper.authors().subList(0, Math.min(3, paper.authors().size())));
-        return Map.of(
-                KEY_SOURCE, "arXiv/" + paper.primaryCategory(),
-                KEY_TITLE, paper.title(),
-                KEY_URL, paper.url(),
-                KEY_ENGAGEMENT, 0,
-                KEY_TEXT_PREVIEW, paper.abstractText().substring(0, Math.min(300, paper.abstractText().length())),
-                "authors", authorsStr
-        );
-    }
-
-    private Map<String, Object> mapRelease(SoftwareRelease release) {
-        String releaseExcerpt = release.releaseNotesExcerpt() != null ? release.releaseNotesExcerpt() : "";
-        return Map.of(
-                KEY_SOURCE, "GitHub Releases",
-                KEY_TITLE, release.repoFullName() + " " + release.version(),
-                KEY_URL, release.url(),
-                KEY_ENGAGEMENT, 0,
-                KEY_TEXT_PREVIEW, releaseExcerpt.substring(0, Math.min(300, releaseExcerpt.length()))
-        );
-    }
-
-    private Map<String, Object> mapHuggingFaceModel(HuggingFaceModel model) {
-        String preview = "Pipeline: " + (model.pipelineTag() == null ? "n/a" : model.pipelineTag())
-                + " · " + model.downloads() + " downloads";
-        return Map.of(
-                KEY_SOURCE, "Hugging Face",
-                KEY_TITLE, model.id(),
-                KEY_URL, model.url(),
-                KEY_ENGAGEMENT, (int) Math.min(Integer.MAX_VALUE, model.likes()),
-                KEY_TEXT_PREVIEW, preview
-        );
-    }
-
-    private Map<String, Object> mapProductHuntPost(ProductHuntPost post) {
-        String preview = post.tagline() == null ? "" : post.tagline();
-        return Map.of(
-                KEY_SOURCE, "Product Hunt",
-                KEY_TITLE, post.name(),
-                KEY_URL, post.url(),
-                KEY_ENGAGEMENT, post.votesCount(),
-                KEY_TEXT_PREVIEW, preview.substring(0, Math.min(300, preview.length()))
-        );
-    }
-
-    private Map<String, Object> mapSecurityAdvisory(SecurityAdvisory advisory) {
-        String preview = (advisory.summary() == null ? "" : advisory.summary())
-                + " · severity=" + advisory.severity()
-                + (advisory.affectedEcosystems().isEmpty()
-                        ? "" : " · ecosystems=" + String.join(",", advisory.affectedEcosystems()));
-        return Map.of(
-                KEY_SOURCE, "Security Advisories",
-                KEY_TITLE, advisory.ghsaId() + " " + (advisory.summary() == null ? "" : advisory.summary()),
-                KEY_URL, advisory.url(),
-                KEY_ENGAGEMENT, severityScore(advisory.severity()),
-                KEY_TEXT_PREVIEW, preview.substring(0, Math.min(300, preview.length()))
-        );
-    }
-
-    private Map<String, Object> mapJepUpdate(JepUpdate jep) {
-        String preview = "Status: " + jep.status() + (jep.title() != null ? " · " + jep.title() : "");
-        return Map.of(
-                KEY_SOURCE, "OpenJDK JEP",
-                KEY_TITLE, jep.jepId() + " " + (jep.title() != null ? jep.title() : ""),
-                KEY_URL, jep.url(),
-                KEY_ENGAGEMENT, jepStatusScore(jep.status()),
-                KEY_TEXT_PREVIEW, preview.substring(0, Math.min(300, preview.length()))
-        );
-    }
-
-    private Map<String, Object> mapCncfProjectUpdate(CncfProjectUpdate cncf) {
-        String preview = "Status: " + cncf.status()
-                + (cncf.category() != null ? " · Category: " + cncf.category() : "");
-        return Map.of(
-                KEY_SOURCE, "CNCF Landscape",
-                KEY_TITLE, cncf.projectName(),
-                KEY_URL, cncf.url(),
-                KEY_ENGAGEMENT, cncfStatusScore(cncf.status()),
-                KEY_TEXT_PREVIEW, preview.substring(0, Math.min(300, preview.length()))
-        );
-    }
-
-    private Map<String, Object> mapRadarEntry(RadarEntry radar) {
-        String preview = "Ring: " + radar.ring() + " · Quadrant: " + radar.quadrant();
-        return Map.of(
-                KEY_SOURCE, "Tech Radar",
-                KEY_TITLE, radar.name(),
-                KEY_URL, radar.url(),
-                KEY_ENGAGEMENT, ringScore(radar.ring()),
-                KEY_TEXT_PREVIEW, preview.substring(0, Math.min(300, preview.length()))
-        );
-    }
-
-    private Map<String, Object> mapConferenceTalk(ConferenceTalk talk) {
-        String preview = talk.conferenceName() + " · " + talk.channelName()
-                + " · " + talk.viewCount() + " views";
-        return Map.of(
-                KEY_SOURCE, "YouTube/" + talk.conferenceName(),
-                KEY_TITLE, talk.title(),
-                KEY_URL, talk.url(),
-                KEY_ENGAGEMENT, (int) Math.min(Integer.MAX_VALUE, talk.viewCount()),
-                KEY_TEXT_PREVIEW, preview.substring(0, Math.min(300, preview.length()))
-        );
-    }
-
-    // Official AI-lab announcements (Anthropic, OpenAI, Google Gemini blogs) get a very
-    // high engagement_score so they're guaranteed to survive PromptItemSelector trimming —
-    // this is THE highest-signal source for AI model/product news.
-    private Map<String, Object> mapLabAnnouncement(LabAnnouncement ann) {
-        String preview = ann.source() + (ann.summary().isBlank() ? "" : " · " + ann.summary());
-        return Map.of(
-                KEY_SOURCE, ann.source(),
-                KEY_TITLE, ann.title(),
-                KEY_URL, ann.url(),
-                KEY_ENGAGEMENT, 1_000_000,
-                KEY_TEXT_PREVIEW, preview.substring(0, Math.min(300, preview.length()))
-        );
-    }
-
-    private Map<String, Object> mapSocialPost(SocialPost post) {
-        String text = post.text() != null ? post.text() : "";
-        String title = text.length() > 120
-                ? text.substring(0, 120).replace("\n", " ")
-                : text.replace("\n", " ");
-        return Map.of(
-                KEY_SOURCE, post.network(),
-                KEY_TITLE, title,
-                KEY_URL, post.url(),
-                KEY_ENGAGEMENT, post.likeCount(),
-                KEY_TEXT_PREVIEW, text.substring(0, Math.min(300, text.length()))
-        );
     }
 
     // Drops items whose canonical URL should be suppressed before LLM scoring — cross-edition
@@ -395,56 +242,4 @@ public class ReportPromptBuilder {
         return suppressed;
     }
 
-    /**
-     * Synthetic engagement score for advisories so LLM can still rank them by severity.
-     */
-    private int severityScore(String severity) {
-        if (severity == null) {
-            return 0;
-        }
-        return switch (severity.toUpperCase()) {
-            case "CRITICAL" -> 1000;
-            case "HIGH" -> 500;
-            case "MEDIUM" -> 100;
-            case "LOW" -> 10;
-            default -> 0;
-        };
-    }
-
-    private int jepStatusScore(String status) {
-        if (status == null) {
-            return 0;
-        }
-        return switch (status.toLowerCase()) {
-            case "delivered", "integrated" -> 300;
-            case "proposed to target" -> 200;
-            case "candidate" -> 100;
-            default -> 0;
-        };
-    }
-
-    private int cncfStatusScore(String status) {
-        if (status == null) {
-            return 0;
-        }
-        return switch (status.toLowerCase()) {
-            case "graduated" -> 300;
-            case "incubating" -> 200;
-            case "sandbox" -> 100;
-            default -> 0;
-        };
-    }
-
-    private int ringScore(String ring) {
-        if (ring == null) {
-            return 0;
-        }
-        return switch (ring.toLowerCase()) {
-            case "adopt" -> 1000;
-            case "trial" -> 500;
-            case "assess" -> 100;
-            case "hold" -> 10;
-            default -> 0;
-        };
-    }
 }

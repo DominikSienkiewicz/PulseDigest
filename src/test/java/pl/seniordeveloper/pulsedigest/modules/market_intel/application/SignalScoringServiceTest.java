@@ -21,6 +21,57 @@ class SignalScoringServiceTest {
                 source, category, "TYPE", 5, engagement, "summary", null);
     }
 
+    /** Item carrying an explicit LLM-assigned topic key — the real correlation unit. */
+    private static DigestItem topicItem(String source, String category, String topicKey) {
+        return new DigestItem(
+                "title", "http://example.com/" + Math.abs((source + topicKey).hashCode()),
+                source, category, "TYPE", 5, 0, "summary", null, topicKey);
+    }
+
+    @Test
+    void crossSourceBonusGroupsByTopicKeyAcrossDifferentCategories() {
+        // One story ("mcp") confirmed by a paper, a repo and a discussion — the thing 🔴 promises.
+        List<Signal> result = service.score(List.of(
+                topicItem("arXiv/cs.AI", "Research", "mcp"),
+                topicItem("GitHub", "Open Source", "mcp"),
+                topicItem("Hacker News", "Community", "mcp")));
+
+        assertThat(result).allMatch(s -> s.rank() == SignalRank.CRITICAL);
+    }
+
+    @Test
+    void sameBroadCategoryWithDistinctTopicsNoLongerEarnsTheBonus() {
+        // Three unrelated stories that merely share the umbrella category "AI/LLM". Grouping by
+        // category made this CRITICAL — it measured category diversity, not confirmation.
+        List<Signal> result = service.score(List.of(
+                topicItem("arXiv/cs.AI", "AI/LLM", "mcp"),
+                topicItem("GitHub", "AI/LLM", "gemini-3"),
+                topicItem("Hacker News", "AI/LLM", "llama-5")));
+
+        assertThat(result).noneMatch(s -> s.rank() == SignalRank.CRITICAL);
+    }
+
+    @Test
+    void topicKeyMatchingIsCaseInsensitive() {
+        List<Signal> result = service.score(List.of(
+                topicItem("arXiv/cs.AI", "Research", "MCP"),
+                topicItem("GitHub", "Open Source", "mcp"),
+                topicItem("Product Hunt", "Other", "Mcp")));
+
+        assertThat(result).allMatch(s -> s.rank() == SignalRank.CRITICAL);
+    }
+
+    @Test
+    void blankTopicKeyFallsBackToCategoryGrouping() {
+        // Graceful degradation: a model that omits topic_key must not silently disable 🔴 entirely.
+        List<Signal> result = service.score(List.of(
+                topicItem("arXiv/cs.AI", "llm", "  "),
+                topicItem("GitHub", "llm", null),
+                topicItem("Hacker News", "llm", "")));
+
+        assertThat(result).allMatch(s -> s.rank() == SignalRank.CRITICAL);
+    }
+
     @Test
     void arxivWithoutCrossSourceScoresModerate() {
         // arXiv weight=0.70 → base=70, engagement bonus=0, crossSource=0 → 70 → MODERATE

@@ -1,5 +1,6 @@
 package pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapter.out.ai;
 
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceDomain;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceWeights;
 
 import java.util.ArrayList;
@@ -38,6 +39,9 @@ final class PromptItemSelector {
     private static final int CAP_TALKS       = 3;
     // Free-source recovery (Bluesky + Mastodon) — recovers CV-relevant signal cut off the X budget.
     private static final int CAP_SOCIAL      = 12;
+    // Official AI-lab announcements. Labs publish a handful of posts per lookback window, so the cap
+    // is generous relative to the volume — it exists to bound a pathological scrape, not to ration.
+    private static final int CAP_LABS        = 10;
     static final int TOTAL_CAP               = 100;
 
     private PromptItemSelector() {
@@ -63,9 +67,13 @@ final class PromptItemSelector {
         List<Map<String, Object>> radar       = new ArrayList<>();
         List<Map<String, Object>> talks       = new ArrayList<>();
         List<Map<String, Object>> social      = new ArrayList<>();
+        List<Map<String, Object>> labs        = new ArrayList<>();
 
         // Ordered first-match-wins routing (preserves the original if/else-if precedence).
+        // An item matching no route is dropped before the prompt — that silently swallowed every
+        // lab announcement until the LABS route below was added.
         List<Route> routes = List.of(
+                new Route(s -> SourceDomain.from(s) == SourceDomain.LABS, labs),
                 new Route(s -> s.startsWith("Twitter"), twitter),
                 new Route(s -> s.startsWith("Hacker News"), hn),
                 new Route(s -> s.equals("GitHub"), github),
@@ -96,6 +104,7 @@ final class PromptItemSelector {
                 Comparator.comparingInt(m -> -((Number) m.get("engagement_score")).intValue());
 
         List<Map<String, Object>> selected = new ArrayList<>();
+        selected.addAll(topN(labs,        CAP_LABS,        byEngagement));
         selected.addAll(topN(twitter,     CAP_TWITTER,     byEngagement));
         selected.addAll(topN(hn,          CAP_HN,          byEngagement));
         selected.addAll(topN(github,      CAP_GITHUB,      byEngagement));

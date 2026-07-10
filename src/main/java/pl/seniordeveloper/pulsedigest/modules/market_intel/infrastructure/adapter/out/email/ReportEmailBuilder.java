@@ -12,7 +12,9 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceFe
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceFetchStatus;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TechDemandEntry;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TechDemandSignal;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.WatchlistScan;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.FeedbackProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.WatchlistProperties;
 
 import java.time.ZoneOffset;
 import java.time.LocalDate;
@@ -36,6 +38,7 @@ public class ReportEmailBuilder {
 
     private static final int TOP_PICK_THRESHOLD = 8;
     private static final int SIGNAL_THRESHOLD = 6;
+    private static final int SUBJECT_PREVIEW_BUDGET = 70;
 
     private static final String CLOSE_DIV = "</div>";
     private static final String CLOSE_LIST_DIV = "</ul></div>";
@@ -44,9 +47,61 @@ public class ReportEmailBuilder {
     private static final String MIDDOT = " &middot; ";
 
     private final FeedbackProperties feedbackProperties;
+    private final WatchlistProperties watchlistProperties;
 
-    public String buildSubject() {
-        return "📡 PulseDigest " + LocalDate.now(ZoneOffset.UTC).format(DATE_FMT);
+    /**
+     * Scans every fetched headline — not the digest's own items — so a keyword reported as "0
+     * wzmianek" means the sources were silent, not that the item lost a slot in the prompt budget.
+     */
+    private WatchlistScan scanWatchlist(ResearchResult research) {
+        if (research == null || !watchlistProperties.enabled()) {
+            return null;
+        }
+        return WatchlistScan.of(research.allTitles(), watchlistProperties.technologies());
+    }
+
+    /**
+     * Subject line for one edition. The reader should be able to decide "now or tonight?" from the
+     * inbox list alone, so the subject leads with a marker earned by the report's own signals and
+     * then reuses {@code email_preview} — text the model already writes for the preheader.
+     *
+     * <p>Every rule here is deterministic: no model call, no clickbait, and the same report always
+     * yields the same subject. A {@code null} report, or one whose preview is blank, degrades to the
+     * plain dated subject rather than shipping an empty marker line.
+     */
+    public String buildSubject(ReportData report) {
+        String today = LocalDate.now(ZoneOffset.UTC).format(DATE_FMT);
+        if (report == null || report.emailPreview() == null || report.emailPreview().isBlank()) {
+            return "📡 PulseDigest " + today;
+        }
+        return subjectMarker(report) + " " + truncateOnWordBoundary(report.emailPreview().strip())
+                + " · " + today;
+    }
+
+    private static String subjectMarker(ReportData report) {
+        List<Signal> signals = report.signals() != null ? report.signals() : List.of();
+        if (signals.stream().anyMatch(Signal::isCriticalTrend)) {
+            return "🔴";
+        }
+        List<DigestItem> items = report.items() != null ? report.items() : List.of();
+        if (items.stream().anyMatch(i -> i.score() >= DigestHighlightBuilder.MUST_KNOW_THRESHOLD)) {
+            return "⚡";
+        }
+        return "📡";
+    }
+
+    // Gmail and Apple Mail cut the subject around 70–80 chars; cutting mid-word reads as a bug, so
+    // we back off to the last space before the budget and mark the elision.
+    private static String truncateOnWordBoundary(String preview) {
+        if (preview.length() <= SUBJECT_PREVIEW_BUDGET) {
+            return preview;
+        }
+        String clipped = preview.substring(0, SUBJECT_PREVIEW_BUDGET);
+        int lastSpace = clipped.lastIndexOf(' ');
+        if (lastSpace > 0) {
+            clipped = clipped.substring(0, lastSpace);
+        }
+        return clipped.replaceAll("[\\s,;·]+$", "") + "…";
     }
 
     public String buildHtml(ReportData report, ResearchResult research) {
@@ -82,7 +137,9 @@ public class ReportEmailBuilder {
                 + DigestHighlightBuilder.buildMustKnowSection(items, feedbackProperties.receiverUrl())
                 + buildInsightsSection(insights)
                 + DigestHighlightBuilder.buildDealsAndToolsSection(items)
-                + buildCriticalTrendsSection(criticals)
+                + buildCriticalTrendsSection(criticals, signals)
+                + WeeklyRecapBuilder.buildWeeklyRecapSection(report.weeklyRecap())
+                + WatchlistBuilder.buildWatchlistSection(scanWatchlist(research))
                 + buildTechDemandSection(research != null ? research.techDemand() : null)
                 + buildItemsSection(items, rankByUrl)
                 + buildFooter(items.size(), research)
@@ -227,7 +284,7 @@ public class ReportEmailBuilder {
                 : " <span style=\"color:#dc2626;font-size:12px\">&#9660;" + rounded + CLOSE_SPAN;
     }
 
-    private String buildCriticalTrendsSection(List<Signal> criticals) {
+    private String buildCriticalTrendsSection(List<Signal> criticals, List<Signal> allSignals) {
         if (criticals.isEmpty()) {
             return "";
         }
@@ -256,10 +313,32 @@ public class ReportEmailBuilder {
                     .append(escapeHtml(it.title())).append("</a>")
                     .append(domainLabel)
                     .append(summaryPart)
+                    .append(buildConfirmationLine(it, allSignals))
+                    .append(TrendBadgeBuilder.buildRecurrenceBadge(signal))
                     .append(CLOSE_LI);
         }
         sb.append(CLOSE_LIST_DIV);
         return sb.toString();
+    }
+
+    /**
+     * Names the sources that independently carried this story. The domain badge above says the rule
+     * was met; this line lets the reader audit it — "🔴" is only credible if you can see the evidence.
+     */
+    private String buildConfirmationLine(DigestItem item, List<Signal> allSignals) {
+        String confirmations = allSignals.stream()
+                .filter(s -> s.item().correlationKey().equals(item.correlationKey()))
+                .map(s -> s.item().source())
+                .filter(source -> source != null && !source.isBlank())
+                .distinct()
+                .sorted()
+                .map(EmailFormatting::escapeHtml)
+                .collect(Collectors.joining(" + "));
+        if (confirmations.isBlank()) {
+            return "";
+        }
+        return "<div style=\"color:#9f1239;font-size:11px;margin-top:2px\">Potwierdzone w: "
+                + confirmations + CLOSE_DIV;
     }
 
     private String buildItemsSection(List<DigestItem> items, Map<String, SignalRank> rankByUrl) {

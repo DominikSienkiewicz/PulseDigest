@@ -20,6 +20,9 @@ import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.InterestProfi
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.OpenJdkProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ProductHuntProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.RedditProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.PreScoringProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.WatchlistProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportHistoryProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportRuntimeProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ResearchProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.RssProperties;
@@ -33,6 +36,9 @@ import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.TwitterProper
 @EnableConfigurationProperties({
         TwitterProperties.class,
         ReportRuntimeProperties.class,
+        ReportHistoryProperties.class,
+        PreScoringProperties.class,
+        WatchlistProperties.class,
         EmailProperties.class,
         ResearchProperties.class,
         HackerNewsProperties.class,

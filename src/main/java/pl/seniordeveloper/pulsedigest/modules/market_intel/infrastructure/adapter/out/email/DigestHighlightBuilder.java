@@ -20,7 +20,9 @@ import static pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure
  */
 final class DigestHighlightBuilder {
 
-    private static final int MUST_KNOW_THRESHOLD = 7;
+    // Package-private: ReportEmailBuilder reads it to decide the ⚡ subject marker, so the bar for
+    // "must-know" is defined exactly once.
+    static final int MUST_KNOW_THRESHOLD = 7;
     private static final int MUST_KNOW_LIMIT = 5;
     private static final int DEALS_THRESHOLD = 6;
     private static final int DEALS_LIMIT = 5;

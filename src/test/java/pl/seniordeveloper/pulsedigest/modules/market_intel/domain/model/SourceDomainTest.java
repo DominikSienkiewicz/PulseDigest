@@ -47,6 +47,22 @@ class SourceDomainTest {
     }
 
     @Test
+    void labAnnouncementSourcesResolveToLabs() {
+        // A dedicated bucket rather than SCIENCE: an official lab post, an arXiv paper and a GitHub
+        // repo are three genuinely different kinds of confirmation — which is what the rule measures.
+        assertThat(SourceDomain.from("Anthropic News")).isEqualTo(SourceDomain.LABS);
+        assertThat(SourceDomain.from("Anthropic Engineering")).isEqualTo(SourceDomain.LABS);
+        assertThat(SourceDomain.from("Claude Blog")).isEqualTo(SourceDomain.LABS);
+        assertThat(SourceDomain.from("Google Gemini Blog")).isEqualTo(SourceDomain.LABS);
+        assertThat(SourceDomain.from("OpenAI Dev Blog")).isEqualTo(SourceDomain.LABS);
+    }
+
+    @Test
+    void openJdkJepStaysInCodeDespiteTheOpenAiLabPrefix() {
+        assertThat(SourceDomain.from("OpenJDK JEP")).isEqualTo(SourceDomain.CODE);
+    }
+
+    @Test
     void nullResolvesToSocial() {
         assertThat(SourceDomain.from(null)).isEqualTo(SourceDomain.SOCIAL);
     }

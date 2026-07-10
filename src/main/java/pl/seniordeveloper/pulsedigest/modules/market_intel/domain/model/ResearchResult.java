@@ -120,6 +120,33 @@ public record ResearchResult(
                 && socialPosts.isEmpty();
     }
 
+    /**
+     * Every headline this run fetched, before any prompt budget was applied. The watchlist scans
+     * these — scanning only the items that reached the digest would make "0 mentions" meaningless.
+     */
+    public List<String> allTitles() {
+        return Stream.of(
+                        tweets.stream().map(Tweet::text),
+                        hackerNewsPosts.stream().map(HackerNewsPost::title),
+                        githubRepos.stream().map(r -> r.name() + " " + (r.description() != null ? r.description() : "")),
+                        rssItems.stream().map(RssItem::title),
+                        redditPosts.stream().map(RedditPost::title),
+                        papers.stream().map(ResearchPaper::title),
+                        releases.stream().map(r -> r.repoFullName() + " " + r.version()),
+                        huggingFaceModels.stream().map(HuggingFaceModel::id),
+                        productHuntPosts.stream().map(ProductHuntPost::name),
+                        securityAdvisories.stream().map(a -> a.summary() != null ? a.summary() : a.ghsaId()),
+                        jepUpdates.stream().map(j -> j.title() != null ? j.title() : j.jepId()),
+                        cncfProjectUpdates.stream().map(CncfProjectUpdate::projectName),
+                        radarEntries.stream().map(RadarEntry::name),
+                        conferenceTalks.stream().map(ConferenceTalk::title),
+                        labAnnouncements.stream().map(LabAnnouncement::title),
+                        socialPosts.stream().map(SocialPost::text))
+                .flatMap(s -> s)
+                .filter(t -> t != null && !t.isBlank())
+                .toList();
+    }
+
     public int rawTotalCount() {
         return rawTweetsCount + rawHackerNewsCount + rawGithubCount
                 + rawRssCount + rawRedditCount + papers.size() + releases.size()
