@@ -12,6 +12,7 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.HackerNe
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.HuggingFaceModel;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.JepUpdate;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ProductHuntPost;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.PromptItemMeta;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RadarEntry;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RedditPost;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ResearchPaper;
@@ -193,6 +194,26 @@ class ReportPromptBuilderTest {
         List<Map<String, Object>> payload = payload(builder.buildUserPrompt(researchWithEverySource(), 5));
 
         assertThat(payload).hasSize(5);
+    }
+
+    @Test
+    void buildPromptExposesInputMetadataKeyedByCanonicalUrl() {
+        // The re-join map must describe exactly the items that went into the prompt, so the adapter
+        // can overwrite the model's echoed source/engagement and reject URLs it never saw.
+        PromptPayload payload = builder(Set.of()).buildPrompt(researchWithEverySource());
+
+        assertThat(payload.userPrompt()).isEqualTo(builder(Set.of()).buildUserPrompt(researchWithEverySource()));
+        assertThat(payload.inputMeta()).hasSize(14);
+        assertThat(payload.inputMeta())
+                .containsEntry("https://news.example/hn", new PromptItemMeta("Hacker News", 120))
+                .containsEntry("https://github.com/owner/repo", new PromptItemMeta("GitHub", 5_000));
+    }
+
+    @Test
+    void buildPromptDropsInputMetadataForItemsTrimmedOutOfThePrompt() {
+        PromptPayload payload = builder(Set.of()).buildPrompt(researchWithEverySource(), 3);
+
+        assertThat(payload.inputMeta()).hasSize(3);
     }
 
     @Test

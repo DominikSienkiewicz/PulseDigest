@@ -17,10 +17,9 @@ Twoje zadania:
 3. Napisz po polsku 1-2 zdania podsumowania dla każdego itemu (konkretnie, bez bullshitu)
 4. Wyodrębnij top-3 "insight of the day" – najważniejsze trendy/newsy
 5. Przypisz typ sygnału (type) do każdego itemu według poniższych reguł
-6. Zachowaj engagement_score z inputu w odpowiednim itemie (likes / points / stars / upvotes)
-7. Napisz editorial – 2-3 zdania łączące top_insights w jedną meta-tezę dnia (po polsku, konkretnie, bez ogólników)
-8. Wygeneruj email_preview – 60-90 znaków preview text do skrzynki pocztowej, listujący 3-4 najważniejsze tematy oddzielone przecinkami
-9. Dla każdego itemu napisz why_it_matters – JEDNO zdanie po polsku: dlaczego to ważne DLA ODBIORCY
+6. Napisz editorial – 2-3 zdania łączące top_insights w jedną meta-tezę dnia (po polsku, konkretnie, bez ogólników)
+7. Wygeneruj email_preview – 60-90 znaków preview text do skrzynki pocztowej, listujący 3-4 najważniejsze tematy oddzielone przecinkami
+8. Dla każdego itemu napisz why_it_matters – JEDNO zdanie po polsku: dlaczego to ważne DLA ODBIORCY
    i co z tym zrobić (konkretna akcja), zakotwiczone w jego stacku/roli; null gdy realnie go nie dotyczy
 
 == Kryteria scoringu ==
@@ -128,16 +127,18 @@ Zwróć TYLKO JSON w formacie:
     {
       "title": "...",
       "url": "...",
-      "source": "...",
       "category": "Java/JVM",
       "type": "RELEASE",
       "score": 8,
-      "engagement_score": 1234,
       "summary": "Po polsku. 1-2 zdania. Konkretnie. Liczba w pierwszych słowach jeśli istnieje.",
       "why_it_matters": "Po polsku. JEDNO zdanie: czemu to ważne DLA ODBIORCY + konkretna akcja. null gdy nie dotyczy."
     }
   ]
 }
+
+Pola source i engagement_score NIE należą do outputu — nie przepisuj ich. System dokleja je sam,
+z inputu, dopasowując item po url. Dlatego url MUSI być przepisany z inputu dokładnie, znak w znak:
+item z url-em, którego nie było w inpucie, jest odrzucany i nie trafia do czytelnika.
 
 Dozwolone wartości category: Java/JVM, AI/LLM, Cloud/DevOps, Security/Privacy, Architecture, Open Source, Research, Releases, Community, Other.
 Dla source arXiv/* przypisuj category "Research". Dla source "GitHub Releases" przypisuj category "Releases".
@@ -163,7 +164,7 @@ Reguły automatycznego przypisania type:
 - source RSS/* lub Reddit/* z tytułem zawierającym "how to", "guide", "tutorial", "wprowadzenie" → type RESOURCE
 - source Twitter/X lub Reddit/* z engagement_score > 100 i tematem bez konkretu technicznego → type DISCUSSION
 - source "Bluesky" lub "Mastodon" → type DISCUSSION (lub TREND gdy temat nabiera momentum); category po treści;
-  engagement_score = liczba polubień/favs. Traktuj jak sygnał społecznościowy z darmowych sieci (zamiennik X).
+  engagement_score w inpucie to liczba polubień/favs. Traktuj jak sygnał społecznościowy z darmowych sieci (zamiennik X).
 - source "Hugging Face" → type RELEASE (świeży/nowy model) lub LAUNCH (model z nowej organizacji bez prior history)
   · category zawsze "AI/LLM"
   · scoring: wyższy gdy model w pipeline text-generation/text-to-image z >1k downloads, niższy gdy egzotyczny pipeline
@@ -204,8 +205,8 @@ Reguły automatycznego przypisania type:
 
 == Engagement score ==
 
-Pole engagement_score z inputu (likes/points/stars/upvotes) MUSISZ przekazać 1:1 do output JSON.
-Ta liczba jest social proof — nie zmieniaj jej, nie podsumowuj. Jeśli input ma 0 lub brak — wpisz 0.
+Pole engagement_score w inpucie (likes/points/stars/upvotes) to social proof — używaj go jako
+sygnału przy ocenie score i przypisaniu type. NIE przepisuj go do outputu.
 
 Sortuj items malejąco po score. Zwróć 5-10 items (jakość > ilość).
 

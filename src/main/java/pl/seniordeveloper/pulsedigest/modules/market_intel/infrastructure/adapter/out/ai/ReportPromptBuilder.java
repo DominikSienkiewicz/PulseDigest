@@ -17,6 +17,7 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.HuggingF
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.JepUpdate;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.LabAnnouncement;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ProductHuntPost;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.PromptItemMeta;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RadarEntry;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RedditPost;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ResearchPaper;
@@ -36,6 +37,7 @@ import pl.seniordeveloper.pulsedigest.shared.util.UrlCanonicalizer;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -79,7 +81,7 @@ public class ReportPromptBuilder {
 
     /** Full-intake prompt — every source capped at its own budget, then trimmed to {@code TOTAL_CAP}. */
     public String buildUserPrompt(ResearchResult research) {
-        return buildUserPrompt(research, PromptItemSelector.TOTAL_CAP);
+        return buildPrompt(research).userPrompt();
     }
 
     /**
@@ -87,6 +89,16 @@ public class ReportPromptBuilder {
      * Used to recover from a truncated model response by re-sending fewer items.
      */
     public String buildUserPrompt(ResearchResult research, int totalCap) {
+        return buildPrompt(research, totalCap).userPrompt();
+    }
+
+    /** Full-intake prompt plus the trusted metadata of every item it carries. */
+    public PromptPayload buildPrompt(ResearchResult research) {
+        return buildPrompt(research, PromptItemSelector.TOTAL_CAP);
+    }
+
+    /** Reduced-intake prompt (at most {@code totalCap} items) plus its trusted item metadata. */
+    public PromptPayload buildPrompt(ResearchResult research, int totalCap) {
         List<Map<String, Object>> all = new ArrayList<>();
         List.of(
                 mapItems(research.tweets(), this::mapTweet),
@@ -132,11 +144,27 @@ public class ReportPromptBuilder {
                     research.conferenceTalks().size(),
                     research.socialPosts().size(),
                     research.labAnnouncements().size());
-            return "Oto posty z ostatnich kilku dni:\n\n" + json;
+            return new PromptPayload("Oto posty z ostatnich kilku dni:\n\n" + json, inputMetaOf(payload));
         } catch (JsonProcessingException e) {
             log.error("Błąd serializacji payloadu: {}", e.getMessage());
-            return "Oto posty z ostatnich kilku dni:\n\n[]";
+            return new PromptPayload("Oto posty z ostatnich kilku dni:\n\n[]", Map.of());
         }
+    }
+
+    /**
+     * Indexes the outgoing payload by canonical URL. On a duplicate URL the first item wins — the
+     * selector already ordered them by source budget, so the earlier entry is the better-ranked one.
+     */
+    private static Map<String, PromptItemMeta> inputMetaOf(List<Map<String, Object>> payload) {
+        Map<String, PromptItemMeta> meta = new HashMap<>();
+        for (Map<String, Object> item : payload) {
+            if (item.get(KEY_URL) instanceof String url && !url.isBlank()) {
+                meta.putIfAbsent(UrlCanonicalizer.canonicalize(url), new PromptItemMeta(
+                        (String) item.get(KEY_SOURCE),
+                        ((Number) item.get(KEY_ENGAGEMENT)).intValue()));
+            }
+        }
+        return Map.copyOf(meta);
     }
 
     private static <T> List<Map<String, Object>> mapItems(List<T> items, Function<T, Map<String, Object>> fn) {

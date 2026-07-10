@@ -3,6 +3,7 @@ package pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapt
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.core.instrument.Metrics;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -11,6 +12,7 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.http.ExternalRestClients;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.PromptItemMeta;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.QuotaSignals;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportData;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ResearchResult;
@@ -83,19 +85,19 @@ public class GptSynthesisAdapter implements LlmSynthesisPort {
      */
     private ReportData synthesizeWith(String model, String systemPrompt, ResearchResult research) {
         try {
-            return callWithRetry(model, systemPrompt, () -> promptBuilder.buildUserPrompt(research));
+            return callWithRetry(model, systemPrompt, () -> promptBuilder.buildPrompt(research));
         } catch (LlmTruncatedException e) {
             int reducedCap = PromptItemSelector.TOTAL_CAP / 2;
             log.warn("Odpowiedź {} ucięta na token capie — ponawiam z {} itemami", model, reducedCap);
-            return callWithRetry(model, systemPrompt, () -> promptBuilder.buildUserPrompt(research, reducedCap));
+            return callWithRetry(model, systemPrompt, () -> promptBuilder.buildPrompt(research, reducedCap));
         }
     }
 
-    private ReportData callWithRetry(String model, String systemPrompt, Supplier<String> userPrompt) {
+    private ReportData callWithRetry(String model, String systemPrompt, Supplier<PromptPayload> payload) {
         LlmSynthesisException lastFailure = null;
         for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
             try {
-                return call(model, systemPrompt, userPrompt.get());
+                return call(model, systemPrompt, payload.get());
             } catch (LlmQuotaException | LlmTruncatedException e) {
                 throw e;
             } catch (LlmSynthesisException e) {
@@ -109,10 +111,10 @@ public class GptSynthesisAdapter implements LlmSynthesisPort {
         throw lastFailure;
     }
 
-    private ReportData call(String model, String systemPrompt, String userPrompt) {
-        log.debug("User prompt length: {} znaków", userPrompt.length());
+    private ReportData call(String model, String systemPrompt, PromptPayload payload) {
+        log.debug("User prompt length: {} znaków", payload.userPrompt().length());
         try {
-            String requestBody = buildOpenAiRequest(model, systemPrompt, userPrompt);
+            String requestBody = buildOpenAiRequest(model, systemPrompt, payload.userPrompt());
             String rawResponse = openAiClient.post()
                     .uri("/chat/completions")
                     .body(requestBody)
@@ -122,7 +124,8 @@ public class GptSynthesisAdapter implements LlmSynthesisPort {
             OpenAiResponse response = objectMapper.readValue(rawResponse, OpenAiResponse.class);
             logUsage(model, response.usage());
             String jsonContent = extractContent(response);
-            ReportData report = objectMapper.readValue(jsonContent, ReportData.class);
+            ReportData report = rejoinMetadata(
+                    objectMapper.readValue(jsonContent, ReportData.class), payload.inputMeta());
             log.info("Digest wygenerowany przez {} | {} insights | {} itemów", model,
                     report.topInsights() != null ? report.topInsights().size() : 0,
                     report.items() != null ? report.items().size() : 0);
@@ -137,6 +140,26 @@ public class GptSynthesisAdapter implements LlmSynthesisPort {
             }
             throw new LlmSynthesisException("OpenAI synthesis failed: " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * Restores the input-side truth for every returned item and drops the ones the model invented.
+     * Counters are dumped to the CI log on shutdown ({@code MetricsLogger}), so a rising
+     * {@code llm.output.rejected} is the signal that the model — or someone's injected text — started
+     * fabricating URLs.
+     */
+    private static ReportData rejoinMetadata(ReportData report, Map<String, PromptItemMeta> inputMeta) {
+        int returned = report.items() != null ? report.items().size() : 0;
+        ReportData rejoined = report.withRejoinedMetadata(inputMeta);
+        int kept = rejoined.items() != null ? rejoined.items().size() : 0;
+        int rejected = returned - kept;
+        if (rejected > 0) {
+            log.warn("Odrzucono {} z {} itemów — URL spoza promptu (halucynacja lub prompt injection)",
+                    rejected, returned);
+            Metrics.counter("llm.output.rejected").increment(rejected);
+        }
+        Metrics.counter("llm.output.rejoined").increment(kept);
+        return rejoined;
     }
 
     /**

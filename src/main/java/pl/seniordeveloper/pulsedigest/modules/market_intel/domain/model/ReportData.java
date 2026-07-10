@@ -5,6 +5,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import pl.seniordeveloper.pulsedigest.shared.util.UrlCanonicalizer;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 /**
  * Wynik syntezy digest: editorial lead, top-3 insights dnia, lista ocenionych itemów
@@ -44,5 +46,35 @@ public record ReportData(
                         i.score(), i.engagementScore(), i.summary(), i.whyItMatters()))
                 .toList();
         return new ReportData(emailPreview, editorial, topInsights, cleaned, signals);
+    }
+
+    /**
+     * Re-joins each item with the trusted metadata of the prompt item carrying the same canonical URL.
+     * The model's echoed {@code source} and {@code engagement_score} are overwritten, and any item
+     * whose URL was never in the prompt — a hallucination, or an exfiltration attempt riding on a
+     * successful prompt injection — is dropped.
+     */
+    public ReportData withRejoinedMetadata(Map<String, PromptItemMeta> inputMeta) {
+        if (items == null || items.isEmpty()) {
+            return this;
+        }
+        List<DigestItem> rejoined = items.stream()
+                .map(item -> rejoin(item, inputMeta))
+                .filter(Objects::nonNull)
+                .toList();
+        return new ReportData(emailPreview, editorial, topInsights, rejoined, signals);
+    }
+
+    private static DigestItem rejoin(DigestItem item, Map<String, PromptItemMeta> inputMeta) {
+        if (item.url() == null || item.url().isBlank()) {
+            return null;
+        }
+        String canonical = UrlCanonicalizer.canonicalize(item.url());
+        PromptItemMeta meta = inputMeta.get(canonical);
+        if (meta == null) {
+            return null;
+        }
+        return new DigestItem(item.title(), canonical, meta.source(), item.category(), item.type(),
+                item.score(), meta.engagementScore(), item.summary(), item.whyItMatters());
     }
 }

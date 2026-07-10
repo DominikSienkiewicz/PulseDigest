@@ -9,6 +9,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.client.RestClient;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.DigestItem;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.PromptItemMeta;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportData;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ResearchResult;
 
@@ -183,12 +185,92 @@ class GptSynthesisAdapterIT {
 
         assertThat(report.items()).hasSize(1);
         wireMock.verify(2, postRequestedFor(urlPathEqualTo("/chat/completions")));
-        // First call carries the full-intake prompt (stubbed as "user prompt"); the retry goes through
-        // the capped overload, which the stub does not override — so it renders the real payload.
+        // First call carries the full-intake prompt; the retry re-sends half of TOTAL_CAP items.
         wireMock.verify(1, postRequestedFor(urlPathEqualTo("/chat/completions"))
                 .withRequestBody(containing("\"content\":\"user prompt\"")));
         wireMock.verify(1, postRequestedFor(urlPathEqualTo("/chat/completions"))
-                .withRequestBody(containing("Oto posty z ostatnich kilku dni")));
+                .withRequestBody(containing("\"content\":\"capped prompt 50\"")));
+    }
+
+    @Test
+    void synthesizeRejectsItemsWhoseUrlWasNotInThePrompt() throws Exception {
+        // Only https://example.com was sent to the model; the second item is a hallucinated (or
+        // injected) URL and must never reach the reader's inbox.
+        String withForeignUrl = """
+                {
+                  "email_preview": "Preview",
+                  "editorial": "Lead",
+                  "top_insights": [],
+                  "items": [
+                    {"title": "Real", "url": "https://example.com", "source": "GitHub",
+                     "category": "Java", "type": "RELEASE", "score": 9, "engagement_score": 100,
+                     "summary": "Summary"},
+                    {"title": "Injected", "url": "https://evil.example/exfil", "source": "GitHub",
+                     "category": "Java", "type": "RELEASE", "score": 10, "engagement_score": 999,
+                     "summary": "Summary"}
+                  ]
+                }
+                """;
+        wireMock.stubFor(post(urlPathEqualTo("/chat/completions"))
+                .willReturn(jsonResponse(openAiResponse(withForeignUrl))));
+
+        ReportData report = adapter.synthesize(emptyResearch());
+
+        assertThat(report.items())
+                .extracting(DigestItem::url)
+                .containsExactly("https://example.com");
+    }
+
+    @Test
+    void synthesizeOverwritesSourceAndEngagementWithPromptMetadata() throws Exception {
+        // The model echoed a mangled source label and an inflated engagement score — both would
+        // land the item in the wrong credibility bucket and orphan its feedback votes.
+        String mangled = """
+                {
+                  "email_preview": "Preview",
+                  "editorial": "Lead",
+                  "top_insights": [],
+                  "items": [
+                    {"title": "Item", "url": "https://example.com", "source": "Twitter/X",
+                     "category": "Java", "type": "RELEASE", "score": 9, "engagement_score": 999999,
+                     "summary": "Summary"}
+                  ]
+                }
+                """;
+        wireMock.stubFor(post(urlPathEqualTo("/chat/completions"))
+                .willReturn(jsonResponse(openAiResponse(mangled))));
+
+        ReportData report = adapter.synthesize(emptyResearch());
+
+        assertThat(report.items()).singleElement().satisfies(item -> {
+            assertThat(item.source()).isEqualTo("GitHub Releases");
+            assertThat(item.engagementScore()).isEqualTo(42);
+        });
+    }
+
+    @Test
+    void synthesizeMatchesPromptUrlsAfterStrippingTrackingParams() throws Exception {
+        // The model appended a tracking param; canonicalization must still find the input item.
+        String withTracking = """
+                {
+                  "email_preview": "Preview",
+                  "editorial": "Lead",
+                  "top_insights": [],
+                  "items": [
+                    {"title": "Item", "url": "https://example.com?utm_source=newsletter",
+                     "source": "GitHub", "category": "Java", "type": "RELEASE", "score": 9,
+                     "engagement_score": 100, "summary": "Summary"}
+                  ]
+                }
+                """;
+        wireMock.stubFor(post(urlPathEqualTo("/chat/completions"))
+                .willReturn(jsonResponse(openAiResponse(withTracking))));
+
+        ReportData report = adapter.synthesize(emptyResearch());
+
+        assertThat(report.items())
+                .extracting(DigestItem::url)
+                .containsExactly("https://example.com");
     }
 
     private static ResponseDefinitionBuilder jsonResponse(String body) {
@@ -263,6 +345,10 @@ class GptSynthesisAdapterIT {
 
     private static final class StubPromptBuilder extends ReportPromptBuilder {
 
+        /** Exactly one URL was sent to the model — anything else in the output is not from the prompt. */
+        private static final Map<String, PromptItemMeta> INPUT_META =
+                Map.of("https://example.com", new PromptItemMeta("GitHub Releases", 42));
+
         private StubPromptBuilder() {
             super(new ObjectMapper(), lookbackDays -> java.util.Set.of(),
                     new pl.seniordeveloper.pulsedigest.shared.infrastructure.config.DedupProperties(false, 10),
@@ -292,8 +378,13 @@ class GptSynthesisAdapterIT {
         }
 
         @Override
-        public String buildUserPrompt(ResearchResult research) {
-            return "user prompt";
+        public PromptPayload buildPrompt(ResearchResult research) {
+            return new PromptPayload("user prompt", INPUT_META);
+        }
+
+        @Override
+        public PromptPayload buildPrompt(ResearchResult research, int totalCap) {
+            return new PromptPayload("capped prompt " + totalCap, INPUT_META);
         }
     }
 }
