@@ -176,7 +176,6 @@ interest-profile:
     - api
 
 report:
-  cache-ttl-minutes: 60
   min-generation-interval-minutes: 30
   email:
     resend-api-key: "${RESEND_API_KEY:}"

@@ -14,6 +14,7 @@ import java.time.format.DateTimeFormatter;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -104,6 +105,43 @@ class ExternalRestClientsTest {
         assertThatRequestCompletes("/retry-after");
 
         assertThat(retryCounterTotal()).isGreaterThan(0.0);
+    }
+
+    @Test
+    void doesNotRetryA429WhoseBodySaysTheBudgetIsDepleted() {
+        // QuotaErrors already treats any 429 as terminal; the transport retrying it three times
+        // first just burned round-trips and backoff against an account that cannot recover.
+        wireMock.stubFor(get(urlEqualTo("/depleted")).willReturn(aResponse()
+                .withStatus(429)
+                .withHeader("Content-Type", "application/json")
+                .withBody("{\"error\":{\"code\":\"insufficient_quota\"}}")));
+
+        assertThatRequestCompletes("/depleted");
+
+        wireMock.verify(1, getRequestedFor(urlEqualTo("/depleted")));
+    }
+
+    @Test
+    void stillRetriesA429ThatIsOnlyThrottlingUs() {
+        wireMock.stubFor(get(urlEqualTo("/throttled-plain")).willReturn(aResponse().withStatus(429)));
+
+        assertThatRequestCompletes("/throttled-plain");
+
+        wireMock.verify(3, getRequestedFor(urlEqualTo("/throttled-plain")));
+    }
+
+    @Test
+    void aDepletedBudgetResponseStillHandsItsBodyToTheCaller() {
+        // The adapters classify by exception message, which RestClient builds from the body — so
+        // reading the body to classify must not consume it.
+        wireMock.stubFor(get(urlEqualTo("/depleted-body")).willReturn(aResponse()
+                .withStatus(429)
+                .withHeader("Content-Type", "application/json")
+                .withBody("{\"error\":{\"code\":\"insufficient_quota\"}}")));
+
+        org.assertj.core.api.Assertions
+                .assertThatThrownBy(() -> client.get().uri("/depleted-body").retrieve().body(String.class))
+                .hasMessageContaining("insufficient_quota");
     }
 
     private void assertThatRequestCompletes(String path) {

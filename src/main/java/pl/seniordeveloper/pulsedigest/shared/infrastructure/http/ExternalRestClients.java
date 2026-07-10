@@ -9,9 +9,13 @@ import org.springframework.http.client.ClientHttpRequestExecution;
 import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.QuotaSignals;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.net.http.HttpClient;
 import java.time.Duration;
 import java.time.Instant;
@@ -65,8 +69,14 @@ public final class ExternalRestClients {
         for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
             long retryAfterMillis = -1;
             try {
-                ClientHttpResponse response = execution.execute(request, body);
+                ClientHttpResponse response = classifyThrottle(execution.execute(request, body));
                 HttpStatusCode statusCode = response.getStatusCode();
+                if (isDepletedBudget(response)) {
+                    recordRetry(host, "budget_depleted");
+                    log.debug("Not retrying {} {} — the account's budget is depleted",
+                            request.getMethod(), request.getURI());
+                    return response;
+                }
                 if (!isRetryable(statusCode) || attempt == MAX_ATTEMPTS) {
                     if (isRetryable(statusCode) && attempt == MAX_ATTEMPTS) {
                         recordRetry(host, "exhausted_" + statusCode.value());
@@ -127,6 +137,61 @@ public final class ExternalRestClients {
 
     private static boolean isRetryable(HttpStatusCode statusCode) {
         return statusCode.value() == 429 || statusCode.is5xxServerError();
+    }
+
+    /**
+     * Buffers a throttled response so its body can be inspected without being consumed. Only 429s
+     * are buffered: they are rare, their bodies are tiny, and every other response would pay the
+     * memory cost for nothing.
+     */
+    private static ClientHttpResponse classifyThrottle(ClientHttpResponse response) throws IOException {
+        if (response.getStatusCode().value() != 429) {
+            return response;
+        }
+        try (response) {
+            return new BufferedResponse(response.getStatusCode(), response.getStatusText(),
+                    response.getHeaders(), response.getBody().readAllBytes());
+        }
+    }
+
+    // A 429 saying "insufficient_quota" is a billing state, not a speed limit: no backoff can fix it.
+    private static boolean isDepletedBudget(ClientHttpResponse response) throws IOException {
+        return response instanceof BufferedResponse buffered
+                && QuotaSignals.indicatesDepletedBudget(buffered.bodyAsText());
+    }
+
+    /** A fully-read response whose body can be handed to the caller after we have inspected it. */
+    private record BufferedResponse(HttpStatusCode statusCode, String statusText,
+                                    HttpHeaders headers, byte[] body) implements ClientHttpResponse {
+
+        String bodyAsText() {
+            return new String(body, StandardCharsets.UTF_8);
+        }
+
+        @Override
+        public HttpStatusCode getStatusCode() {
+            return statusCode;
+        }
+
+        @Override
+        public String getStatusText() {
+            return statusText;
+        }
+
+        @Override
+        public HttpHeaders getHeaders() {
+            return headers;
+        }
+
+        @Override
+        public InputStream getBody() {
+            return new ByteArrayInputStream(body);
+        }
+
+        @Override
+        public void close() {
+            // nothing to release: the underlying response was closed when this one was created
+        }
     }
 
     // Honors a server-provided Retry-After header (capped) when present, otherwise linear backoff.

@@ -10,7 +10,6 @@ import org.springframework.validation.annotation.Validated;
 @ConfigurationProperties(prefix = "report")
 @Validated
 public record ReportRuntimeProperties(
-        @Min(0) int cacheTtlMinutes,
         @Min(0) int minGenerationIntervalMinutes
 ) {
 }
