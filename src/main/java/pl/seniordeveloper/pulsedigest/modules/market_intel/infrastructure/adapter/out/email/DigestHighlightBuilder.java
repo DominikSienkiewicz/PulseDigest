@@ -1,9 +1,8 @@
 package pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapter.out.email;
 
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.DigestItem;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.FeedbackProperties;
 
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
@@ -35,7 +34,7 @@ final class DigestHighlightBuilder {
     // Hero block: the few highest-score items (strong+, capped), each with a one-sentence
     // "why it matters to you" action line, plus 👍/👎 feedback links when a receiver URL is configured.
     // The "if you read nothing else" section.
-    static String buildMustKnowSection(List<DigestItem> items, String feedbackReceiverUrl) {
+    static String buildMustKnowSection(List<DigestItem> items, FeedbackProperties feedback, String edition) {
         List<DigestItem> mustKnow = items.stream()
                 .filter(i -> i.score() >= MUST_KNOW_THRESHOLD)
                 .sorted(Comparator.comparingInt(DigestItem::score).reversed())
@@ -60,7 +59,7 @@ final class DigestHighlightBuilder {
                     .append(escapeHtml(item.title())).append("</a>")
                     .append(" <span style=\"color:#b45309;font-weight:700;font-size:12px\">")
                     .append(item.score()).append("/10</span>")
-                    .append(feedbackLinks(item.url(), item.source(), feedbackReceiverUrl))
+                    .append(FeedbackLinkBuilder.render(item.url(), item.source(), edition, feedback))
                     .append(why)
                     .append("</li>");
         }
@@ -68,22 +67,9 @@ final class DigestHighlightBuilder {
         return sb.toString();
     }
 
-    // Renders 👍/👎 links pointing at the external feedback receiver (the headless batch never serves
-    // HTTP). Empty when no receiver URL is configured. The item URL + source are URL-encoded query args.
-    private static String feedbackLinks(String itemUrl, String source, String receiverUrl) {
-        if (receiverUrl == null || receiverUrl.isBlank()) {
-            return "";
-        }
-        String url = URLEncoder.encode(itemUrl != null ? itemUrl : "", StandardCharsets.UTF_8);
-        String src = URLEncoder.encode(source != null ? source : "", StandardCharsets.UTF_8);
-        String up = receiverUrl + "?url=" + url + "&vote=up&source=" + src;
-        String down = receiverUrl + "?url=" + url + "&vote=down&source=" + src;
-        return " <a href=\"" + safeHref(up) + "\" style=\"text-decoration:none;font-size:12px\">&#128077;</a>"
-                + "<a href=\"" + safeHref(down) + "\" style=\"text-decoration:none;font-size:12px\">&#128078;</a>";
-    }
-
     // "Deals & Tools" — actionable launches/releases/features/promotions the reader can use right now.
-    static String buildDealsAndToolsSection(List<DigestItem> items) {
+    static String buildDealsAndToolsSection(List<DigestItem> items, FeedbackProperties feedback,
+                                           String edition) {
         List<DigestItem> deals = items.stream()
                 .filter(i -> i.score() >= DEALS_THRESHOLD)
                 .filter(i -> i.type() != null && DEAL_TYPES.contains(i.type()))
@@ -108,6 +94,7 @@ final class DigestHighlightBuilder {
                     .append("\" style=\"color:#a21caf;font-weight:600;text-decoration:none;font-size:14px\">")
                     .append(escapeHtml(item.title())).append("</a> ")
                     .append(typeBadge(item.type() != null ? item.type() : "OTHER"))
+                    .append(FeedbackLinkBuilder.render(item.url(), item.source(), edition, feedback))
                     .append(summaryPart)
                     .append("</li>");
         }

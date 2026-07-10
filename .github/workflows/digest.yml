@@ -125,6 +125,7 @@ jobs:
           # Optional: external feedback receiver for the email 👍/👎 links (C6). Repository VARIABLE
           # (non-sensitive public URL), not a secret. Blank/unset = no links rendered.
           FEEDBACK_RECEIVER_URL: ${{ vars.FEEDBACK_RECEIVER_URL }}
+          FEEDBACK_SIGNING_SECRET: ${{ secrets.FEEDBACK_SIGNING_SECRET }}
 
       - name: Upload digest log on failure
         if: failure()

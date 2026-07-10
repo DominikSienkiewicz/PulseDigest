@@ -226,6 +226,10 @@ report:
     enabled: true
     lookback-days: 30
     receiver-url: "${FEEDBACK_RECEIVER_URL:}"
+    # Sekret współdzielony z receiverem. Ustawiony ⇒ każdy link 👍/👎 niesie &sig=HMAC(url|vote|source|edition),
+    # więc głosu nie da się sfałszować ani przerobić w locie. Pusty ⇒ linki bez podpisu, dzisiejszy
+    # receiver działa bez zmian — dzięki temu podpis można wdrożyć ZANIM receiver nauczy się go weryfikować.
+    signing-secret: "${FEEDBACK_SIGNING_SECRET:}"
 
   research:
     min-likes: 3

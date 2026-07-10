@@ -102,6 +102,9 @@ public class ReportEmailBuilder {
 
     public String buildHtml(ReportData report, ResearchResult research) {
         String today = LocalDate.now(ZoneOffset.UTC).format(DATE_FMT);
+        // ISO date identifies the edition in every feedback link, so the receiver can enforce one
+        // vote per item per edition — a scanner prefetching the same link cannot amplify it.
+        String edition = LocalDate.now(ZoneOffset.UTC).toString();
         String preheader = report.emailPreview() != null && !report.emailPreview().isBlank()
                 ? report.emailPreview()
                 : "Twój digest tech news z ostatnich kilku dni";
@@ -130,14 +133,14 @@ public class ReportEmailBuilder {
                 + buildHeader(today)
                 + buildQuotaBanner(exhausted)
                 + buildEditorialSection(editorial)
-                + DigestHighlightBuilder.buildMustKnowSection(items, feedbackProperties.receiverUrl())
+                + DigestHighlightBuilder.buildMustKnowSection(items, feedbackProperties, edition)
                 + buildInsightsSection(insights)
-                + DigestHighlightBuilder.buildDealsAndToolsSection(items)
+                + DigestHighlightBuilder.buildDealsAndToolsSection(items, feedbackProperties, edition)
                 + buildCriticalTrendsSection(criticals, signals)
                 + WeeklyRecapBuilder.buildWeeklyRecapSection(report.weeklyRecap())
                 + WatchlistBuilder.buildWatchlistSection(scanWatchlist(research))
                 + buildTechDemandSection(research != null ? research.techDemand() : null)
-                + DigestTableBuilder.buildItemsSection(items, signalByUrl)
+                + DigestTableBuilder.buildItemsSection(items, signalByUrl, feedbackProperties, edition)
                 + buildFooter(items.size(), research, report.radarAccuracy())
                 + "</div></body></html>";
     }

@@ -3,6 +3,7 @@ package pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapt
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.DigestItem;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Signal;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SignalRank;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.FeedbackProperties;
 
 import java.util.List;
 import java.util.Map;
@@ -30,7 +31,8 @@ final class DigestTableBuilder {
     private DigestTableBuilder() {
     }
 
-    static String buildItemsSection(List<DigestItem> items, Map<String, Signal> signalByUrl) {
+    static String buildItemsSection(List<DigestItem> items, Map<String, Signal> signalByUrl,
+                                   FeedbackProperties feedback, String edition) {
         if (items.isEmpty()) {
             return "";
         }
@@ -42,12 +44,13 @@ final class DigestTableBuilder {
                 .toList();
 
         StringBuilder sb = new StringBuilder();
-        sb.append(buildTopPicksSection(topPicks, signalByUrl));
-        sb.append(buildMidTierSection(midTier, signalByUrl));
+        sb.append(buildTopPicksSection(topPicks, signalByUrl, feedback, edition));
+        sb.append(buildMidTierSection(midTier, signalByUrl, feedback, edition));
         return sb.toString();
     }
 
-    private static String buildTopPicksSection(List<DigestItem> items, Map<String, Signal> signalByUrl) {
+    private static String buildTopPicksSection(List<DigestItem> items, Map<String, Signal> signalByUrl,
+                                              FeedbackProperties feedback, String edition) {
         if (items.isEmpty()) {
             return "";
         }
@@ -64,14 +67,15 @@ final class DigestTableBuilder {
         sb.append(th("Score"));
         sb.append("</tr></thead><tbody>");
         for (DigestItem item : items) {
-            sb.append(buildTopPickRow(item, signalByUrl.get(item.url())));
+            sb.append(buildTopPickRow(item, signalByUrl.get(item.url()), feedback, edition));
         }
         sb.append("</tbody></table></div>");
         return sb.toString();
     }
 
     // Renders the "Signals" email section (LLM score 5–8); named mid-tier to avoid collision with the Signal domain type.
-    private static String buildMidTierSection(List<DigestItem> items, Map<String, Signal> signalByUrl) {
+    private static String buildMidTierSection(List<DigestItem> items, Map<String, Signal> signalByUrl,
+                                             FeedbackProperties feedback, String edition) {
         if (items.isEmpty()) {
             return "";
         }
@@ -88,18 +92,20 @@ final class DigestTableBuilder {
         sb.append(th("Score"));
         sb.append("</tr></thead><tbody>");
         for (DigestItem item : items) {
-            sb.append(buildTieredRow(item, "#fafafa", signalByUrl.get(item.url())));
+            sb.append(buildTieredRow(item, "#fafafa", signalByUrl.get(item.url()), feedback, edition));
         }
         sb.append("</tbody></table></div>");
         return sb.toString();
     }
 
-    static String buildTopPickRow(DigestItem item, Signal signal) {
-        return buildRow(item, "", signal);
+    private static String buildTopPickRow(DigestItem item, Signal signal,
+                                          FeedbackProperties feedback, String edition) {
+        return buildRow(item, "", signal, feedback, edition);
     }
 
-    static String buildTieredRow(DigestItem item, String rowBg, Signal signal) {
-        return buildRow(item, "background:" + rowBg, signal);
+    private static String buildTieredRow(DigestItem item, String rowBg, Signal signal,
+                                         FeedbackProperties feedback, String edition) {
+        return buildRow(item, "background:" + rowBg, signal, feedback, edition);
     }
 
     private static String scoreColor(int score) {
@@ -112,7 +118,8 @@ final class DigestTableBuilder {
         return "#dc2626";
     }
 
-    static String buildRow(DigestItem item, String rowStyle, Signal signal) {
+    private static String buildRow(DigestItem item, String rowStyle, Signal signal,
+                                   FeedbackProperties feedback, String edition) {
         String scoreColor = scoreColor(item.score());
         String safeUrl = safeHref(item.url());
         String rankPrefix = signal != null ? rankEmoji(signal.rank()) : "";
@@ -129,6 +136,7 @@ final class DigestTableBuilder {
                 + "<td style=\"padding:10px 12px;border-bottom:1px solid #f0f0f0\">"
                 + "<a href=\"" + safeUrl + "\" style=\"color:#1d4ed8;font-weight:600;"
                 + "text-decoration:none\">" + safeTitle + "</a>"
+                + FeedbackLinkBuilder.render(item.url(), item.source(), edition, feedback)
                 + "<div style=\"color:#6b7280;font-size:13px;margin-top:4px\">"
                 + safeSummary + "</div></td>"
                 + "<td style=\"padding:10px 12px;border-bottom:1px solid #f0f0f0;"

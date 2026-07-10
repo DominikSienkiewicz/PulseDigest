@@ -355,7 +355,7 @@ class GptSynthesisAdapterIT {
                     new pl.seniordeveloper.pulsedigest.shared.infrastructure.config.InterestProfileProperties(
                             "Test Persona", java.util.List.of("java")),
                     noFeedback(),
-                    new pl.seniordeveloper.pulsedigest.shared.infrastructure.config.FeedbackProperties(false, 30, ""),
+                    new pl.seniordeveloper.pulsedigest.shared.infrastructure.config.FeedbackProperties(false, 30, "", ""),
                     candidates -> Map.of(),
                     new pl.seniordeveloper.pulsedigest.shared.infrastructure.config.PreScoringProperties(false, 50));
         }
