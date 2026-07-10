@@ -2,18 +2,25 @@ package pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapt
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.application.policy.ReaderProfilePolicy;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.HackerNewsPost;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ProfileHypothesis;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReaderProfile;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ResearchResult;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.FeedbackPort;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.PublishedUrlsPort;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.ReaderProfilePort;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.DedupProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.FeedbackProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.InterestProfileProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.PreScoringProperties;
 
+import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -27,10 +34,59 @@ class ReportPromptBuilderPreferencesTest {
     private static final String BLOCK = "PREFERENCJE CZYTELNIKA";
 
     private ReportPromptBuilder builder(boolean feedbackEnabled, Map<String, Integer> categoryVotes) {
+        return builder(feedbackEnabled, categoryVotes, Optional.empty());
+    }
+
+    private ReportPromptBuilder builder(boolean feedbackEnabled, Map<String, Integer> categoryVotes,
+                                        Optional<ReaderProfile> profile) {
         return new ReportPromptBuilder(new ObjectMapper(), noPublishedHistory(),
                 new DedupProperties(true, 10), new InterestProfileProperties("Test Persona", List.of("java")),
                 feedbackPort(categoryVotes), new FeedbackProperties(feedbackEnabled, 30, "", ""),
-                candidates -> Map.of(), new PreScoringProperties(false, 50));
+                candidates -> Map.of(), new PreScoringProperties(false, 50),
+                profileStore(profile), new ReaderProfilePolicy(true, 10, 7, 60));
+    }
+
+    // --- C16: the living reader model, injected as a system-prompt addendum ---
+
+    @Test
+    void theSystemPromptCarriesTheDistilledReaderModelWithItsEvidence() {
+        ReportPromptBuilder builder = builder(true, Map.of(), Optional.of(new ReaderProfile(
+                Instant.parse("2026-07-06T06:00:00Z"), 20,
+                List.of(new ProfileHypothesis("Chce więcej Javy", "+8 netto w java/jvm",
+                        LocalDate.now(java.time.ZoneOffset.UTC))))));
+
+        String systemPrompt = builder.buildSystemPrompt();
+
+        assertThat(systemPrompt).contains("MODEL CZYTELNIKA");
+        assertThat(systemPrompt).contains("Chce więcej Javy").contains("+8 netto w java/jvm");
+    }
+
+    @Test
+    void anExpiredHypothesisNeverReachesThePrompt() {
+        ReportPromptBuilder builder = builder(true, Map.of(), Optional.of(new ReaderProfile(
+                Instant.parse("2026-07-06T06:00:00Z"), 20,
+                List.of(new ProfileHypothesis("Stara teza", "kiedyś", LocalDate.of(2020, 1, 1))))));
+
+        assertThat(builder.buildSystemPrompt()).doesNotContain("MODEL CZYTELNIKA");
+    }
+
+    @Test
+    void theSystemPromptIsUnchangedWhileTheReaderHasNoProfileYet() {
+        assertThat(builder(true, Map.of()).buildSystemPrompt()).doesNotContain("MODEL CZYTELNIKA");
+    }
+
+    private static ReaderProfilePort profileStore(Optional<ReaderProfile> profile) {
+        return new ReaderProfilePort() {
+            @Override
+            public Optional<ReaderProfile> latest() {
+                return profile;
+            }
+
+            @Override
+            public void save(ReaderProfile p) {
+                throw new UnsupportedOperationException("the prompt builder must never write");
+            }
+        };
     }
 
     @Test

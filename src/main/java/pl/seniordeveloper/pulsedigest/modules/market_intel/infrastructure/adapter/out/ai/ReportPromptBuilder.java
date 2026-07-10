@@ -12,23 +12,29 @@ import org.springframework.stereotype.Component;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.CategoryPreference;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.PreScoringCandidate;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.PromptItemMeta;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReaderProfile;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ResearchResult;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.FeedbackPort;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.PreScoringPort;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.PublishedUrlsPort;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.ReaderProfilePort;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.DedupProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.FeedbackProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.InterestProfileProperties;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.application.policy.ReaderProfilePolicy;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.PreScoringProperties;
 import pl.seniordeveloper.pulsedigest.shared.util.UrlCanonicalizer;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -55,6 +61,8 @@ public class ReportPromptBuilder {
     private final FeedbackProperties feedbackProperties;
     private final PreScoringPort preScoringPort;
     private final PreScoringProperties preScoringProperties;
+    private final ReaderProfilePort readerProfilePort;
+    private final ReaderProfilePolicy readerProfilePolicy;
 
     @Value("classpath:prompts/system-prompt.txt")
     private Resource systemPromptResource;
@@ -70,7 +78,34 @@ public class ReportPromptBuilder {
     public String buildSystemPrompt() {
         // Profil odbiorcy doklejany z interest-profile (jedno źródło prawdy) — rubryka scoringu
         // w system-prompt.txt odsyła do tej sekcji zamiast hardcodować persony.
-        return systemPrompt + "\n\n== PROFIL ODBIORCY ==\n" + interestProfile.persona() + "\n";
+        return systemPrompt + "\n\n== PROFIL ODBIORCY ==\n" + interestProfile.persona() + "\n"
+                + readerModelAddendum();
+    }
+
+    /**
+     * The living reader model, appended after the frozen persona: what the digest has actually learned
+     * from months of 👍/👎, each claim with the evidence behind it.
+     *
+     * <p>Read-only here. The weekly re-distillation happens in the pipeline; a prompt builder that
+     * writes would make every prompt a side effect. Expired hypotheses are pruned before injection, so
+     * a claim the reader stopped confirming stops steering the digest.
+     */
+    private String readerModelAddendum() {
+        if (!readerProfilePolicy.enabled()) {
+            return "";
+        }
+        Optional<ReaderProfile> active = readerProfilePort.latest()
+                .map(p -> p.activeOn(LocalDate.now(ZoneOffset.UTC), readerProfilePolicy.hypothesisTtlDays()))
+                .filter(p -> !p.isEmpty());
+        if (active.isEmpty()) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder("\n== MODEL CZYTELNIKA (destylowany z jego głosów) ==\n")
+                .append("Uzupełnia personę powyżej. Każda teza ma podaną ewidencję — traktuj ją jako\n")
+                .append("preferencję, nie jako regułę twardą.\n");
+        active.get().hypotheses().forEach(h -> sb.append("- ").append(h.statement())
+                .append(" (").append(h.evidence()).append(")\n"));
+        return sb.toString();
     }
 
     /** Full-intake prompt — every source capped at its own budget, then trimmed to {@code TOTAL_CAP}. */

@@ -5,6 +5,7 @@ import org.springframework.stereotype.Component;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ApiAccounts;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.DigestItem;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RadarAccuracy;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReaderProfile;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportData;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ResearchResult;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Signal;
@@ -141,7 +142,7 @@ public class ReportEmailBuilder {
                 + WatchlistBuilder.buildWatchlistSection(scanWatchlist(research))
                 + buildTechDemandSection(research != null ? research.techDemand() : null)
                 + DigestTableBuilder.buildItemsSection(items, signalByUrl, feedbackProperties, edition)
-                + buildFooter(items.size(), research, report.radarAccuracy())
+                + buildFooter(items.size(), research, report.radarAccuracy(), report.readerProfile())
                 + "</div></body></html>";
     }
 
@@ -340,7 +341,8 @@ public class ReportEmailBuilder {
                 + confirmations + CLOSE_DIV;
     }
 
-    private String buildFooter(int selectedCount, ResearchResult research, RadarAccuracy radarAccuracy) {
+    private String buildFooter(int selectedCount, ResearchResult research, RadarAccuracy radarAccuracy,
+                               ReaderProfile readerProfile) {
         int rawTotal = research != null ? research.rawTotalCount() : 0;
         int sources = research != null ? research.activeSourceCount() : 0;
         long failedSources = research != null
@@ -353,6 +355,7 @@ public class ReportEmailBuilder {
                 + sources + " &#378;róde&#322;" + sourceHealth + " &middot; okno pn/śr/pt"
                 + TrendBadgeBuilder.buildRadarAccuracyLine(radarAccuracy)
                 + "<br>Wygenerowano przez GPT-4o &middot; PulseDigest"
+                + TrendBadgeBuilder.buildReaderModelLine(readerProfile)
                 + CLOSE_DIV;
     }
 }

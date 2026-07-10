@@ -1,11 +1,16 @@
 package pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapter.out.email;
 
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RadarAccuracy;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReaderProfile;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Signal;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TrendRecurrence;
 
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
+import java.util.stream.Collectors;
+
+import static pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapter.out.email
+        .EmailFormatting.escapeHtml;
 
 /**
  * Renders the cross-edition memory of a signal: how many consecutive editions have carried the story
@@ -47,6 +52,25 @@ final class TrendBadgeBuilder {
      */
     static String candidateMarker(Signal signal) {
         return signal != null && signal.isCriticalCandidate() ? "&#128992; " : "";
+    }
+
+    /**
+     * Discloses the living reader model in the footer: what the digest believes about the reader and
+     * the evidence behind each claim.
+     *
+     * <p>Not a nicety. A model distilled from the reader's own clicks, silently reshaping what he
+     * sees, is exactly the thing he must be able to audit — and disagree with.
+     */
+    static String buildReaderModelLine(ReaderProfile profile) {
+        if (profile == null || profile.isEmpty()) {
+            return "";
+        }
+        String claims = profile.hypotheses().stream()
+                .map(h -> escapeHtml(h.statement()) + " <span style=\"color:#cbd5e1\">("
+                        + escapeHtml(h.evidence()) + ")</span>")
+                .collect(Collectors.joining("<br>"));
+        return "<div style=\"margin-top:10px;color:#9ca3af;font-size:11px;line-height:1.6\">"
+                + "Model czytelnika &mdash; destylowany z Twoich głosów:<br>" + claims + "</div>";
     }
 
     /**

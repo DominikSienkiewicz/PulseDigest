@@ -212,6 +212,16 @@ report:
       - vllm
       - pgvector
 
+  # Żywy Model Czytelnika: raz w tygodniu gpt-4o-mini destyluje z głosów 👍/👎 kilka datowanych,
+  # udowodnionych hipotez o czytelniku. Każda liczba niżej to bariera przed dryfem profilu:
+  # min-votes = nie modeluj czytelnika z szumu; refresh-days = jeden call mini na tydzień, nie na bieg;
+  # hypothesis-ttl-days = hipoteza, której czytelnik przestał potwierdzać, wygasa zamiast sterować wiecznie.
+  reader-profile:
+    enabled: true
+    min-votes: 10
+    refresh-days: 7
+    hypothesis-ttl-days: 60
+
   # Report history: poprzednie wydania czytane z tabeli `reports` (pełny JSONB był zapisywany od
   # zawsze, nikt go nie czytał). Daje pamięć trendów ("3. edycja z rzędu", "pierwszy sygnał: 18.06")
   # oraz piątkowy recap tygodnia. 21 dni ≈ 9 wydań przy kadencji pn/śr/pt.
