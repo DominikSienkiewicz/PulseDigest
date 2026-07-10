@@ -14,10 +14,11 @@ spring:
     hikari:
       maximum-pool-size: 4
       connection-timeout: 30000
+  # Schema is owned by Flyway (db/migration), applied as a discrete `./gradlew flywayMigrate` step
+  # before the run — NOT by the app at startup. The app assumes the schema is already there.
   sql:
     init:
-      mode: always
-      continue-on-error: false
+      mode: never
 
 twitter:
   bearer-token: "${TWITTER_BEARER_TOKEN:}"

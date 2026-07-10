@@ -111,6 +111,7 @@ The delivered HTML email is a structured digest, not just a link list:
 - **🟠 Critical candidate** — title marker on Top picks / Signals rows for stories the radar expects to break next. The digest's footer carries the radar's published hit rate.
 - **📊 Tydzień w sygnałach** — Friday only, and only when something moved: up to 7 lines showing which stories **escalated** (`MODERATE → CRITICAL`), which were **confirmed**, and which **faded**. Saying that Monday's 🔴 came to nothing is what makes the 🔴 credible.
 - **🎯 Twój radar** — one line per watched technology from `report.watchlist.technologies`, scanned across **every headline fetched this run** (not just the items that survived the prompt budget). A keyword with no matches renders an explicit `0 wzmianek`: confirmed silence, not an item that quietly lost a slot.
+- **🔍 „Dlaczego to widzisz"** — a micro-line under each Must-know and Critical item reconstructing its score from the components the scorer already computed: `Hacker News 0.80 → 80 pkt · engagement +12 · potwierdzenie w 3+ domenach +50 · Twoje głosy: źródło −4 (0.80 → 0.60)`. Rendered on those two blocks only — the same line under twenty table rows would be noise, not transparency.
 - **🔑 Top insights** — top-3 takeaways extracted from the day.
 - **🛠️ Deals & Tools** — up-to-5 adoptable items of type `LAUNCH` / `RELEASE` / `FEATURE` / `PROMOTION` (score ≥ 6): new tools the reader can use and deals/offers worth claiming. Skipped when none qualify.
 - **📈 Puls rynku (tech-demand pulse)** — demand ranking from the monthly HN "Who is hiring?" thread, computed **outside** the core item budget. Shows: a one-line **LLM interpretation**; technologies by **share of hiring posts** with month-over-month **▲/▼ delta** (e.g. "Python 26% ▲3 · TypeScript 23% ▼1 · Rust 9% ▲4"); a **"Twój stack"** line with demand for the reader's own JVM/Python-AI core (`tech-demand.priority-technologies`) even when outside the top ranking; and a "vs <prev month>" footnote. The delta is stateless — the adapter also fetches the **previous** month's thread and compares share in percentage points. Shown only in the ~week after a new monthly thread drops (`tech-demand.lookback-days`), then absent — so it never repeats every run. Off when no technology clears `min-mentions`.
@@ -136,11 +137,12 @@ The reader can mute topics without the app ever serving HTTP (it stays a headles
 3. **Per-category preference.** A 👎 on a dull paper should punish the topic ("Research"), not the whole of arXiv — half the information in every click used to be discarded. The `category` parameter feeds a `CategoryPreference` multiplier (±2% per net vote, **clamped to [0.90, 1.10]**) applied to an item's credibility and engagement score, plus a `== PREFERENCJE CZYTELNIKA ==` block in the LLM prompt naming the topics the reader repeatedly asked for more or less of (≥ 3 net votes; one stray click is noise).
 
    Two guards keep this from becoming a positive feedback loop, where a muted category disappears and can therefore never earn the votes that would revive it. The multiplier **never scales the cross-source bonus**, so a muted topic that three independent domains confirm still reaches 🔴 CRITICAL — corroboration is evidence, not taste. And the prompt block is worded as a preference, explicitly *not* a filter. Until the receiver starts sending `category`, the column stays null, the multiplier is a no-op and the block is absent — this degrades to the previous per-source behaviour rather than to a wrong one.
-4. On the next run the batch reads recent feedback ([`SupabaseFeedbackAdapter`](src/main/java/pl/seniordeveloper/pulsedigest/modules/market_intel/infrastructure/adapter/out/persistence/SupabaseFeedbackAdapter.java), `feedback.lookback-days` window) and acts on it two ways:
+4. **„Twoje głosy w akcji".** The footer names every source whose credibility weight the reader's votes actually moved, with the weight it started from and the one it ended at (`Reddit: −4 głosów · waga 0.60 → 0.40`). Scoring used to be a black box in both directions: the reader could not see why an item surfaced, nor what his own 👎 had done to it. A vote whose effect is invisible is a vote nobody casts twice, which is how a learning loop starves. Every component of the explanation (`ScoreBreakdown`) is carried on the `Signal` and persisted with the edition, so it costs nothing extra to compute.
+5. On the next run the batch reads recent feedback ([`SupabaseFeedbackAdapter`](src/main/java/pl/seniordeveloper/pulsedigest/modules/market_intel/infrastructure/adapter/out/persistence/SupabaseFeedbackAdapter.java), `feedback.lookback-days` window) and acts on it two ways:
    - **Suppresses** down-voted item URLs before LLM scoring, alongside cross-edition dedup — the reader mutes a specific item.
    - **Nudges per-source weight** in deterministic signal scoring: votes aggregate at the **base-source** level (a vote on any item from a source — `arXiv/cs.AI`, `Reddit/r/java`, `RSS/InfoQ` — counts toward that source's `arXiv` / `Reddit` / `RSS` weight, not the exact label), and each source's net votes (👍 − 👎) shift its credibility weight by `±0.05` per vote, clamped to `±0.30` and `[0.10, 0.99]`. So a consistently down-voted source ranks lower (and an up-voted one higher) over time, without ever crossing the STRONG threshold on feedback alone. With no votes the weights are unchanged.
 
-   The `feedback` table is created from [`schema.sql`](src/main/resources/schema.sql) on startup.
+   The `feedback` table is part of the Flyway baseline migration [`V1__initial_schema.sql`](src/main/resources/db/migration/V1__initial_schema.sql).
 
 The receiver itself lives outside this repo (the batch only ever *reads* feedback).
 
@@ -166,7 +168,7 @@ Every failure path — storage down, distiller down, empty response — leaves t
 - **Java 26** with `--enable-preview` (pattern matching, sealed interfaces)
 - **Spring Boot 4.1.0-SNAPSHOT** — `web-application-type: none` (headless)
 - **Spring AI 2.0.0-SNAPSHOT** — GPT-4o via OpenAI
-- **Supabase (Postgres) via JDBC** — `JdbcClient` + `JSONB` payloads, schema bootstrapped from `schema.sql` on startup
+- **Supabase (Postgres) via JDBC** — `JdbcClient` + `JSONB` payloads; schema owned by **Flyway** migrations (`db/migration`), applied as a discrete CI step (`./gradlew flywayMigrate`), not by the app at startup
 - **spring-dotenv** — auto-loads `.env` locally (parity with GitHub Actions secrets)
 - **Testcontainers** — Postgres container for integration tests (isolated, never touches prod Supabase)
 - **Bean Validation** — startup validation for required report/Twitter configuration
@@ -218,7 +220,18 @@ SUPABASE_DB_PASSWORD=
 
 The same env vars are used in **GitHub Actions secrets** — local and CI run against the **same Supabase database**, guaranteeing "works on my machine == works in prod" parity.
 
-The `reports`, `feedback` (incl. its `category` and `edition` columns and the one-vote-per-edition unique index), `tech_demand_history` and `reader_profile` tables are created automatically on first run via `spring.sql.init.mode: always` + [`schema.sql`](src/main/resources/schema.sql). `tech_demand_history` stores one mention snapshot per (month, vocabulary), which is what lets the tech-demand pulse read last month's numbers instead of re-scraping ~1000 comments every run; the vocabulary key exists because changing `tech-demand.technologies` changes what "mentions" means, so counts must never be compared across that boundary.
+### Database migrations (Flyway)
+
+The schema lives in versioned Flyway migrations under [`src/main/resources/db/migration`](src/main/resources/db/migration) — the `reports`, `feedback`, `tech_demand_history` and `reader_profile` tables. The app **does not** migrate at startup (no Flyway on its runtime classpath); migrating the database is a discrete step:
+
+```bash
+FLYWAY_URL=$SUPABASE_DB_URL FLYWAY_USER=$SUPABASE_DB_USERNAME FLYWAY_PASSWORD=$SUPABASE_DB_PASSWORD \
+  ./gradlew flywayMigrate
+```
+
+Flyway records applied versions in `flyway_schema_history`, so this is a no-op once the schema is current: on a fresh database it applies `V1__initial_schema.sql`, on later runs only new `V2`, `V3`, … files. In CI the **Migrate database (Flyway)** step runs this before every scheduled digest. The persistence ITs apply the same migrations to their Testcontainers Postgres, so each PR proves the migration set still applies cleanly to a fresh database. To evolve the schema, add a new `V<n>__<name>.sql` — never edit a migration that has already been applied.
+
+(`tech_demand_history` stores one mention snapshot per (month, vocabulary), which is what lets the tech-demand pulse read last month's numbers instead of re-scraping ~1000 comments every run; the vocabulary key exists because changing `tech-demand.technologies` changes what "mentions" means, so counts must never be compared across that boundary.)
 
 ## Build commands
 

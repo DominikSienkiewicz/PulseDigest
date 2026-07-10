@@ -134,7 +134,7 @@ public class ReportEmailBuilder {
                 + buildHeader(today)
                 + buildQuotaBanner(exhausted)
                 + buildEditorialSection(editorial)
-                + DigestHighlightBuilder.buildMustKnowSection(items, feedbackProperties, edition)
+                + DigestHighlightBuilder.buildMustKnowSection(items, signalByUrl, feedbackProperties, edition)
                 + buildInsightsSection(insights)
                 + DigestHighlightBuilder.buildDealsAndToolsSection(items, feedbackProperties, edition)
                 + buildCriticalTrendsSection(criticals, signals)
@@ -142,7 +142,7 @@ public class ReportEmailBuilder {
                 + WatchlistBuilder.buildWatchlistSection(scanWatchlist(research))
                 + buildTechDemandSection(research != null ? research.techDemand() : null)
                 + DigestTableBuilder.buildItemsSection(items, signalByUrl, feedbackProperties, edition)
-                + buildFooter(items.size(), research, report.radarAccuracy(), report.readerProfile())
+                + buildFooter(items.size(), research, report.radarAccuracy(), report.readerProfile(), signals)
                 + "</div></body></html>";
     }
 
@@ -315,6 +315,7 @@ public class ReportEmailBuilder {
                     .append(summaryPart)
                     .append(buildConfirmationLine(it, allSignals))
                     .append(TrendBadgeBuilder.buildRecurrenceBadge(signal))
+                    .append(ScoreExplanationBuilder.buildWhyYouSeeThis(signal))
                     .append(CLOSE_LI);
         }
         sb.append(CLOSE_LIST_DIV);
@@ -342,7 +343,7 @@ public class ReportEmailBuilder {
     }
 
     private String buildFooter(int selectedCount, ResearchResult research, RadarAccuracy radarAccuracy,
-                               ReaderProfile readerProfile) {
+                               ReaderProfile readerProfile, List<Signal> signals) {
         int rawTotal = research != null ? research.rawTotalCount() : 0;
         int sources = research != null ? research.activeSourceCount() : 0;
         long failedSources = research != null
@@ -355,6 +356,7 @@ public class ReportEmailBuilder {
                 + sources + " &#378;róde&#322;" + sourceHealth + " &middot; okno pn/śr/pt"
                 + TrendBadgeBuilder.buildRadarAccuracyLine(radarAccuracy)
                 + "<br>Wygenerowano przez GPT-4o &middot; PulseDigest"
+                + ScoreExplanationBuilder.buildVotesInAction(signals)
                 + TrendBadgeBuilder.buildReaderModelLine(readerProfile)
                 + CLOSE_DIV;
     }

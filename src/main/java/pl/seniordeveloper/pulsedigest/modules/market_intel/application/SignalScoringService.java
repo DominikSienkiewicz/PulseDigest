@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.CategoryPreference;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.DigestItem;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ScoreBreakdown;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Signal;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SignalRank;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceDomain;
@@ -126,7 +127,14 @@ public class SignalScoringService {
                 .sorted(Comparator.comparing(SourceDomain::name))
                 .toList();
 
-        return new Signal(item, rank, signalScore, sortedDomains);
+        // Keep every component instead of discarding it: the digest owes the reader an explanation of
+        // why an item surfaced, and of what his own votes did to it.
+        ScoreBreakdown breakdown = new ScoreBreakdown(
+                SourceWeights.keyOf(item.source()), SourceWeights.of(item.source()), weight, netVotes,
+                engagementBonus, preference,
+                CategoryPreference.netVotesFor(item.category(), netVotesByCategory), crossSourceBonus);
+
+        return new Signal(item, rank, signalScore, sortedDomains, null, null, breakdown);
     }
 
     private static SignalRank toRank(int score) {

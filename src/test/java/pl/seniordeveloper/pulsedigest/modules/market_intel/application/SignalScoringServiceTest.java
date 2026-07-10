@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 
 class SignalScoringServiceTest {
 
@@ -70,6 +71,49 @@ class SignalScoringServiceTest {
                 topicItem("Hacker News", "llm", "")));
 
         assertThat(result).allMatch(s -> s.rank() == SignalRank.CRITICAL);
+    }
+
+    // --- C7: every scored signal explains itself ---
+
+    @Test
+    void everySignalCarriesTheBreakdownOfItsOwnScore() {
+        List<Signal> result = service.score(
+                List.of(item("Hacker News", "Java/JVM", 12_000)), Map.of("Hacker News", -2), Map.of("java/jvm", 3));
+
+        assertThat(result.get(0).breakdown()).satisfies(b -> {
+            assertThat(b.sourceKey()).isEqualTo("Hacker News");
+            assertThat(b.baseWeight()).isCloseTo(0.80, within(0.001));
+            assertThat(b.netSourceVotes()).isEqualTo(-2);
+            assertThat(b.effectiveWeight()).isCloseTo(0.70, within(0.001));
+            assertThat(b.engagementBonus()).isEqualTo(12);
+            assertThat(b.netCategoryVotes()).isEqualTo(3);
+            assertThat(b.categoryMultiplier()).isCloseTo(1.06, within(0.001));
+            assertThat(b.crossSourceBonus()).isZero();
+        });
+    }
+
+    @Test
+    void theBreakdownAddsUpToTheScoreThatWasActuallyAssigned() {
+        // The explanation must reconstruct the number, or it is a story about a different digest.
+        List<Signal> result = service.score(
+                List.of(item("Hacker News", "Java/JVM", 12_000)), Map.of(), Map.of("java/jvm", 3));
+        Signal signal = result.get(0);
+
+        var b = signal.breakdown();
+        int reconstructed = (int) Math.round((b.baseScore() + b.engagementBonus()) * b.categoryMultiplier())
+                + b.crossSourceBonus();
+
+        assertThat(reconstructed).isEqualTo(signal.signalScore());
+    }
+
+    @Test
+    void theBreakdownRecordsTheCrossSourceBonusWhenThreeDomainsConfirmedTheStory() {
+        List<Signal> result = service.score(List.of(
+                topicItem("arXiv/cs.AI", "Research", "mcp"),
+                topicItem("GitHub", "Open Source", "mcp"),
+                topicItem("Hacker News", "Community", "mcp")));
+
+        assertThat(result).allSatisfy(s -> assertThat(s.breakdown().wasCrossSourceConfirmed()).isTrue());
     }
 
     // --- C13: per-category preference multiplier ---
