@@ -5,6 +5,7 @@ import com.zaxxer.hikari.HikariDataSource;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
@@ -21,6 +22,7 @@ import java.util.Objects;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @Testcontainers
 class SupabaseFeedbackAdapterIT {
@@ -54,6 +56,40 @@ class SupabaseFeedbackAdapterIT {
         jdbc = JdbcClient.create(dataSource);
         jdbc.sql("DELETE FROM feedback").update();
         adapter = new SupabaseFeedbackAdapter(jdbc);
+    }
+
+    @Test
+    void anItemCanOnlyBeVotedOnceWithinAnEdition() {
+        // A mail scanner prefetching the link — or fetching both 👍 and 👎 — must not amplify a vote.
+        jdbc.sql("INSERT INTO feedback (item_url, source, vote, edition) VALUES (?, ?, ?, ?)")
+                .params("https://example.com/a", "GitHub", "UP", "2026-07-10").update();
+
+        assertThatThrownBy(() -> jdbc.sql("INSERT INTO feedback (item_url, source, vote, edition) VALUES (?, ?, ?, ?)")
+                .params("https://example.com/a", "GitHub", "DOWN", "2026-07-10").update())
+                .isInstanceOf(DuplicateKeyException.class);
+    }
+
+    @Test
+    void theSameItemCanBeVotedAgainInALaterEdition() {
+        jdbc.sql("INSERT INTO feedback (item_url, source, vote, edition) VALUES (?, ?, ?, ?)")
+                .params("https://example.com/a", "GitHub", "UP", "2026-07-10").update();
+
+        int rows = jdbc.sql("INSERT INTO feedback (item_url, source, vote, edition) VALUES (?, ?, ?, ?)")
+                .params("https://example.com/a", "GitHub", "DOWN", "2026-07-13").update();
+
+        assertThat(rows).isEqualTo(1);
+    }
+
+    @Test
+    void rowsWrittenByAReceiverThatDoesNotYetSendTheEditionAreNotConstrained() {
+        // Rolling out the column must not break the receiver that is live today.
+        jdbc.sql("INSERT INTO feedback (item_url, source, vote) VALUES (?, ?, ?)")
+                .params("https://example.com/a", "GitHub", "UP").update();
+
+        int rows = jdbc.sql("INSERT INTO feedback (item_url, source, vote) VALUES (?, ?, ?)")
+                .params("https://example.com/a", "GitHub", "DOWN").update();
+
+        assertThat(rows).isEqualTo(1);
     }
 
     @Test

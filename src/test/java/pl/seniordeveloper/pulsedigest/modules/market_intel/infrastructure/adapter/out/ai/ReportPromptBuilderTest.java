@@ -53,14 +53,14 @@ class ReportPromptBuilderTest {
     private ReportPromptBuilder builder(Set<String> publishedUrls, Set<String> downvotedUrls) {
         return new ReportPromptBuilder(objectMapper, publishedUrlsPort(publishedUrls, List.of()),
                 new DedupProperties(true, 10), new InterestProfileProperties("Test Persona", List.of("java")),
-                feedbackPort(downvotedUrls), new FeedbackProperties(true, 30, ""),
+                feedbackPort(downvotedUrls), new FeedbackProperties(true, 30, "", ""),
                 noPreScoring(), new PreScoringProperties(false, 50));
     }
 
     private ReportPromptBuilder builderWithTitles(List<String> publishedTitles) {
         return new ReportPromptBuilder(objectMapper, publishedUrlsPort(Set.of(), publishedTitles),
                 new DedupProperties(true, 10), new InterestProfileProperties("Test Persona", List.of("java")),
-                feedbackPort(Set.of()), new FeedbackProperties(true, 30, ""),
+                feedbackPort(Set.of()), new FeedbackProperties(true, 30, "", ""),
                 noPreScoring(), new PreScoringProperties(false, 50));
     }
 
@@ -187,7 +187,7 @@ class ReportPromptBuilderTest {
         };
         ReportPromptBuilder builder = new ReportPromptBuilder(failingMapper, publishedUrlsPort(Set.of(), List.of()),
                 new DedupProperties(true, 10), new InterestProfileProperties("Test Persona", List.of("java")),
-                feedbackPort(Set.of()), new FeedbackProperties(true, 30, ""),
+                feedbackPort(Set.of()), new FeedbackProperties(true, 30, "", ""),
                 noPreScoring(), new PreScoringProperties(false, 50));
 
         String prompt = builder.buildUserPrompt(researchWithEverySource());
@@ -273,7 +273,7 @@ class ReportPromptBuilderTest {
         ReportPromptBuilder builder = new ReportPromptBuilder(objectMapper,
                 publishedUrlsPort(Set.of(), List.of("Spring Boot 4.2 released")),
                 new DedupProperties(false, 10), new InterestProfileProperties("Test Persona", List.of("java")),
-                feedbackPort(Set.of()), new FeedbackProperties(false, 30, ""),
+                feedbackPort(Set.of()), new FeedbackProperties(false, 30, "", ""),
                 noPreScoring(), new PreScoringProperties(false, 50));
 
         assertThat(builder.buildUserPrompt(researchWithEverySource())).doesNotContain("JUŻ OPUBLIKOWANE");
@@ -286,7 +286,7 @@ class ReportPromptBuilderTest {
                 .collect(java.util.stream.Collectors.toMap(PreScoringCandidate::url, c -> 1));
         ReportPromptBuilder builder = new ReportPromptBuilder(objectMapper, publishedUrlsPort(Set.of(), List.of()),
                 new DedupProperties(true, 10), new InterestProfileProperties("Test Persona", List.of("java")),
-                feedbackPort(Set.of()), new FeedbackProperties(true, 30, ""),
+                feedbackPort(Set.of()), new FeedbackProperties(true, 30, "", ""),
                 dismissive, new PreScoringProperties(true, 3));
 
         List<Map<String, Object>> payload = payload(builder.buildUserPrompt(researchWithEverySource()));

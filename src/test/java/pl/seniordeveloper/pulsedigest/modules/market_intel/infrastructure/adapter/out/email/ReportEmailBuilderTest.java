@@ -30,7 +30,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ReportEmailBuilderTest {
 
     private final ReportEmailBuilder builder =
-            new ReportEmailBuilder(new FeedbackProperties(false, 30, ""), new WatchlistProperties(false, List.of()));
+            new ReportEmailBuilder(new FeedbackProperties(false, 30, "", ""), new WatchlistProperties(false, List.of()));
 
     @Test
     void buildSubjectUsesDigestPrefix() {
@@ -192,7 +192,7 @@ class ReportEmailBuilderTest {
 
     @Test
     void watchlistSectionConfirmsSilenceForTechnologiesNobodyMentioned() {
-        ReportEmailBuilder withWatchlist = new ReportEmailBuilder(new FeedbackProperties(false, 30, ""),
+        ReportEmailBuilder withWatchlist = new ReportEmailBuilder(new FeedbackProperties(false, 30, "", ""),
                 new WatchlistProperties(true, List.of("spring ai", "kubernetes")));
 
         String html = withWatchlist.buildHtml(fullReport(), researchWithFailedSource());
@@ -243,6 +243,43 @@ class ReportEmailBuilderTest {
     }
 
     @Test
+    void feedbackLinksReachEveryTierNotJustTheMustKnowFive() {
+        // The learning loop never heard about the mid-tier: thumbs rendered on ≤5 items only.
+        ReportEmailBuilder withFeedback = new ReportEmailBuilder(
+                new FeedbackProperties(true, 30, "https://fb.example/vote", ""),
+                new WatchlistProperties(false, List.of()));
+
+        String html = withFeedback.buildHtml(fullReport(), researchWithFailedSource());
+
+        // fullReport() has 4 items: one Must-know (9), one deal (7), one top pick (9), two mid-tier.
+        assertThat(html.split("vote=up", -1).length - 1)
+                .as("every rendered item across Must-know, Deals, Top picks and Signals gets a thumb")
+                .isGreaterThan(4);
+    }
+
+    @Test
+    void feedbackLinksAreSignedWhenASecretIsConfigured() {
+        ReportEmailBuilder signed = new ReportEmailBuilder(
+                new FeedbackProperties(true, 30, "https://fb.example/vote", "secret"),
+                new WatchlistProperties(false, List.of()));
+
+        String html = signed.buildHtml(fullReport(), researchWithFailedSource());
+
+        assertThat(html).contains("sig=").contains("edition=");
+    }
+
+    @Test
+    void feedbackLinksStayUnsignedUntilTheSecretIsSet() {
+        ReportEmailBuilder unsigned = new ReportEmailBuilder(
+                new FeedbackProperties(true, 30, "https://fb.example/vote", ""),
+                new WatchlistProperties(false, List.of()));
+
+        String html = unsigned.buildHtml(fullReport(), researchWithFailedSource());
+
+        assertThat(html).contains("vote=up").doesNotContain("sig=");
+    }
+
+    @Test
     void buildHtmlRendersMustKnowSectionWithWhyItMatters() {
         String html = builder.buildHtml(fullReport(), researchWithFailedSource());
 
@@ -265,7 +302,7 @@ class ReportEmailBuilderTest {
     @Test
     void buildHtmlRendersFeedbackLinksWhenReceiverConfigured() {
         ReportEmailBuilder withFeedback = new ReportEmailBuilder(
-                new FeedbackProperties(true, 30, "https://fb.example/vote"),
+                new FeedbackProperties(true, 30, "https://fb.example/vote", ""),
                 new WatchlistProperties(false, List.of()));
 
         String html = withFeedback.buildHtml(fullReport(), researchWithFailedSource());

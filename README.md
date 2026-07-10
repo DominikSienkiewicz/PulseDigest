@@ -118,6 +118,8 @@ The delivered HTML email is a structured digest, not just a link list:
 - **⭐ Top picks** — score ≥ 8, white background.
 - **🔌 Signals** — score 6–7, muted `#fafafa` background.
 
+Every item row in all four blocks carries 👍/👎 links when a feedback receiver is configured — roughly 15–20 points of contact per edition instead of the previous five.
+
 Both item tiers render an identical full table: **article link + 1–2 sentence Polish summary · category badge · type badge · source + engagement (❤/pkt/★/↑) · color-coded score**. The background shade is the only visual distinction — every tier gives enough context to decide whether to click. Items below score 6 are dropped (quality-over-quantity — no long-tail padding).
 
 > **Standalone failure-alert email.** Whenever the digest cannot be produced **before delivery** — for *any* reason: the LLM ran out of credits, every source was rate-limited, the model returned truncated JSON, or an unexpected error aborted the run — a separate minimal alert email (red header, "Digest nie powstał") is sent so a broken run is never silent. When a quota/rate-limit signature is detected the accounts to top up are named (including `OpenAI (model LLM)`); otherwise the alert carries the failure reason only. It is deliberately **not** sent on `EMAIL_FAILED` — there the email channel itself is down, so the GitHub Actions failure notification (below) is the backstop instead. Sending the alert never masks the original failure: if it too fails, the job error is preserved.
@@ -127,8 +129,10 @@ Both item tiers render an identical full table: **article link + 1–2 sentence 
 
 The reader can mute topics without the app ever serving HTTP (it stays a headless batch — see [ADR-0006](docs/adr/0006-virtual-threads-over-reactive.md)). The loop is **Supabase-mediated**:
 
-1. Each Must-know item carries 👍/👎 links pointing at an **external receiver** you deploy (e.g. a Supabase Edge Function), set via `FEEDBACK_RECEIVER_URL`. When blank, no links are rendered.
-2. The receiver records the click into the Supabase `feedback` table. **Contract:** `GET {receiver-url}?url=<item-url>&vote=up|down&source=<source>` → `INSERT INTO feedback (item_url, source, vote) VALUES (<url>, <source>, 'UP'|'DOWN')`.
+1. **Every rendered item** — Must-know, Deals & Tools, Top picks and Signals — carries 👍/👎 links pointing at an **external receiver** you deploy (e.g. a Supabase Edge Function), set via `FEEDBACK_RECEIVER_URL`. When blank, no links are rendered. Thumbs used to appear on the ≤5 Must-know items only, so the loop never heard about the mid-tier it is supposed to learn to rank.
+2. The receiver records the click into the Supabase `feedback` table. **Contract:** `GET {receiver-url}?url=<item-url>&vote=up|down&source=<source>&edition=<YYYY-MM-DD>[&sig=<HMAC>]` → `INSERT INTO feedback (item_url, source, vote, edition) VALUES (…)`.
+
+   **Signed links (`FEEDBACK_SIGNING_SECRET`).** When the secret is set, each link carries `&sig=`, an unpadded URL-safe HMAC-SHA256 over the canonical `url|vote|source|edition`. Be precise about what that buys: it does **not** stop a mail scanner from following a link — the signature is right there in the href. It means a vote cannot be **forged or edited**: flipping `vote=up` to `vote=down`, or re-pointing the link at another item, invalidates the signature and the receiver rejects the write. What limits scanners is the **`edition` parameter plus a partial unique index** `(item_url, edition)`: prefetching the same link repeatedly — or fetching both 👍 and 👎 — yields exactly one row. Rows without an `edition` (a receiver that predates the parameter) are outside the index, so **signing can be rolled out before the receiver knows how to verify it**: leave the secret blank and the links render exactly as they do today.
 3. On the next run the batch reads recent feedback ([`SupabaseFeedbackAdapter`](src/main/java/pl/seniordeveloper/pulsedigest/modules/market_intel/infrastructure/adapter/out/persistence/SupabaseFeedbackAdapter.java), `feedback.lookback-days` window) and acts on it two ways:
    - **Suppresses** down-voted item URLs before LLM scoring, alongside cross-edition dedup — the reader mutes a specific item.
    - **Nudges per-source weight** in deterministic signal scoring: votes aggregate at the **base-source** level (a vote on any item from a source — `arXiv/cs.AI`, `Reddit/r/java`, `RSS/InfoQ` — counts toward that source's `arXiv` / `Reddit` / `RSS` weight, not the exact label), and each source's net votes (👍 − 👎) shift its credibility weight by `±0.05` per vote, clamped to `±0.30` and `[0.10, 0.99]`. So a consistently down-voted source ranks lower (and an up-voted one higher) over time, without ever crossing the STRONG threshold on feedback alone. With no votes the weights are unchanged.
@@ -194,7 +198,7 @@ SUPABASE_DB_PASSWORD=
 
 The same env vars are used in **GitHub Actions secrets** — local and CI run against the **same Supabase database**, guaranteeing "works on my machine == works in prod" parity.
 
-The `reports`, `feedback` and `tech_demand_history` tables are created automatically on first run via `spring.sql.init.mode: always` + [`schema.sql`](src/main/resources/schema.sql). `tech_demand_history` stores one mention snapshot per (month, vocabulary), which is what lets the tech-demand pulse read last month's numbers instead of re-scraping ~1000 comments every run; the vocabulary key exists because changing `tech-demand.technologies` changes what "mentions" means, so counts must never be compared across that boundary.
+The `reports`, `feedback` (incl. its `edition` column and the one-vote-per-edition unique index) and `tech_demand_history` tables are created automatically on first run via `spring.sql.init.mode: always` + [`schema.sql`](src/main/resources/schema.sql). `tech_demand_history` stores one mention snapshot per (month, vocabulary), which is what lets the tech-demand pulse read last month's numbers instead of re-scraping ~1000 comments every run; the vocabulary key exists because changing `tech-demand.technologies` changes what "mentions" means, so counts must never be compared across that boundary.
 
 ## Build commands
 
@@ -216,7 +220,7 @@ The workflow at [`.github/workflows/digest.yml`](.github/workflows/digest.yml) r
 
 The scheduled job is hardened against silent failure: it runs the full `./gradlew check` gate **before** building the JAR (so a broken pre-release SNAPSHOT is caught instead of shipping into the digest), a job-level `concurrency` guard prevents a manual dispatch from overlapping the scheduled run (no double-send / double-spend of OpenAI credits), and an `if: failure()` step emails the recipient via Resend whenever the run fails for **any** reason — including a crash or `EMAIL_FAILED` where the app itself couldn't send its own alert. [`.github/dependabot.yml`](.github/dependabot.yml) keeps the Actions and test/tooling dependencies current (Spring Boot / Spring AI SNAPSHOTs are intentionally excluded).
 
-Required repository **secrets**: `TWITTER_BEARER_TOKEN`, `OPENAI_API_KEY`, `RESEND_API_KEY`, `DIGEST_FROM_EMAIL`, `DIGEST_TO_EMAIL`, `SUPABASE_DB_URL`, `SUPABASE_DB_USERNAME`, `SUPABASE_DB_PASSWORD`. Optional secrets: `PRODUCTHUNT_DEVELOPER_TOKEN`, `YOUTUBE_API_KEY`, `SONAR_TOKEN` (enables the SonarCloud scan — the `sonarcloud` job is skipped without it). Repository **variable** (non-sensitive, read via `vars.*`): `FEEDBACK_RECEIVER_URL` — the public feedback-receiver endpoint; it lives in *Variables* rather than *Secrets* because, on a public repo, secrets are masked in Action logs but variables are not, and a public URL has nothing to hide. Blank/unset → no 👍/👎 links. (All injected by the workflow; adapters/email links no-op gracefully when absent.)
+Required repository **secrets**: `TWITTER_BEARER_TOKEN`, `OPENAI_API_KEY`, `RESEND_API_KEY`, `DIGEST_FROM_EMAIL`, `DIGEST_TO_EMAIL`, `SUPABASE_DB_URL`, `SUPABASE_DB_USERNAME`, `SUPABASE_DB_PASSWORD`. Optional secrets: `PRODUCTHUNT_DEVELOPER_TOKEN`, `YOUTUBE_API_KEY`, `SONAR_TOKEN` (enables the SonarCloud scan — the `sonarcloud` job is skipped without it), `FEEDBACK_SIGNING_SECRET` (shared with the feedback receiver; blank → links are rendered unsigned). Repository **variable** (non-sensitive, read via `vars.*`): `FEEDBACK_RECEIVER_URL` — the public feedback-receiver endpoint; it lives in *Variables* rather than *Secrets* because, on a public repo, secrets are masked in Action logs but variables are not, and a public URL has nothing to hide. Blank/unset → no 👍/👎 links. (All injected by the workflow; adapters/email links no-op gracefully when absent.)
 
 **Managing the secrets** — two helper scripts (require the [GitHub CLI](https://cli.github.com), authenticated via `gh auth login`). Both derive the required set **straight from `.github/workflows/*.yml`** (every `secrets.*` / `vars.*` reference, minus the auto-injected `GITHUB_TOKEN`), so the list never drifts from the workflow:
 
@@ -233,7 +237,7 @@ All tuneable parameters live in [`src/main/resources/application.yaml`](src/main
 environment first and falls back to `default` (or empty). All other keys below are baked into the YAML and
 require a code change + redeploy to override. The keys currently accepting `${ENV}` are: `OPENAI_API_KEY`,
 `TWITTER_BEARER_TOKEN`, `RESEND_API_KEY`, `DIGEST_FROM_EMAIL`, `DIGEST_TO_EMAIL`,
-`PRODUCTHUNT_DEVELOPER_TOKEN`, `YOUTUBE_API_KEY`, `FEEDBACK_RECEIVER_URL`, plus the three Supabase
+`PRODUCTHUNT_DEVELOPER_TOKEN`, `YOUTUBE_API_KEY`, `FEEDBACK_RECEIVER_URL`, `FEEDBACK_SIGNING_SECRET`, plus the three Supabase
 datasource keys (`SUPABASE_DB_URL`, `SUPABASE_DB_USERNAME`, `SUPABASE_DB_PASSWORD`). Tuning thresholds
 (min-score, lookback windows, limits) are **not** env-overridable by default — they are project-policy
 defaults, not per-environment knobs.
@@ -257,6 +261,7 @@ defaults, not per-environment knobs.
 | `feedback.enabled`             | `true`                   | Act on reader feedback: suppress 👎 URLs **and** nudge per-source weights from net votes |
 | `feedback.lookback-days`       | `30`                     | Window for both down-vote suppression and per-source net-vote nudging |
 | `feedback.receiver-url`        | `${FEEDBACK_RECEIVER_URL:}` | External endpoint the email 👍/👎 links point at; blank = no links rendered |
+| `feedback.signing-secret`      | `${FEEDBACK_SIGNING_SECRET:}` | Shared with the receiver; set = links carry `&sig=` HMAC; blank = unsigned links |
 | `hacker-news.keywords`         | `[ai, llm, java, ...]`   | HN search keywords (parallel single-term queries)  |
 | `hacker-news.min-score`        | `40`                     | Minimum HN points                                  |
 | `hacker-news.limit`            | `15`                     | Max HN items                                       |

@@ -16,7 +16,8 @@ CREATE INDEX IF NOT EXISTS idx_reports_payload_gin ON reports USING GIN (payload
 
 -- Reader feedback (C6): jeden wiersz per klik "👍/👎 takich" z maila. Zapisywany przez ZEWNĘTRZNY
 -- receiver (headless-batch NIGDY nie serwuje HTTP), czytany przy kolejnym biegu, by wyciszyć
--- down-votowane itemy. Kontrakt receivera: GET ...?url=<url>&vote=up|down&source=<source>.
+-- down-votowane itemy. Kontrakt receivera:
+--   GET ...?url=<url>&vote=up|down&source=<source>&edition=<YYYY-MM-DD>[&sig=<HMAC>]
 CREATE TABLE IF NOT EXISTS feedback (
     id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     item_url   TEXT NOT NULL,
@@ -26,6 +27,17 @@ CREATE TABLE IF NOT EXISTS feedback (
 );
 
 CREATE INDEX IF NOT EXISTS idx_feedback_created_at ON feedback (created_at DESC);
+
+-- Edycja, w której wysłano klikniętego linka. Kolumna dodawana osobnym ALTER-em, bo tabela
+-- istnieje w prod od dawna, a schema.sql odpala się przy KAŻDYM starcie (spring.sql.init: always).
+ALTER TABLE feedback ADD COLUMN IF NOT EXISTS edition TEXT;
+
+-- Jeden głos na item na edycję. Skaner pocztowy, który pobierze linka kilka razy (albo pobierze
+-- i 👍, i 👎), nie zwielokrotni głosu — pierwszy wygrywa, reszta odbija się o constraint.
+-- Indeks częściowy: wiersze bez `edition` (stary receiver, który jeszcze nie zna parametru)
+-- nie są nim objęte, więc wdrożenie kolumny nie psuje działającej pętli.
+CREATE UNIQUE INDEX IF NOT EXISTS uq_feedback_one_vote_per_edition
+    ON feedback (item_url, edition) WHERE edition IS NOT NULL;
 
 -- Tech-demand history: jeden wiersz per miesięczny wątek HN "Who is hiring?". Wcześniej delta m/m
 -- była liczona bezstanowo — każdy bieg ponownie ściągał ~1000 komentarzy poprzedniego miesiąca.
