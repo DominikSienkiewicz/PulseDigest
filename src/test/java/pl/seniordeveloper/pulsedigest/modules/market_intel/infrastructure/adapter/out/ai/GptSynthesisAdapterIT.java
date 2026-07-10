@@ -350,12 +350,29 @@ class GptSynthesisAdapterIT {
                 Map.of("https://example.com", new PromptItemMeta("GitHub Releases", 42));
 
         private StubPromptBuilder() {
-            super(new ObjectMapper(), lookbackDays -> java.util.Set.of(),
+            super(new ObjectMapper(), noPublishedHistory(),
                     new pl.seniordeveloper.pulsedigest.shared.infrastructure.config.DedupProperties(false, 10),
                     new pl.seniordeveloper.pulsedigest.shared.infrastructure.config.InterestProfileProperties(
                             "Test Persona", java.util.List.of("java")),
                     noFeedback(),
-                    new pl.seniordeveloper.pulsedigest.shared.infrastructure.config.FeedbackProperties(false, 30, ""));
+                    new pl.seniordeveloper.pulsedigest.shared.infrastructure.config.FeedbackProperties(false, 30, ""),
+                    candidates -> Map.of(),
+                    new pl.seniordeveloper.pulsedigest.shared.infrastructure.config.PreScoringProperties(false, 50));
+        }
+
+        private static pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.PublishedUrlsPort
+                noPublishedHistory() {
+            return new pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.PublishedUrlsPort() {
+                @Override
+                public java.util.Set<String> recentlyPublishedUrls(int lookbackDays) {
+                    return java.util.Set.of();
+                }
+
+                @Override
+                public List<String> recentlyPublishedTitles(int lookbackDays, int maxTitles) {
+                    return List.of();
+                }
+            };
         }
 
         private static pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.FeedbackPort noFeedback() {

@@ -9,11 +9,13 @@ import org.springframework.context.annotation.Configuration;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.MarketIntelJobTracker;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.policy.FeedbackNudgePolicy;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.policy.RateLimitPolicy;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.application.policy.ReportHistoryPolicy;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.policy.ResearchPolicy;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportJob;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.ReportStoragePort;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.FeedbackProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.InterestProfileProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportHistoryProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ReportRuntimeProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ResearchProperties;
 
@@ -62,5 +64,10 @@ public class MarketIntelBootstrap {
     @Bean
     FeedbackNudgePolicy feedbackNudgePolicy(FeedbackProperties feedback) {
         return new FeedbackNudgePolicy(feedback.enabled(), feedback.lookbackDays());
+    }
+
+    @Bean
+    ReportHistoryPolicy reportHistoryPolicy(ReportHistoryProperties history) {
+        return new ReportHistoryPolicy(history.enabled(), history.lookbackDays());
     }
 }

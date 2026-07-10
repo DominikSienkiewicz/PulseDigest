@@ -128,6 +128,7 @@ Zwróć TYLKO JSON w formacie:
       "title": "...",
       "url": "...",
       "category": "Java/JVM",
+      "topic_key": "spring-boot-4-2",
       "type": "RELEASE",
       "score": 8,
       "summary": "Po polsku. 1-2 zdania. Konkretnie. Liczba w pierwszych słowach jeśli istnieje.",
@@ -139,6 +140,17 @@ Zwróć TYLKO JSON w formacie:
 Pola source i engagement_score NIE należą do outputu — nie przepisuj ich. System dokleja je sam,
 z inputu, dopasowując item po url. Dlatego url MUSI być przepisany z inputu dokładnie, znak w znak:
 item z url-em, którego nie było w inpucie, jest odrzucany i nie trafia do czytelnika.
+
+== topic_key (klucz historii) ==
+
+topic_key to slug KONKRETNEJ historii, o której jest item — nie kategoria. Dwa itemy dostają ten sam
+topic_key wtedy i tylko wtedy, gdy opisują to samo wydarzenie/wydanie/temat, choćby z różnych źródeł.
+Format: małe litery, ASCII, myślniki, 2-4 słowa. Przykłady: "model-context-protocol",
+"spring-boot-4-2", "deepseek-r2-release", "eu-ai-act-enforcement".
+
+Ta sama historia potwierdzona przez arXiv + GitHub + Hacker News to sygnał krytyczny. Trzy różne
+historie, które łączy tylko szeroka kategoria "AI/LLM", to NIE jest sygnał krytyczny — nie nadawaj
+im wspólnego topic_key tylko dlatego, że dotyczą AI. Gdy wątpisz, nadaj osobne klucze.
 
 Dozwolone wartości category: Java/JVM, AI/LLM, Cloud/DevOps, Security/Privacy, Architecture, Open Source, Research, Releases, Community, Other.
 Dla source arXiv/* przypisuj category "Research". Dla source "GitHub Releases" przypisuj category "Releases".

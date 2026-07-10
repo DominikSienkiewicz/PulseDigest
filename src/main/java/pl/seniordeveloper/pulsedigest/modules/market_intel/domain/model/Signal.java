@@ -15,7 +15,8 @@ public record Signal(
         DigestItem item,
         SignalRank rank,
         int signalScore,
-        List<SourceDomain> sourceDomains
+        List<SourceDomain> sourceDomains,
+        TrendRecurrence recurrence
 ) {
 
     public Signal {
@@ -29,6 +30,16 @@ public record Signal(
             throw new IllegalArgumentException("signalScore must be >= 0");
         }
         sourceDomains = List.copyOf(sourceDomains);
+    }
+
+    /** A freshly scored signal, before report history has been consulted. */
+    public Signal(DigestItem item, SignalRank rank, int signalScore, List<SourceDomain> sourceDomains) {
+        this(item, rank, signalScore, sourceDomains, null);
+    }
+
+    /** Copy of this signal carrying its cross-edition recurrence. */
+    public Signal withRecurrence(TrendRecurrence newRecurrence) {
+        return new Signal(item, rank, signalScore, sourceDomains, newRecurrence);
     }
 
     /**

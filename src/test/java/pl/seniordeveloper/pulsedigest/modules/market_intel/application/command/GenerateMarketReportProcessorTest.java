@@ -4,7 +4,10 @@ import org.junit.jupiter.api.Test;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.MarketIntelJobTracker;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.MarketResearchService;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.SignalScoringService;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.application.SourceYieldService;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.application.WeeklyRecapService;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.policy.FeedbackNudgePolicy;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.application.policy.ReportHistoryPolicy;
 import org.mockito.ArgumentCaptor;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ApiAccounts;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.DigestItem;
@@ -19,14 +22,19 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceFe
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.EmailDeliveryPort;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.FeedbackPort;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.LlmSynthesisPort;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.ReportHistoryPort;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.ReportStoragePort;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.TechDemandNarratorPort;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
+import org.mockito.InOrder;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -41,6 +49,7 @@ class GenerateMarketReportProcessorTest {
     private final EmailDeliveryPort emailPort = mock(EmailDeliveryPort.class);
     private final TechDemandNarratorPort techDemandNarrator = mock(TechDemandNarratorPort.class);
     private final FeedbackPort feedbackPort = mock(FeedbackPort.class);
+    private final ReportHistoryPort reportHistoryPort = mock(ReportHistoryPort.class);
 
     @Test
     void marksJobDeliveredOnlyAfterEmailDeliverySucceeds() {
@@ -60,6 +69,38 @@ class GenerateMarketReportProcessorTest {
         assertThat(job.report()).isNotNull();
         verify(storagePort).save(org.mockito.ArgumentMatchers.any());
         verify(emailPort).send(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.eq(research));
+    }
+
+    @Test
+    void readsReportHistoryBeforePersistingThisEdition() {
+        // Reading after the save would count the edition being assembled as its own history.
+        String jobId = "job-history-order";
+        ResearchResult research = sampleResearch();
+        jobTracker.track(ReportJob.pending(jobId));
+        when(researchService.fetchAndFilter()).thenReturn(research);
+        when(synthesisPort.synthesize(research)).thenReturn(sampleReport());
+        when(emailPort.send(any(), any())).thenReturn(new EmailDeliveryReceipt("resend", "{}"));
+
+        processor().process(jobId);
+
+        InOrder ordered = inOrder(reportHistoryPort, storagePort);
+        ordered.verify(reportHistoryPort).recentEditions(21);
+        ordered.verify(storagePort).save(any());
+    }
+
+    @Test
+    void unavailableHistoryDegradesToAnAmnesiacDigestRatherThanLosingTheRun() {
+        String jobId = "job-history-down";
+        ResearchResult research = sampleResearch();
+        jobTracker.track(ReportJob.pending(jobId));
+        when(researchService.fetchAndFilter()).thenReturn(research);
+        when(synthesisPort.synthesize(research)).thenReturn(sampleReport());
+        when(reportHistoryPort.recentEditions(anyInt())).thenThrow(new IllegalStateException("db down"));
+        when(emailPort.send(any(), any())).thenReturn(new EmailDeliveryReceipt("resend", "{}"));
+
+        processor().process(jobId);
+
+        assertThat(jobTracker.getJob(jobId).orElseThrow().status()).isEqualTo(ReportJobStatus.DELIVERED);
     }
 
     @Test
@@ -181,7 +222,11 @@ class GenerateMarketReportProcessorTest {
                 new SignalScoringService(),
                 techDemandNarrator,
                 feedbackPort,
-                new FeedbackNudgePolicy(true, 30));
+                new FeedbackNudgePolicy(true, 30),
+                reportHistoryPort,
+                new WeeklyRecapService(),
+                new SourceYieldService(),
+                new ReportHistoryPolicy(true, 21));
     }
 
     private static ReportData sampleReport() {

@@ -18,16 +18,28 @@ public record ReportData(
         String editorial,
         @JsonProperty("top_insights") List<String> topInsights,
         List<DigestItem> items,
-        List<Signal> signals
+        List<Signal> signals,
+        @JsonProperty("weekly_recap") WeeklyRecap weeklyRecap
 ) {
 
     /** Convenience constructor — no signals (used by LLM deserialization and tests). */
     public ReportData(String emailPreview, String editorial, List<String> topInsights, List<DigestItem> items) {
-        this(emailPreview, editorial, topInsights, items, List.of());
+        this(emailPreview, editorial, topInsights, items, List.of(), null);
+    }
+
+    /** Convenience constructor — scored but without a weekly recap (non-Friday editions and tests). */
+    public ReportData(String emailPreview, String editorial, List<String> topInsights,
+                      List<DigestItem> items, List<Signal> signals) {
+        this(emailPreview, editorial, topInsights, items, signals, null);
     }
 
     public ReportData withSignals(List<Signal> newSignals) {
-        return new ReportData(emailPreview, editorial, topInsights, items, newSignals);
+        return new ReportData(emailPreview, editorial, topInsights, items, newSignals, weeklyRecap);
+    }
+
+    /** Copy of this report carrying the Friday "week in signals" block. */
+    public ReportData withWeeklyRecap(WeeklyRecap recap) {
+        return new ReportData(emailPreview, editorial, topInsights, items, signals, recap);
     }
 
     /**
@@ -43,9 +55,9 @@ public record ReportData(
                         i.title(),
                         UrlCanonicalizer.canonicalize(i.url()),
                         i.source(), i.category(), i.type(),
-                        i.score(), i.engagementScore(), i.summary(), i.whyItMatters()))
+                        i.score(), i.engagementScore(), i.summary(), i.whyItMatters(), i.topicKey()))
                 .toList();
-        return new ReportData(emailPreview, editorial, topInsights, cleaned, signals);
+        return new ReportData(emailPreview, editorial, topInsights, cleaned, signals, weeklyRecap);
     }
 
     /**
@@ -62,7 +74,7 @@ public record ReportData(
                 .map(item -> rejoin(item, inputMeta))
                 .filter(Objects::nonNull)
                 .toList();
-        return new ReportData(emailPreview, editorial, topInsights, rejoined, signals);
+        return new ReportData(emailPreview, editorial, topInsights, rejoined, signals, weeklyRecap);
     }
 
     private static DigestItem rejoin(DigestItem item, Map<String, PromptItemMeta> inputMeta) {
@@ -75,6 +87,6 @@ public record ReportData(
             return null;
         }
         return new DigestItem(item.title(), canonical, meta.source(), item.category(), item.type(),
-                item.score(), meta.engagementScore(), item.summary(), item.whyItMatters());
+                item.score(), meta.engagementScore(), item.summary(), item.whyItMatters(), item.topicKey());
     }
 }

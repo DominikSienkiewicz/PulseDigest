@@ -26,3 +26,16 @@ CREATE TABLE IF NOT EXISTS feedback (
 );
 
 CREATE INDEX IF NOT EXISTS idx_feedback_created_at ON feedback (created_at DESC);
+
+-- Tech-demand history: jeden wiersz per miesięczny wątek HN "Who is hiring?". Wcześniej delta m/m
+-- była liczona bezstanowo — każdy bieg ponownie ściągał ~1000 komentarzy poprzedniego miesiąca.
+-- vocabulary_version wersjonuje słownik technologii: zmiana listy zmienia znaczenie "mentions",
+-- więc porównywanie w poprzek tej granicy byłoby fałszem. Klucz naturalny: (miesiąc, słownik).
+CREATE TABLE IF NOT EXISTS tech_demand_history (
+    month_label        TEXT NOT NULL,
+    vocabulary_version TEXT NOT NULL,
+    total_postings     INTEGER NOT NULL,
+    counts             JSONB NOT NULL,
+    recorded_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (month_label, vocabulary_version)
+);

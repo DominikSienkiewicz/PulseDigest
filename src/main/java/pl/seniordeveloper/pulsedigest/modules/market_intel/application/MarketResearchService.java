@@ -198,7 +198,7 @@ public class MarketResearchService {
                 rawCncf.stream().map(MarketResearchService::canonicalize).toList(),
                 rawRadar.stream().map(MarketResearchService::canonicalize).toList(),
                 rawTalks.stream().map(MarketResearchService::canonicalize).toList(),
-                rawAnnouncements,
+                rawAnnouncements.stream().map(MarketResearchService::canonicalize).toList(),
                 rawSocial.stream().map(MarketResearchService::canonicalize).toList(),
                 LocalDateTime.now(ZoneOffset.UTC),
                 rawInfluencer.size() + rawTopic.size() + rawAnthropic.size(),
@@ -302,6 +302,11 @@ public class MarketResearchService {
     private static ConferenceTalk canonicalize(ConferenceTalk t) {
         return new ConferenceTalk(t.title(), t.channelName(), t.conferenceName(),
                 UrlCanonicalizer.canonicalize(t.url()), t.publishedAt(), t.viewCount());
+    }
+
+    private static LabAnnouncement canonicalize(LabAnnouncement a) {
+        return new LabAnnouncement(a.title(), UrlCanonicalizer.canonicalize(a.url()),
+                a.summary(), a.source(), a.publishedAt());
     }
 
     private static SocialPost canonicalize(SocialPost p) {

@@ -14,6 +14,7 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.MonthMen
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TechDemandAggregator;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TechDemandPulse;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TechDemandSignal;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.TechDemandHistoryPort;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.TechDemandProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.http.ExternalRestClients;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.http.QuotaErrors;
@@ -32,8 +33,10 @@ import java.util.regex.Pattern;
  *
  * <p>Finds the latest such thread via Algolia, and only when it is fresh (within
  * {@code lookbackDays}) aggregates how often each tracked technology appears across its hiring posts.
- * Also fetches the <em>previous</em> month's thread so demand can be expressed as a month-over-month
- * share change — statelessly, without persistence. Returns {@link Optional#empty()} when disabled,
+ * The previous month is read from {@code tech_demand_history} rather than re-scraped: the snapshot
+ * was already computed and stored when that thread was current, so a second pass over a thousand
+ * comments buys nothing. Only a month absent from history (first run, or a changed vocabulary) falls
+ * back to fetching the older thread. Returns {@link Optional#empty()} when disabled,
  * when no fresh thread exists, or when nothing clears {@code minMentions}. HTTP quota/rate-limit
  * failures propagate (via {@link QuotaErrors}) so the source is flagged for the "exhausted limits"
  * banner.
@@ -49,11 +52,22 @@ public class TechDemandAdapter {
 
     private final ObjectMapper objectMapper;
     private final TechDemandProperties props;
+    private final TechDemandHistoryPort historyPort;
     private RestClient restClient;
 
-    public TechDemandAdapter(ObjectMapper objectMapper, TechDemandProperties props) {
+    public TechDemandAdapter(ObjectMapper objectMapper, TechDemandProperties props,
+                             TechDemandHistoryPort historyPort) {
         this.objectMapper = objectMapper;
         this.props = props;
+        this.historyPort = historyPort;
+    }
+
+    /**
+     * Identifies the technology list that produced a set of counts. Counts gathered under a different
+     * vocabulary are a different series, so they must never be compared month over month.
+     */
+    private String vocabularyVersion() {
+        return Integer.toHexString(String.join(",", props.technologies()).hashCode());
     }
 
     @PostConstruct
@@ -81,22 +95,16 @@ public class TechDemandAdapter {
 
             List<String> currentPosts = fetchTopLevelComments(current.objectID());
             Map<String, Integer> currentCounts = TechDemandAggregator.countMentions(currentPosts, props.technologies());
+            MonthMentions currentMonth = new MonthMentions(monthLabel(current), currentCounts, currentPosts.size());
 
-            Story previous = threads.size() > 1 ? threads.get(1) : null;
-            Map<String, Integer> previousCounts = Map.of();
-            int previousTotal = 0;
-            if (previous != null) {
-                List<String> previousPosts = fetchTopLevelComments(previous.objectID());
-                previousCounts = TechDemandAggregator.countMentions(previousPosts, props.technologies());
-                previousTotal = previousPosts.size();
-            }
+            String vocabulary = vocabularyVersion();
+            historyPort.save(currentMonth, vocabulary);
+            MonthMentions previousMonth = previousMonth(threads, vocabulary);
 
             TechDemandSignal signal = TechDemandPulse.assemble(
                     "https://news.ycombinator.com/item?id=" + current.objectID(),
-                    new MonthMentions(monthLabel(current), currentCounts, currentPosts.size()),
-                    previous != null
-                            ? new MonthMentions(monthLabel(previous), previousCounts, previousTotal)
-                            : null,
+                    currentMonth,
+                    previousMonth,
                     props.priorityTechnologies(), props.minMentions(), props.maxTechnologies());
 
             if (signal.isEmpty()) {
@@ -104,7 +112,7 @@ public class TechDemandAdapter {
                 return Optional.empty();
             }
             log.info("Tech-demand pulse: {} technologies from {} hiring posts (prev month: {}).",
-                    signal.entries().size(), signal.totalPostings(), previous != null);
+                    signal.entries().size(), signal.totalPostings(), previousMonth != null);
             return Optional.of(signal);
 
         } catch (Exception e) {
@@ -112,6 +120,28 @@ public class TechDemandAdapter {
             log.warn("Tech-demand pulse fetch failed: {}", e.getMessage());
             return Optional.empty();
         }
+    }
+
+    /**
+     * The previous month's snapshot: from storage when it was recorded under the same vocabulary,
+     * otherwise re-scraped once and recorded, so the fallback pays for itself the next run.
+     */
+    private MonthMentions previousMonth(List<Story> threads, String vocabulary) {
+        if (threads.size() < 2) {
+            return null;
+        }
+        Story previous = threads.get(1);
+        String label = monthLabel(previous);
+        Optional<MonthMentions> stored = historyPort.findByMonth(label, vocabulary);
+        if (stored.isPresent()) {
+            log.info("Tech-demand: previous month {} read from history — thread not re-fetched.", label);
+            return stored.get();
+        }
+        List<String> previousPosts = fetchTopLevelComments(previous.objectID());
+        MonthMentions previousMonth = new MonthMentions(label,
+                TechDemandAggregator.countMentions(previousPosts, props.technologies()), previousPosts.size());
+        historyPort.save(previousMonth, vocabulary);
+        return previousMonth;
     }
 
     // Returns matching "Who is hiring?" stories newest-first (index 0 = current, 1 = previous month).

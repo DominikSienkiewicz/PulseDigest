@@ -189,6 +189,37 @@ report:
     enabled: true
     lookback-days: 10          # >= najszersze okno (open-jdk/conference-talks 10d), więc łapie każdy overlap
 
+  # Pre-scoring: gpt-4o-mini triage'uje ~100 itemów po tytule; do gpt-4o idzie top `keep`.
+  # Itemy o deterministycznym pre-score >= 90 (GitHub Releases, lab announcements) są nietykalne.
+  # Awaria calla mini = pełny payload leci dalej (nigdy nie chudzimy digestu przez błąd infry).
+  pre-scoring:
+    enabled: true
+    keep: 50
+
+  # Twój radar: technologie, o których digest MUSI się wypowiedzieć — także wtedy, gdy nic się nie
+  # działo ("Spring AI: 0 wzmianek"). Skan leci po WSZYSTKICH pobranych nagłówkach tego biegu, nie po
+  # itemach, które przeszły budżet promptu — inaczej "0" nie odróżniałoby ciszy od przycięcia.
+  watchlist:
+    enabled: true
+    technologies:
+      - spring ai
+      - spring boot
+      - quarkus
+      - graalvm
+      - virtual threads
+      - langgraph
+      - mcp
+      - ollama
+      - vllm
+      - pgvector
+
+  # Report history: poprzednie wydania czytane z tabeli `reports` (pełny JSONB był zapisywany od
+  # zawsze, nikt go nie czytał). Daje pamięć trendów ("3. edycja z rzędu", "pierwszy sygnał: 18.06")
+  # oraz piątkowy recap tygodnia. 21 dni ≈ 9 wydań przy kadencji pn/śr/pt.
+  history:
+    enabled: true
+    lookback-days: 21
+
   # Feedback loop (C6): headless-batch tylko CZYTA feedback. receiver-url = zewnętrzny endpoint, do
   # którego prowadzą linki 👍/👎 w mailu (np. Supabase Edge Function piszący do tabeli `feedback`).
   # Puste receiver-url = brak linków w mailu (graceful). Down-voty z ostatnich lookback-days są wyciszane.

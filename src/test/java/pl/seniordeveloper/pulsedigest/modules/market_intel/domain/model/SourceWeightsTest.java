@@ -47,6 +47,30 @@ class SourceWeightsTest {
     }
 
     @Test
+    void labAnnouncementsCarryHighestCredibilityWeight() {
+        // The README calls these the highest-signal source, yet every lab label used to fall through
+        // to DEFAULT — which orphaned their 👎 votes and diluted cross-source correlation.
+        assertThat(SourceWeights.of("Anthropic News")).isCloseTo(0.95, within(0.001));
+        assertThat(SourceWeights.of("Anthropic Engineering")).isCloseTo(0.95, within(0.001));
+        assertThat(SourceWeights.of("Claude Blog")).isCloseTo(0.95, within(0.001));
+        assertThat(SourceWeights.of("Google Gemini Blog")).isCloseTo(0.95, within(0.001));
+        assertThat(SourceWeights.of("OpenAI Dev Blog")).isCloseTo(0.95, within(0.001));
+    }
+
+    @Test
+    void labLabelsCollapseToTheirLabKeyForFeedbackAggregation() {
+        assertThat(SourceWeights.keyOf("Anthropic News")).isEqualTo("Anthropic");
+        assertThat(SourceWeights.keyOf("Anthropic Engineering")).isEqualTo("Anthropic");
+        assertThat(SourceWeights.keyOf("OpenAI Dev Blog")).isEqualTo("OpenAI");
+    }
+
+    @Test
+    void openJdkJepIsNotSwallowedByTheOpenAiLabPrefix() {
+        assertThat(SourceWeights.of("OpenJDK JEP")).isCloseTo(0.75, within(0.001));
+        assertThat(SourceWeights.keyOf("OpenJDK JEP")).isEqualTo("OpenJDK JEP");
+    }
+
+    @Test
     void nullSourceReturnsDefault() {
         assertThat(SourceWeights.of(null)).isCloseTo(0.30, within(0.001));
     }

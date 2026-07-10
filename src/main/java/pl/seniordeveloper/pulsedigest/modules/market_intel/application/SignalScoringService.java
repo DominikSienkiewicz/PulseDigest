@@ -66,11 +66,16 @@ public class SignalScoringService {
         return signals;
     }
 
+    /**
+     * Maps each story (by {@link DigestItem#correlationKey()}) to the set of source domains that
+     * carried it. Grouping by story rather than by category is what makes the 3-domain rule mean
+     * "independently confirmed" instead of "the umbrella category AI/LLM had a busy day".
+     */
     private Map<String, Set<SourceDomain>> buildDomainMap(List<DigestItem> items) {
         return items.stream()
-                .filter(i -> i.category() != null && !i.category().isBlank())
+                .filter(i -> !i.correlationKey().isEmpty())
                 .collect(Collectors.groupingBy(
-                        i -> i.category().toLowerCase(),
+                        DigestItem::correlationKey,
                         Collectors.mapping(i -> SourceDomain.from(i.source()), Collectors.toSet())
                 ));
     }
@@ -86,7 +91,7 @@ public class SignalScoringService {
         return byKey;
     }
 
-    private Signal scoreItem(DigestItem item, Map<String, Set<SourceDomain>> domainsByCategory,
+    private Signal scoreItem(DigestItem item, Map<String, Set<SourceDomain>> domainsByTopic,
                              Map<String, Integer> netVotesByWeightKey) {
         int netVotes = netVotesByWeightKey.getOrDefault(SourceWeights.keyOf(item.source()), 0);
         double weight = SourceWeights.of(item.source(), netVotes);
@@ -94,8 +99,7 @@ public class SignalScoringService {
         int engagement = item.engagementScore() != null ? item.engagementScore() : 0;
         int engagementBonus = Math.min(MAX_ENGAGEMENT_BONUS, engagement / ENGAGEMENT_DIVISOR);
 
-        String categoryKey = item.category() != null ? item.category().toLowerCase() : "";
-        Set<SourceDomain> domains = domainsByCategory.getOrDefault(categoryKey, Set.of());
+        Set<SourceDomain> domains = domainsByTopic.getOrDefault(item.correlationKey(), Set.of());
         int crossSourceBonus = domains.size() >= CROSS_SOURCE_THRESHOLD ? CROSS_SOURCE_BONUS : 0;
 
         int signalScore = baseScore + engagementBonus + crossSourceBonus;
