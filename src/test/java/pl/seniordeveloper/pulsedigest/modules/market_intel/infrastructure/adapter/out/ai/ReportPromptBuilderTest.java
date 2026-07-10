@@ -26,7 +26,9 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Software
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Tweet;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.FeedbackPort;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.PreScoringPort;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.application.policy.ReaderProfilePolicy;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.PublishedUrlsPort;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.ReaderProfilePort;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.DedupProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.FeedbackProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.InterestProfileProperties;
@@ -54,14 +56,32 @@ class ReportPromptBuilderTest {
         return new ReportPromptBuilder(objectMapper, publishedUrlsPort(publishedUrls, List.of()),
                 new DedupProperties(true, 10), new InterestProfileProperties("Test Persona", List.of("java")),
                 feedbackPort(downvotedUrls), new FeedbackProperties(true, 30, "", ""),
-                noPreScoring(), new PreScoringProperties(false, 50));
+                noPreScoring(), new PreScoringProperties(false, 50),
+                noReaderProfile(), new ReaderProfilePolicy(false, 10, 7, 60));
     }
 
     private ReportPromptBuilder builderWithTitles(List<String> publishedTitles) {
         return new ReportPromptBuilder(objectMapper, publishedUrlsPort(Set.of(), publishedTitles),
                 new DedupProperties(true, 10), new InterestProfileProperties("Test Persona", List.of("java")),
                 feedbackPort(Set.of()), new FeedbackProperties(true, 30, "", ""),
-                noPreScoring(), new PreScoringProperties(false, 50));
+                noPreScoring(), new PreScoringProperties(false, 50),
+                noReaderProfile(), new ReaderProfilePolicy(false, 10, 7, 60));
+    }
+
+    /** ReaderProfilePort test double — no profile; the reader model is exercised in its own test class. */
+    private static ReaderProfilePort noReaderProfile() {
+        return new ReaderProfilePort() {
+            @Override
+            public java.util.Optional<pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReaderProfile>
+                    latest() {
+                return java.util.Optional.empty();
+            }
+
+            @Override
+            public void save(pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReaderProfile p) {
+                throw new UnsupportedOperationException();
+            }
+        };
     }
 
     /** PreScoringPort test double — triage disabled by default so payload assertions stay deterministic. */
@@ -197,7 +217,8 @@ class ReportPromptBuilderTest {
         ReportPromptBuilder builder = new ReportPromptBuilder(failingMapper, publishedUrlsPort(Set.of(), List.of()),
                 new DedupProperties(true, 10), new InterestProfileProperties("Test Persona", List.of("java")),
                 feedbackPort(Set.of()), new FeedbackProperties(true, 30, "", ""),
-                noPreScoring(), new PreScoringProperties(false, 50));
+                noPreScoring(), new PreScoringProperties(false, 50),
+                noReaderProfile(), new ReaderProfilePolicy(false, 10, 7, 60));
 
         String prompt = builder.buildUserPrompt(researchWithEverySource());
 
@@ -283,7 +304,8 @@ class ReportPromptBuilderTest {
                 publishedUrlsPort(Set.of(), List.of("Spring Boot 4.2 released")),
                 new DedupProperties(false, 10), new InterestProfileProperties("Test Persona", List.of("java")),
                 feedbackPort(Set.of()), new FeedbackProperties(false, 30, "", ""),
-                noPreScoring(), new PreScoringProperties(false, 50));
+                noPreScoring(), new PreScoringProperties(false, 50),
+                noReaderProfile(), new ReaderProfilePolicy(false, 10, 7, 60));
 
         assertThat(builder.buildUserPrompt(researchWithEverySource())).doesNotContain("JUŻ OPUBLIKOWANE");
     }
@@ -296,7 +318,8 @@ class ReportPromptBuilderTest {
         ReportPromptBuilder builder = new ReportPromptBuilder(objectMapper, publishedUrlsPort(Set.of(), List.of()),
                 new DedupProperties(true, 10), new InterestProfileProperties("Test Persona", List.of("java")),
                 feedbackPort(Set.of()), new FeedbackProperties(true, 30, "", ""),
-                dismissive, new PreScoringProperties(true, 3));
+                dismissive, new PreScoringProperties(true, 3),
+                noReaderProfile(), new ReaderProfilePolicy(false, 10, 7, 60));
 
         List<Map<String, Object>> payload = payload(builder.buildUserPrompt(researchWithEverySource()));
 

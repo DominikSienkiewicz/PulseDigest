@@ -357,7 +357,27 @@ class GptSynthesisAdapterIT {
                     noFeedback(),
                     new pl.seniordeveloper.pulsedigest.shared.infrastructure.config.FeedbackProperties(false, 30, "", ""),
                     candidates -> Map.of(),
-                    new pl.seniordeveloper.pulsedigest.shared.infrastructure.config.PreScoringProperties(false, 50));
+                    new pl.seniordeveloper.pulsedigest.shared.infrastructure.config.PreScoringProperties(false, 50),
+                    noReaderProfile(),
+                    new pl.seniordeveloper.pulsedigest.modules.market_intel.application.policy
+                            .ReaderProfilePolicy(false, 10, 7, 60));
+        }
+
+        private static pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.ReaderProfilePort
+                noReaderProfile() {
+            return new pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.ReaderProfilePort() {
+                @Override
+                public java.util.Optional<
+                        pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReaderProfile> latest() {
+                    return java.util.Optional.empty();
+                }
+
+                @Override
+                public void save(
+                        pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReaderProfile p) {
+                    throw new UnsupportedOperationException();
+                }
+            };
         }
 
         private static pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.PublishedUrlsPort

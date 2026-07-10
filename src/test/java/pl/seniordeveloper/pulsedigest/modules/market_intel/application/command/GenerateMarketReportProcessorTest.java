@@ -4,10 +4,12 @@ import org.junit.jupiter.api.Test;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.MarketIntelJobTracker;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.MarketResearchService;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.SignalScoringService;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.application.ReaderProfileService;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.SourceYieldService;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.TrendVelocityService;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.WeeklyRecapService;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.policy.FeedbackNudgePolicy;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.application.policy.ReaderProfilePolicy;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.policy.ReportHistoryPolicy;
 import org.mockito.ArgumentCaptor;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ApiAccounts;
@@ -23,6 +25,8 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceFe
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.EmailDeliveryPort;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.FeedbackPort;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.LlmSynthesisPort;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.ReaderProfileDistillerPort;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.ReaderProfilePort;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.ReportHistoryPort;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.ReportStoragePort;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.TechDemandNarratorPort;
@@ -51,6 +55,8 @@ class GenerateMarketReportProcessorTest {
     private final TechDemandNarratorPort techDemandNarrator = mock(TechDemandNarratorPort.class);
     private final FeedbackPort feedbackPort = mock(FeedbackPort.class);
     private final ReportHistoryPort reportHistoryPort = mock(ReportHistoryPort.class);
+    private final ReaderProfilePort readerProfilePort = mock(ReaderProfilePort.class);
+    private final ReaderProfileDistillerPort readerProfileDistiller = mock(ReaderProfileDistillerPort.class);
 
     @Test
     void marksJobDeliveredOnlyAfterEmailDeliverySucceeds() {
@@ -228,6 +234,8 @@ class GenerateMarketReportProcessorTest {
                 new WeeklyRecapService(),
                 new SourceYieldService(),
                 new TrendVelocityService(),
+                new ReaderProfileService(readerProfilePort, readerProfileDistiller,
+                        new ReaderProfilePolicy(false, 10, 7, 60)),
                 new ReportHistoryPolicy(true, 21));
     }
 

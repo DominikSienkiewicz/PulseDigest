@@ -56,3 +56,15 @@ CREATE TABLE IF NOT EXISTS tech_demand_history (
     recorded_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (month_label, vocabulary_version)
 );
+
+-- Żywy Model Czytelnika: wersjonowany, append-only profil destylowany raz w tygodniu z głosów 👍/👎.
+-- NIE nadpisujemy wierszy — profil, który zdryfował, ma zostać do wglądu obok tego, który go zastąpił.
+-- `profile` to JSONB z listą hipotez, każda z własną ewidencją i datą obserwacji (TTL po stronie kodu).
+CREATE TABLE IF NOT EXISTS reader_profile (
+    version      BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    distilled_at TIMESTAMPTZ NOT NULL,
+    vote_count   INTEGER NOT NULL,
+    profile      JSONB NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_reader_profile_distilled_at ON reader_profile (distilled_at DESC);

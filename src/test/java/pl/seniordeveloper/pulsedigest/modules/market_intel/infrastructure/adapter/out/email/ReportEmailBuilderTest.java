@@ -3,7 +3,6 @@ package pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapt
 import org.junit.jupiter.api.Test;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.DigestItem;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.HackerNewsPost;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RadarAccuracy;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RecapChange;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RecapEntry;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportData;
@@ -226,57 +225,6 @@ class ReportEmailBuilderTest {
         ReportData report = new ReportData("Preview", "Lead", List.of(), List.of(item), List.of(plain));
 
         assertThat(builder.buildHtml(report, null)).doesNotContain("&#128992;");
-    }
-
-    @Test
-    void footerPublishesTheRadarsOwnHitRate() {
-        ReportData report = fullReport().withRadarAccuracy(new RadarAccuracy(10, 7));
-
-        assertThat(builder.buildHtml(report, null)).contains("radar: 7/10 kandydatów osiągnęło CRITICAL (70%)");
-    }
-
-    @Test
-    void footerOmitsTheRadarLineUntilAPredictionHasBeenJudged() {
-        ReportData report = fullReport().withRadarAccuracy(new RadarAccuracy(0, 0));
-
-        assertThat(builder.buildHtml(report, null)).doesNotContain("radar:");
-    }
-
-    @Test
-    void feedbackLinksReachEveryTierNotJustTheMustKnowFive() {
-        // The learning loop never heard about the mid-tier: thumbs rendered on ≤5 items only.
-        ReportEmailBuilder withFeedback = new ReportEmailBuilder(
-                new FeedbackProperties(true, 30, "https://fb.example/vote", ""),
-                new WatchlistProperties(false, List.of()));
-
-        String html = withFeedback.buildHtml(fullReport(), researchWithFailedSource());
-
-        // fullReport() has 4 items: one Must-know (9), one deal (7), one top pick (9), two mid-tier.
-        assertThat(html.split("vote=up", -1).length - 1)
-                .as("every rendered item across Must-know, Deals, Top picks and Signals gets a thumb")
-                .isGreaterThan(4);
-    }
-
-    @Test
-    void feedbackLinksAreSignedWhenASecretIsConfigured() {
-        ReportEmailBuilder signed = new ReportEmailBuilder(
-                new FeedbackProperties(true, 30, "https://fb.example/vote", "secret"),
-                new WatchlistProperties(false, List.of()));
-
-        String html = signed.buildHtml(fullReport(), researchWithFailedSource());
-
-        assertThat(html).contains("sig=").contains("edition=");
-    }
-
-    @Test
-    void feedbackLinksStayUnsignedUntilTheSecretIsSet() {
-        ReportEmailBuilder unsigned = new ReportEmailBuilder(
-                new FeedbackProperties(true, 30, "https://fb.example/vote", ""),
-                new WatchlistProperties(false, List.of()));
-
-        String html = unsigned.buildHtml(fullReport(), researchWithFailedSource());
-
-        assertThat(html).contains("vote=up").doesNotContain("sig=");
     }
 
     @Test

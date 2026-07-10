@@ -20,32 +20,42 @@ public record ReportData(
         List<DigestItem> items,
         List<Signal> signals,
         @JsonProperty("weekly_recap") WeeklyRecap weeklyRecap,
-        @JsonProperty("radar_accuracy") RadarAccuracy radarAccuracy
+        @JsonProperty("radar_accuracy") RadarAccuracy radarAccuracy,
+        @JsonProperty("reader_profile") ReaderProfile readerProfile
 ) {
 
     /** Convenience constructor — no signals (used by LLM deserialization and tests). */
     public ReportData(String emailPreview, String editorial, List<String> topInsights, List<DigestItem> items) {
-        this(emailPreview, editorial, topInsights, items, List.of(), null, null);
+        this(emailPreview, editorial, topInsights, items, List.of(), null, null, null);
     }
 
     /** Convenience constructor — scored but without a weekly recap (non-Friday editions and tests). */
     public ReportData(String emailPreview, String editorial, List<String> topInsights,
                       List<DigestItem> items, List<Signal> signals) {
-        this(emailPreview, editorial, topInsights, items, signals, null, null);
+        this(emailPreview, editorial, topInsights, items, signals, null, null, null);
     }
 
     public ReportData withSignals(List<Signal> newSignals) {
-        return new ReportData(emailPreview, editorial, topInsights, items, newSignals, weeklyRecap, radarAccuracy);
+        return new ReportData(emailPreview, editorial, topInsights, items, newSignals, weeklyRecap,
+                radarAccuracy, readerProfile);
     }
 
     /** Copy of this report carrying the Friday "week in signals" block. */
     public ReportData withWeeklyRecap(WeeklyRecap recap) {
-        return new ReportData(emailPreview, editorial, topInsights, items, signals, recap, radarAccuracy);
+        return new ReportData(emailPreview, editorial, topInsights, items, signals, recap,
+                radarAccuracy, readerProfile);
     }
 
     /** Copy of this report carrying the predictive radar's published hit rate. */
     public ReportData withRadarAccuracy(RadarAccuracy accuracy) {
-        return new ReportData(emailPreview, editorial, topInsights, items, signals, weeklyRecap, accuracy);
+        return new ReportData(emailPreview, editorial, topInsights, items, signals, weeklyRecap,
+                accuracy, readerProfile);
+    }
+
+    /** Copy of this report carrying the reader model that shaped it — shown in the footer. */
+    public ReportData withReaderProfile(ReaderProfile profile) {
+        return new ReportData(emailPreview, editorial, topInsights, items, signals, weeklyRecap,
+                radarAccuracy, profile);
     }
 
     /**
@@ -63,7 +73,8 @@ public record ReportData(
                         i.source(), i.category(), i.type(),
                         i.score(), i.engagementScore(), i.summary(), i.whyItMatters(), i.topicKey()))
                 .toList();
-        return new ReportData(emailPreview, editorial, topInsights, cleaned, signals, weeklyRecap, radarAccuracy);
+        return new ReportData(emailPreview, editorial, topInsights, cleaned, signals, weeklyRecap,
+                radarAccuracy, readerProfile);
     }
 
     /**
@@ -80,7 +91,8 @@ public record ReportData(
                 .map(item -> rejoin(item, inputMeta))
                 .filter(Objects::nonNull)
                 .toList();
-        return new ReportData(emailPreview, editorial, topInsights, rejoined, signals, weeklyRecap, radarAccuracy);
+        return new ReportData(emailPreview, editorial, topInsights, rejoined, signals, weeklyRecap,
+                radarAccuracy, readerProfile);
     }
 
     private static DigestItem rejoin(DigestItem item, Map<String, PromptItemMeta> inputMeta) {

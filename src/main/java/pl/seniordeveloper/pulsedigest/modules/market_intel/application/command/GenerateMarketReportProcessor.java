@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.MarketIntelJobTracker;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.MarketResearchService;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.SignalScoringService;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.application.ReaderProfileService;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.SourceYieldService;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.TrendVelocityService;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.WeeklyRecapService;
@@ -13,6 +14,8 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.application.policy.Fe
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.policy.ReportHistoryPolicy;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ApiAccounts;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.PastEdition;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ProfileEvidence;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReaderProfile;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TrendMemory;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.EmailDeliveryReceipt;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.PersistedReport;
@@ -67,6 +70,7 @@ public class GenerateMarketReportProcessor {
     private final WeeklyRecapService weeklyRecapService;
     private final SourceYieldService sourceYieldService;
     private final TrendVelocityService trendVelocityService;
+    private final ReaderProfileService readerProfileService;
     private final ReportHistoryPolicy reportHistoryPolicy;
 
     public void process(String jobId) {
@@ -98,22 +102,29 @@ public class GenerateMarketReportProcessor {
 
             research = narrateTechDemand(research);
 
-            ReportData report = synthesisPort.synthesize(research);
-            ReportData cleaned = report.withCanonicalizedUrls();
-
             Map<String, Integer> netVotesBySource = feedbackNudgePolicy.enabled()
                     ? feedbackPort.netVotesBySource(feedbackNudgePolicy.lookbackDays())
                     : Map.of();
             Map<String, Integer> netVotesByCategory = feedbackNudgePolicy.enabled()
                     ? feedbackPort.netVotesByCategory(feedbackNudgePolicy.lookbackDays())
                     : Map.of();
+
+            // Re-distil the reader model BEFORE synthesis, so this run's prompt already carries it.
+            Optional<ReaderProfile> readerProfile = readerProfileService.refresh(
+                    LocalDate.now(ZoneOffset.UTC),
+                    new ProfileEvidence(netVotesByCategory, netVotesBySource, List.of()));
+
+            ReportData report = synthesisPort.synthesize(research);
+            ReportData cleaned = report.withCanonicalizedUrls();
+
             List<PastEdition> history = readHistory();
             List<Signal> signals = signalScoringService.score(
                     cleaned.items() != null ? cleaned.items() : List.of(), netVotesBySource, netVotesByCategory);
             signals = TrendMemory.annotate(signals, history);
             signals = trendVelocityService.annotate(signals, history);
             ReportData finalReport = cleaned.withSignals(signals)
-                    .withRadarAccuracy(trendVelocityService.accuracy(history));
+                    .withRadarAccuracy(trendVelocityService.accuracy(history))
+                    .withReaderProfile(readerProfile.orElse(null));
             finalReport = weeklyRecapService
                     .assemble(LocalDate.now(ZoneOffset.UTC), signals, history)
                     .map(finalReport::withWeeklyRecap)

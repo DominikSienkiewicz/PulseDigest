@@ -144,6 +144,23 @@ The reader can mute topics without the app ever serving HTTP (it stays a headles
 
 The receiver itself lives outside this repo (the batch only ever *reads* feedback).
 
+## Living reader model
+
+The persona in `interest-profile.persona` is a frozen string — after a year the digest knows exactly as much about the reader as on day one. The reader model is the part that compounds, and the part that can drift, so every guard here exists on purpose.
+
+Once the reader has cast `reader-profile.min-votes` clicks (default 10), a weekly `gpt-4o-mini` call distils those votes into at most five **dated, evidenced hypotheses** (`ReaderProfile`), stored append-only in the versioned `reader_profile` table. They are appended to the system prompt as `== MODEL CZYTELNIKA ==`, after the persona, and **printed in the email footer with the evidence behind each claim** — a model that silently reshapes what the reader sees is exactly the thing he must be able to audit and disagree with.
+
+Four defences against drift, all tested:
+
+| Guard | Why |
+|---|---|
+| `min-votes` (10) | A profile built from three clicks is a hallucination with a database row. |
+| `refresh-days` (7) | One cheap call a week, not one per run. |
+| `hypothesis-ttl-days` (60) | A claim the reader stopped confirming expires instead of steering forever. |
+| Evidence required | The distiller must cite the vote counts behind every claim; unevidenced hypotheses are dropped, not trusted. |
+
+Every failure path — storage down, distiller down, empty response — leaves the previously stored profile standing and publishes the digest without it. Distillation feeds on the same per-category votes as the feedback loop, so **until the receiver writes `category`, there is nothing to distil and the model stays absent.**
+
 ## Tech stack
 
 - **Java 26** with `--enable-preview` (pattern matching, sealed interfaces)
@@ -201,7 +218,7 @@ SUPABASE_DB_PASSWORD=
 
 The same env vars are used in **GitHub Actions secrets** — local and CI run against the **same Supabase database**, guaranteeing "works on my machine == works in prod" parity.
 
-The `reports`, `feedback` (incl. its `category` and `edition` columns and the one-vote-per-edition unique index) and `tech_demand_history` tables are created automatically on first run via `spring.sql.init.mode: always` + [`schema.sql`](src/main/resources/schema.sql). `tech_demand_history` stores one mention snapshot per (month, vocabulary), which is what lets the tech-demand pulse read last month's numbers instead of re-scraping ~1000 comments every run; the vocabulary key exists because changing `tech-demand.technologies` changes what "mentions" means, so counts must never be compared across that boundary.
+The `reports`, `feedback` (incl. its `category` and `edition` columns and the one-vote-per-edition unique index), `tech_demand_history` and `reader_profile` tables are created automatically on first run via `spring.sql.init.mode: always` + [`schema.sql`](src/main/resources/schema.sql). `tech_demand_history` stores one mention snapshot per (month, vocabulary), which is what lets the tech-demand pulse read last month's numbers instead of re-scraping ~1000 comments every run; the vocabulary key exists because changing `tech-demand.technologies` changes what "mentions" means, so counts must never be compared across that boundary.
 
 ## Build commands
 
@@ -254,6 +271,10 @@ defaults, not per-environment knobs.
 | `report.history.lookback-days` | `21`                     | How far back report history is read (≈ 9 editions at Mon/Wed/Fri) |
 | `report.watchlist.enabled`     | `true`                   | Render the 🎯 radar block with guaranteed coverage |
 | `report.watchlist.technologies`| (10 entries)             | Technologies that always get a line — including `0 wzmianek` |
+| `report.reader-profile.enabled`| `true`                   | Distil and inject the living reader model |
+| `report.reader-profile.min-votes` | `10`                  | Clicks required before a profile is distilled at all |
+| `report.reader-profile.refresh-days` | `7`                | How often the profile is re-distilled (one gpt-4o-mini call) |
+| `report.reader-profile.hypothesis-ttl-days` | `60`        | How long a hypothesis survives without fresh confirmation |
 | `twitter.min-faves`            | `3`                      | Server-side `min_faves:N` floor appended to queries (enabled; `0` = off). Tier-dependent operator — if your X tier rejects it the source fails gracefully |
 | `research.days-back`           | `4`                      | Tweet age window (days) — 96h covers the Fri→Mon gap |
 | `research.min-likes`           | `3`                      | Minimum likes for tweets                           |
