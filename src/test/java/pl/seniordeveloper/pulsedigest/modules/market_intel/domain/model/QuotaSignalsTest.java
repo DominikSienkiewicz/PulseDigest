@@ -48,6 +48,31 @@ class QuotaSignalsTest {
         assertThat(QuotaSignals.matches("Read timed out")).isFalse();
     }
 
+    // --- indicatesDepletedBudget: the narrow, terminal subset of quota signals ---
+
+    @Test
+    void depletedBudgetCoversBillingStatesThatRetryingCannotFix() {
+        assertThat(QuotaSignals.indicatesDepletedBudget("{\"error\":{\"code\":\"insufficient_quota\"}}")).isTrue();
+        assertThat(QuotaSignals.indicatesDepletedBudget("You exceeded your current quota")).isTrue();
+        assertThat(QuotaSignals.indicatesDepletedBudget("402 Payment Required")).isTrue();
+        assertThat(QuotaSignals.indicatesDepletedBudget("{\"detail\":\"CreditsDepleted\"}")).isTrue();
+    }
+
+    @Test
+    void depletedBudgetExcludesPlainThrottlingWhichRetryingDoesFix() {
+        // A rate limit says "not now"; a depleted budget says "not until you pay". Only the first
+        // is worth a backoff — that is the whole point of separating them.
+        assertThat(QuotaSignals.indicatesDepletedBudget("429 Too Many Requests")).isFalse();
+        assertThat(QuotaSignals.indicatesDepletedBudget("API rate limit exceeded for user")).isFalse();
+        assertThat(QuotaSignals.indicatesDepletedBudget("Retry after 30 seconds")).isFalse();
+    }
+
+    @Test
+    void depletedBudgetHandlesNullAndBlank() {
+        assertThat(QuotaSignals.indicatesDepletedBudget(null)).isFalse();
+        assertThat(QuotaSignals.indicatesDepletedBudget("  ")).isFalse();
+    }
+
     @Test
     void handlesNullAndBlank() {
         assertThat(QuotaSignals.matches(null)).isFalse();

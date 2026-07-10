@@ -33,4 +33,8 @@ replay_pid*
 .worktrees/
 /CLAUDE.md
 /.claude/
-/docs/
+# Wyklucz zawartość /docs/, nie sam katalog — inaczej git nie wejdzie do środka i żadnego
+# wyjątku poniżej nie da się zastosować.
+/docs/*
+# ADR-y są częścią repo: README do nich linkuje.
+!/docs/adr/
