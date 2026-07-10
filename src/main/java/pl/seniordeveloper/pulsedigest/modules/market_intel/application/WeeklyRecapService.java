@@ -3,7 +3,6 @@ package pl.seniordeveloper.pulsedigest.modules.market_intel.application;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.PastEdition;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.PastTopic;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RecapChange;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RecapEntry;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Signal;
@@ -77,10 +76,8 @@ public class WeeklyRecapService {
         return thisWeek.stream()
                 .filter(e -> e.carries(topicKey))
                 .min(Comparator.comparing(PastEdition::generatedAt))
-                .flatMap(e -> e.topics().stream()
-                        .filter(t -> topicKey.equals(t.topicKey()))
-                        .findFirst()
-                        .map(PastTopic::rank));
+                .flatMap(e -> e.find(topicKey))
+                .map(Signal::rank);
     }
 
     // Rank ordinals run CRITICAL(0) → WEAK(3), so a lower ordinal is a stronger signal.

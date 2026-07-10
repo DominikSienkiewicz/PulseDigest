@@ -14,7 +14,6 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.DigestItem;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.PastEdition;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.PastTopic;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.PersistedReport;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportData;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Signal;
@@ -76,8 +75,8 @@ class SupabaseReportHistoryAdapterIT {
         List<PastEdition> editions = history.recentEditions(21);
 
         assertThat(editions).hasSize(2);
-        assertThat(editions.get(0).topics()).extracting(PastTopic::rank).containsExactly(SignalRank.CRITICAL);
-        assertThat(editions.get(1).topics()).extracting(PastTopic::rank).containsExactly(SignalRank.MODERATE);
+        assertThat(editions.get(0).signals()).extracting(Signal::rank).containsExactly(SignalRank.CRITICAL);
+        assertThat(editions.get(1).signals()).extracting(Signal::rank).containsExactly(SignalRank.MODERATE);
         assertThat(editions.get(0).carries("mcp")).isTrue();
     }
 

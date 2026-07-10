@@ -5,6 +5,7 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.application.MarketInt
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.MarketResearchService;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.SignalScoringService;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.SourceYieldService;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.application.TrendVelocityService;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.WeeklyRecapService;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.policy.FeedbackNudgePolicy;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.policy.ReportHistoryPolicy;
@@ -226,6 +227,7 @@ class GenerateMarketReportProcessorTest {
                 reportHistoryPort,
                 new WeeklyRecapService(),
                 new SourceYieldService(),
+                new TrendVelocityService(),
                 new ReportHistoryPolicy(true, 21));
     }
 

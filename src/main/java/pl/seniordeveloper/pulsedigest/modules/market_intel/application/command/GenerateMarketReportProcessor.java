@@ -7,6 +7,7 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.application.MarketInt
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.MarketResearchService;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.SignalScoringService;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.SourceYieldService;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.application.TrendVelocityService;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.WeeklyRecapService;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.policy.FeedbackNudgePolicy;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.policy.ReportHistoryPolicy;
@@ -65,6 +66,7 @@ public class GenerateMarketReportProcessor {
     private final ReportHistoryPort reportHistoryPort;
     private final WeeklyRecapService weeklyRecapService;
     private final SourceYieldService sourceYieldService;
+    private final TrendVelocityService trendVelocityService;
     private final ReportHistoryPolicy reportHistoryPolicy;
 
     public void process(String jobId) {
@@ -106,7 +108,9 @@ public class GenerateMarketReportProcessor {
             List<Signal> signals = signalScoringService.score(
                     cleaned.items() != null ? cleaned.items() : List.of(), netVotesBySource);
             signals = TrendMemory.annotate(signals, history);
-            ReportData finalReport = cleaned.withSignals(signals);
+            signals = trendVelocityService.annotate(signals, history);
+            ReportData finalReport = cleaned.withSignals(signals)
+                    .withRadarAccuracy(trendVelocityService.accuracy(history));
             finalReport = weeklyRecapService
                     .assemble(LocalDate.now(ZoneOffset.UTC), signals, history)
                     .map(finalReport::withWeeklyRecap)

@@ -7,7 +7,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.PastEdition;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.PastTopic;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Signal;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.ReportHistoryPort;
 
@@ -43,7 +42,7 @@ public class SupabaseReportHistoryAdapter implements ReportHistoryPort {
                         rs.getObject("generated_at", OffsetDateTime.class), rs.getString("signals")))
                 .list()
                 .stream()
-                .filter(edition -> !edition.topics().isEmpty())
+                .filter(edition -> !edition.signals().isEmpty())
                 .toList();
         log.debug("Report history: {} past edition(s) within {} days", editions.size(), lookbackDays);
         return editions;
@@ -51,17 +50,15 @@ public class SupabaseReportHistoryAdapter implements ReportHistoryPort {
 
     // A single unparseable legacy payload must not take the run down: skip that edition and move on.
     private PastEdition toEdition(OffsetDateTime generatedAt, String signalsJson) {
-        List<PastTopic> topics = List.of();
+        List<Signal> signals = List.of();
         try {
-            topics = objectMapper.<List<Signal>>readValue(signalsJson, new TypeReference<List<Signal>>() { })
+            signals = objectMapper.<List<Signal>>readValue(signalsJson, new TypeReference<List<Signal>>() { })
                     .stream()
                     .filter(signal -> !signal.item().correlationKey().isEmpty())
-                    .map(signal -> new PastTopic(signal.item().correlationKey(), signal.item().title(),
-                            signal.item().url(), signal.rank(), signal.item().source()))
                     .toList();
         } catch (Exception e) {
             log.warn("Skipping unreadable edition from {}: {}", generatedAt, e.getMessage());
         }
-        return new PastEdition(generatedAt.toInstant(), topics);
+        return new PastEdition(generatedAt.toInstant(), signals);
     }
 }

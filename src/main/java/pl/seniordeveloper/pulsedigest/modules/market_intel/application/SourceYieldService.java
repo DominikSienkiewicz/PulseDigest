@@ -3,7 +3,7 @@ package pl.seniordeveloper.pulsedigest.modules.market_intel.application;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.PastEdition;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.PastTopic;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Signal;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SignalRank;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceWeights;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceYield;
@@ -34,13 +34,14 @@ public class SourceYieldService {
     public List<SourceYield> scoreboard(List<PastEdition> editions) {
         Map<String, int[]> tally = new LinkedHashMap<>();
         for (PastEdition edition : editions) {
-            for (PastTopic topic : edition.topics()) {
-                if (topic.source() == null || topic.source().isBlank()) {
+            for (Signal signal : edition.signals()) {
+                String source = signal.item().source();
+                if (source == null || source.isBlank()) {
                     continue;
                 }
-                int[] counts = tally.computeIfAbsent(SourceWeights.keyOf(topic.source()), key -> new int[2]);
+                int[] counts = tally.computeIfAbsent(SourceWeights.keyOf(source), key -> new int[2]);
                 counts[0]++;
-                if (isHighRank(topic.rank())) {
+                if (isHighRank(signal.rank())) {
                     counts[1]++;
                 }
             }
