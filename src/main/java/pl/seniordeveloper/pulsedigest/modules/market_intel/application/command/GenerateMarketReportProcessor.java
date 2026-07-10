@@ -104,9 +104,12 @@ public class GenerateMarketReportProcessor {
             Map<String, Integer> netVotesBySource = feedbackNudgePolicy.enabled()
                     ? feedbackPort.netVotesBySource(feedbackNudgePolicy.lookbackDays())
                     : Map.of();
+            Map<String, Integer> netVotesByCategory = feedbackNudgePolicy.enabled()
+                    ? feedbackPort.netVotesByCategory(feedbackNudgePolicy.lookbackDays())
+                    : Map.of();
             List<PastEdition> history = readHistory();
             List<Signal> signals = signalScoringService.score(
-                    cleaned.items() != null ? cleaned.items() : List.of(), netVotesBySource);
+                    cleaned.items() != null ? cleaned.items() : List.of(), netVotesBySource, netVotesByCategory);
             signals = TrendMemory.annotate(signals, history);
             signals = trendVelocityService.annotate(signals, history);
             ReportData finalReport = cleaned.withSignals(signals)

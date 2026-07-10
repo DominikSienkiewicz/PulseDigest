@@ -84,8 +84,12 @@ class ReportPromptBuilderTest {
         };
     }
 
-    /** FeedbackPort test double — fixed down-votes, no per-source nudge (the prompt builder only reads down-votes). */
+    /** FeedbackPort test double — fixed down-votes and fixed per-category net votes. */
     private static FeedbackPort feedbackPort(Set<String> downvotedUrls) {
+        return feedbackPort(downvotedUrls, Map.of());
+    }
+
+    private static FeedbackPort feedbackPort(Set<String> downvotedUrls, Map<String, Integer> categoryVotes) {
         return new FeedbackPort() {
             @Override
             public Set<String> downvotedUrls(int lookbackDays) {
@@ -95,6 +99,11 @@ class ReportPromptBuilderTest {
             @Override
             public Map<String, Integer> netVotesBySource(int lookbackDays) {
                 return Map.of();
+            }
+
+            @Override
+            public Map<String, Integer> netVotesByCategory(int lookbackDays) {
+                return categoryVotes;
             }
         };
     }

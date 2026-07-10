@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.CategoryPreference;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.PreScoringCandidate;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.PromptItemMeta;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ResearchResult;
@@ -138,7 +139,8 @@ public class ReportPromptBuilder {
                     research.socialPosts().size(),
                     research.labAnnouncements().size());
             return new PromptPayload(
-                    alreadyPublishedBlock() + "Oto posty z ostatnich kilku dni:\n\n" + json,
+                    alreadyPublishedBlock() + readerPreferencesBlock()
+                            + "Oto posty z ostatnich kilku dni:\n\n" + json,
                     inputMetaOf(payload));
         } catch (JsonProcessingException e) {
             log.error("Błąd serializacji payloadu: {}", e.getMessage());
@@ -187,6 +189,46 @@ public class ReportPromptBuilder {
                 PreScoringTriage.triage(payload, preScoringPort.score(candidates), preScoringProperties.keep());
         log.info("Pre-scoring triage: {} → {} itemów do głównego modelu", payload.size(), kept.size());
         return kept;
+    }
+
+    /**
+     * Tells the model which topics the reader has repeatedly asked for more or less of.
+     *
+     * <p>Only categories the reader voted on {@code >= 3} times net appear — one stray click is noise,
+     * not a taste. The wording is a soft preference rather than an exclusion: a muted topic that
+     * genuinely matters must still be able to surface, or the loop turns into a trap the category can
+     * never climb out of. Empty while the receiver still writes no {@code category}, which is exactly
+     * how this degrades until that receiver is deployed.
+     */
+    private String readerPreferencesBlock() {
+        if (!feedbackProperties.enabled()) {
+            return "";
+        }
+        Map<String, Integer> netVotes = feedbackPort.netVotesByCategory(feedbackProperties.lookbackDays());
+        List<String> wanted = expressedCategories(netVotes, true);
+        List<String> unwanted = expressedCategories(netVotes, false);
+        if (wanted.isEmpty() && unwanted.isEmpty()) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder("== PREFERENCJE CZYTELNIKA ==\n")
+                .append("Wynikają z jego kliknięć 👍/👎 w poprzednich wydaniach. To preferencja, NIE filtr:\n")
+                .append("naprawdę ważny item z nielubianej kategorii nadal ma się przebić.\n");
+        if (!wanted.isEmpty()) {
+            sb.append("Chce więcej: ").append(String.join(", ", wanted)).append('\n');
+        }
+        if (!unwanted.isEmpty()) {
+            sb.append("Chce mniej: ").append(String.join(", ", unwanted)).append('\n');
+        }
+        return sb.append('\n').toString();
+    }
+
+    private static List<String> expressedCategories(Map<String, Integer> netVotes, boolean positive) {
+        return netVotes.entrySet().stream()
+                .filter(e -> CategoryPreference.isExpressed(e.getValue()))
+                .filter(e -> positive == e.getValue() > 0)
+                .sorted(Map.Entry.comparingByKey())
+                .map(Map.Entry::getKey)
+                .toList();
     }
 
     /**

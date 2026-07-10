@@ -59,6 +59,40 @@ class SupabaseFeedbackAdapterIT {
     }
 
     @Test
+    void aggregatesNetVotesPerCategoryCaseInsensitively() {
+        insertCategorized("https://example.com/a", "UP", "AI/LLM");
+        insertCategorized("https://example.com/b", "UP", "ai/llm");
+        insertCategorized("https://example.com/c", "DOWN", "Research");
+
+        Map<String, Integer> byCategory = adapter.netVotesByCategory(10);
+
+        assertThat(byCategory).containsEntry("ai/llm", 2).containsEntry("research", -1);
+    }
+
+    @Test
+    void rowsWithoutACategoryAreExcludedRatherThanBucketedTogether() {
+        // Written by a receiver that predates the parameter — degrade to an empty map, not a wrong one.
+        insert("https://example.com/a", "DOWN", Instant.now().minus(1, ChronoUnit.DAYS));
+
+        assertThat(adapter.netVotesByCategory(10)).isEmpty();
+    }
+
+    @Test
+    void categoryVotesRespectTheLookbackWindow() {
+        jdbc.sql("INSERT INTO feedback (item_url, source, vote, category, created_at) VALUES (?, ?, ?, ?, ?)")
+                .params("https://example.com/old", "GitHub", "DOWN", "Research",
+                        java.time.OffsetDateTime.now().minusDays(40))
+                .update();
+
+        assertThat(adapter.netVotesByCategory(10)).isEmpty();
+    }
+
+    private void insertCategorized(String url, String vote, String category) {
+        jdbc.sql("INSERT INTO feedback (item_url, source, vote, category) VALUES (?, ?, ?, ?)")
+                .params(url, "GitHub", vote, category).update();
+    }
+
+    @Test
     void anItemCanOnlyBeVotedOnceWithinAnEdition() {
         // A mail scanner prefetching the link — or fetching both 👍 and 👎 — must not amplify a vote.
         jdbc.sql("INSERT INTO feedback (item_url, source, vote, edition) VALUES (?, ?, ?, ?)")

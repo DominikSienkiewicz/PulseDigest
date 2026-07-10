@@ -59,7 +59,7 @@ final class DigestHighlightBuilder {
                     .append(escapeHtml(item.title())).append("</a>")
                     .append(" <span style=\"color:#b45309;font-weight:700;font-size:12px\">")
                     .append(item.score()).append("/10</span>")
-                    .append(FeedbackLinkBuilder.render(item.url(), item.source(), edition, feedback))
+                    .append(FeedbackLinkBuilder.render(item.url(), item.source(), item.category(), edition, feedback))
                     .append(why)
                     .append("</li>");
         }
@@ -94,7 +94,7 @@ final class DigestHighlightBuilder {
                     .append("\" style=\"color:#a21caf;font-weight:600;text-decoration:none;font-size:14px\">")
                     .append(escapeHtml(item.title())).append("</a> ")
                     .append(typeBadge(item.type() != null ? item.type() : "OTHER"))
-                    .append(FeedbackLinkBuilder.render(item.url(), item.source(), edition, feedback))
+                    .append(FeedbackLinkBuilder.render(item.url(), item.source(), item.category(), edition, feedback))
                     .append(summaryPart)
                     .append("</li>");
         }
