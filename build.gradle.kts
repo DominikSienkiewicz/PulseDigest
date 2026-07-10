@@ -7,9 +7,6 @@ plugins {
     checkstyle
     jacoco
     id("org.sonarqube") version "7.3.1.8318"
-    // Schema migrations. Run explicitly via `./gradlew flywayMigrate` — the app itself does not carry
-    // Flyway at runtime; migrating the database is a discrete deploy step (see GitHub Actions).
-    id("org.flywaydb.flyway") version "11.1.0"
 }
 
 group = "pl.seniordeveloper"
@@ -48,10 +45,11 @@ val instancioVersion = "5.4.0"
 val testcontainersVersion = "1.20.4"
 val flywayVersion = "11.1.0"
 
-// Classpath for the `flywayMigrate` task only — the Postgres driver (declared runtimeOnly for the app,
-// so absent from compileClasspath) plus Flyway's Postgres module. Kept off the app's runtime classpath
-// on purpose: the app assumes the schema exists; migrating it is the CI step's job.
-val flywayMigration: Configuration by configurations.creating
+// Classpath for the flywayMigrate task only — the Flyway engine, its Postgres module and the driver.
+// Kept off the app's runtime classpath on purpose: the app assumes the schema exists; migrating it is
+// a discrete step. Run via our own JavaExec entrypoint rather than the Flyway Gradle plugin, which
+// reaches for JavaPluginConvention — an API removed in Gradle 9.
+val flywayCli: Configuration by configurations.creating
 
 // ── BOM imports ───────────────────────────────────────────────────────────────
 dependencyManagement {
@@ -83,6 +81,9 @@ dependencies {
     compileOnly("org.projectlombok:lombok")
     annotationProcessor("org.projectlombok:lombok")
 
+    // ── Flyway (compileOnly: used only by the FlywayMigrate entrypoint, never at app runtime) ──
+    compileOnly("org.flywaydb:flyway-core:$flywayVersion")
+
     // ── Tests ─────────────────────────────────────────────────────────────────
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
@@ -97,16 +98,23 @@ dependencies {
     testImplementation("org.flywaydb:flyway-database-postgresql:$flywayVersion")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 
-    // Only the flywayMigrate task needs these (see the flywayMigration configuration above).
-    flywayMigration("org.flywaydb:flyway-database-postgresql:$flywayVersion")
-    flywayMigration("org.postgresql:postgresql")
+    // Runtime classpath for the flywayMigrate task: the Flyway engine, its Postgres module and the
+    // JDBC driver. (flyway-commandline is not consumable as a normal dependency — its POM pulls
+    // unpublished flyway-experimental-* modules — so we run flyway-core through our own entrypoint.)
+    flywayCli("org.flywaydb:flyway-core:$flywayVersion")
+    flywayCli("org.flywaydb:flyway-database-postgresql:$flywayVersion")
+    flywayCli("org.postgresql:postgresql")
 }
 
-// Credentials come from the environment (FLYWAY_URL / FLYWAY_USER / FLYWAY_PASSWORD), so no database
-// coordinates live in the build file. `./gradlew flywayMigrate` is a no-op when the history is current.
-flyway {
-    locations = arrayOf("filesystem:src/main/resources/db/migration")
-    configurations = arrayOf("flywayMigration")
+// Applies pending migrations to the database via the FlywayMigrate entrypoint. Credentials come from
+// the environment (FLYWAY_URL / FLYWAY_USER / FLYWAY_PASSWORD), inherited by the forked process, so no
+// database coordinates live in the build file. A no-op once flyway_schema_history is current.
+tasks.register<JavaExec>("flywayMigrate") {
+    group = "flyway"
+    description = "Apply pending Flyway migrations (credentials from FLYWAY_URL/USER/PASSWORD env)."
+    dependsOn(tasks.named("classes"))
+    classpath = flywayCli + sourceSets["main"].output
+    mainClass.set("pl.seniordeveloper.pulsedigest.migration.FlywayMigrate")
 }
 
 // ── Checkstyle ────────────────────────────────────────────────────────────────
@@ -133,6 +141,7 @@ val coverageExclusions = listOf(
     "**/*Query.class",
     "**/*View.class",
     "**/DigestRunner.class",
+    "**/FlywayMigrate.class",
     "**/shared/error/*.class"
 )
 
@@ -218,6 +227,7 @@ val sonarCoverageExclusions = listOf(
     "**/*Query.java",
     "**/*View.java",
     "**/DigestRunner.java",
+    "**/migration/FlywayMigrate.java",
     "**/shared/error/**"
 )
 
