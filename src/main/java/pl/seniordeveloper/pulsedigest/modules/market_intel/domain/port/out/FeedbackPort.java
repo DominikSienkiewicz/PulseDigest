@@ -27,4 +27,16 @@ public interface FeedbackPort {
      * @return source label → net vote count (empty when there is no feedback)
      */
     Map<String, Integer> netVotesBySource(int lookbackDays);
+
+    /**
+     * Net (UP − DOWN) vote count per item category (lower-cased) within the last {@code lookbackDays}.
+     * A down-vote on a dull paper should punish the topic, not the whole of arXiv.
+     *
+     * <p>Rows written before the receiver started sending {@code category} carry a null value and are
+     * excluded, so this degrades to an empty map rather than to a wrong one.
+     *
+     * @param lookbackDays how far back to aggregate votes
+     * @return lower-cased category → net vote count (empty when there is no categorized feedback)
+     */
+    Map<String, Integer> netVotesByCategory(int lookbackDays);
 }

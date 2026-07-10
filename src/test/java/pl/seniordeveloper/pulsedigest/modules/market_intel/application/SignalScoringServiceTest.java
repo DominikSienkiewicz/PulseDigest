@@ -72,6 +72,55 @@ class SignalScoringServiceTest {
         assertThat(result).allMatch(s -> s.rank() == SignalRank.CRITICAL);
     }
 
+    // --- C13: per-category preference multiplier ---
+
+    @Test
+    void aDownVotedCategoryLosesScoreOnItsCredibilityAndEngagement() {
+        // arXiv base 70, category "Research" at −5 net votes → multiplier 0.90 → 63.
+        List<Signal> result = service.score(
+                List.of(item("arXiv/cs.AI", "Research", 0)), Map.of(), Map.of("research", -5));
+
+        assertThat(result.get(0).signalScore()).isEqualTo(63);
+    }
+
+    @Test
+    void anUpVotedCategoryGainsScore() {
+        // Hacker News base 80, category "Java/JVM" at +3 → multiplier 1.06 → 85 (rounded).
+        List<Signal> result = service.score(
+                List.of(item("Hacker News", "Java/JVM", 0)), Map.of(), Map.of("java/jvm", 3));
+
+        assertThat(result.get(0).signalScore()).isEqualTo(85);
+    }
+
+    @Test
+    void theCrossSourceBonusIsImmuneToCategoryPreference() {
+        // The escape hatch against the positive feedback loop: a muted category can still break
+        // through as a Critical Trend when three independent domains confirm one story. Corroboration
+        // is evidence, not taste — so the +50 is added after the multiplier, never scaled by it.
+        List<Signal> muted = service.score(List.of(
+                topicItem("arXiv/cs.AI", "Research", "mcp"),
+                topicItem("GitHub", "Research", "mcp"),
+                topicItem("Hacker News", "Research", "mcp")), Map.of(), Map.of("research", -100));
+
+        assertThat(muted).allMatch(s -> s.rank() == SignalRank.CRITICAL);
+    }
+
+    @Test
+    void noCategoryVotesScoreIdenticallyToTheTwoArgOverload() {
+        List<Signal> withEmpty = service.score(List.of(item("Hacker News", "Java", 0)), Map.of(), Map.of());
+        List<Signal> without = service.score(List.of(item("Hacker News", "Java", 0)));
+
+        assertThat(withEmpty.get(0).signalScore()).isEqualTo(without.get(0).signalScore());
+    }
+
+    @Test
+    void anItemWithoutACategoryIsUnaffectedByCategoryVotes() {
+        List<Signal> result = service.score(
+                List.of(item("Hacker News", null, 0)), Map.of(), Map.of("research", -100));
+
+        assertThat(result.get(0).signalScore()).isEqualTo(80);
+    }
+
     @Test
     void arxivWithoutCrossSourceScoresModerate() {
         // arXiv weight=0.70 → base=70, engagement bonus=0, crossSource=0 → 70 → MODERATE

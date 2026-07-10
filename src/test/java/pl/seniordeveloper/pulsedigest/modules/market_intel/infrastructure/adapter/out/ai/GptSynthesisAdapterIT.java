@@ -386,6 +386,11 @@ class GptSynthesisAdapterIT {
                 public java.util.Map<String, Integer> netVotesBySource(int lookbackDays) {
                     return java.util.Map.of();
                 }
+
+                @Override
+                public java.util.Map<String, Integer> netVotesByCategory(int lookbackDays) {
+                    return java.util.Map.of();
+                }
             };
         }
 

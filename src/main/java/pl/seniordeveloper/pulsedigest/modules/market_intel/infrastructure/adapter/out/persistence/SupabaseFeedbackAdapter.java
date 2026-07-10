@@ -37,7 +37,28 @@ public class SupabaseFeedbackAdapter implements FeedbackPort {
             GROUP BY source
             """;
 
+    private static final String NET_VOTES_BY_CATEGORY_SQL = """
+            SELECT lower(category) AS category, SUM(CASE vote WHEN 'UP' THEN 1 ELSE -1 END) AS net_votes
+            FROM feedback
+            WHERE created_at >= ? AND category IS NOT NULL AND category <> ''
+            GROUP BY lower(category)
+            """;
+
     private final JdbcClient jdbcClient;
+
+    @Override
+    public Map<String, Integer> netVotesByCategory(int lookbackDays) {
+        OffsetDateTime cutoff = OffsetDateTime.now(ZoneOffset.UTC).minusDays(lookbackDays);
+        Map<String, Integer> netVotes = jdbcClient.sql(NET_VOTES_BY_CATEGORY_SQL)
+                .param(cutoff)
+                .query((rs, rowNum) -> Map.entry(rs.getString("category"), rs.getInt("net_votes")))
+                .list()
+                .stream()
+                .collect(java.util.stream.Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+        log.info("Feedback: net votes across {} categorized topic(s) over the last {}d",
+                netVotes.size(), lookbackDays);
+        return netVotes;
+    }
 
     @Override
     public Set<String> downvotedUrls(int lookbackDays) {

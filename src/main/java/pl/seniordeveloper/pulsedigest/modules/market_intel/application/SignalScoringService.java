@@ -2,6 +2,7 @@ package pl.seniordeveloper.pulsedigest.modules.market_intel.application;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.CategoryPreference;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.DigestItem;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Signal;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SignalRank;
@@ -46,15 +47,26 @@ public class SignalScoringService {
      * reader feedback (UP − DOWN); an empty map means no nudging.
      */
     public List<Signal> score(List<DigestItem> items, Map<String, Integer> netVotesBySource) {
+        return score(items, netVotesBySource, Map.of());
+    }
+
+    /**
+     * Scores with per-category reader preference applied on top of per-source nudging (C13).
+     *
+     * @param netVotesByCategory lower-cased category → net (UP − DOWN) votes; empty degrades to C6
+     */
+    public List<Signal> score(List<DigestItem> items, Map<String, Integer> netVotesBySource,
+                              Map<String, Integer> netVotesByCategory) {
         Objects.requireNonNull(items, "items must not be null");
         Objects.requireNonNull(netVotesBySource, "netVotesBySource must not be null");
         if (items.isEmpty()) {
             return List.of();
         }
-        Map<String, Set<SourceDomain>> domainsByCategory = buildDomainMap(items);
+        Map<String, Set<SourceDomain>> domainsByTopic = buildDomainMap(items);
         Map<String, Integer> netVotesByWeightKey = aggregateByWeightKey(netVotesBySource);
+        Map<String, Integer> categoryVotes = netVotesByCategory != null ? netVotesByCategory : Map.of();
         List<Signal> signals = items.stream()
-                .map(item -> scoreItem(item, domainsByCategory, netVotesByWeightKey))
+                .map(item -> scoreItem(item, domainsByTopic, netVotesByWeightKey, categoryVotes))
                 .sorted(byRankThenScoreDesc())
                 .toList();
         log.debug("Scored {} items: {} CRITICAL, {} STRONG, {} MODERATE, {} WEAK",
@@ -92,7 +104,8 @@ public class SignalScoringService {
     }
 
     private Signal scoreItem(DigestItem item, Map<String, Set<SourceDomain>> domainsByTopic,
-                             Map<String, Integer> netVotesByWeightKey) {
+                             Map<String, Integer> netVotesByWeightKey,
+                             Map<String, Integer> netVotesByCategory) {
         int netVotes = netVotesByWeightKey.getOrDefault(SourceWeights.keyOf(item.source()), 0);
         double weight = SourceWeights.of(item.source(), netVotes);
         int baseScore = (int) Math.round(weight * 100);
@@ -102,7 +115,11 @@ public class SignalScoringService {
         Set<SourceDomain> domains = domainsByTopic.getOrDefault(item.correlationKey(), Set.of());
         int crossSourceBonus = domains.size() >= CROSS_SOURCE_THRESHOLD ? CROSS_SOURCE_BONUS : 0;
 
-        int signalScore = baseScore + engagementBonus + crossSourceBonus;
+        // Reader taste scales credibility and engagement — never corroboration. A muted category
+        // that three independent domains confirm still reaches CRITICAL, which is what keeps the
+        // preference loop from becoming a trap the category can never climb out of.
+        double preference = CategoryPreference.multiplierFor(item.category(), netVotesByCategory);
+        int signalScore = (int) Math.round((baseScore + engagementBonus) * preference) + crossSourceBonus;
         SignalRank rank = toRank(signalScore);
 
         List<SourceDomain> sortedDomains = domains.stream()

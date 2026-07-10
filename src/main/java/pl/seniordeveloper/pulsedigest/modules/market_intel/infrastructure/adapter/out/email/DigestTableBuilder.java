@@ -136,7 +136,7 @@ final class DigestTableBuilder {
                 + "<td style=\"padding:10px 12px;border-bottom:1px solid #f0f0f0\">"
                 + "<a href=\"" + safeUrl + "\" style=\"color:#1d4ed8;font-weight:600;"
                 + "text-decoration:none\">" + safeTitle + "</a>"
-                + FeedbackLinkBuilder.render(item.url(), item.source(), edition, feedback)
+                + FeedbackLinkBuilder.render(item.url(), item.source(), item.category(), edition, feedback)
                 + "<div style=\"color:#6b7280;font-size:13px;margin-top:4px\">"
                 + safeSummary + "</div></td>"
                 + "<td style=\"padding:10px 12px;border-bottom:1px solid #f0f0f0;"
