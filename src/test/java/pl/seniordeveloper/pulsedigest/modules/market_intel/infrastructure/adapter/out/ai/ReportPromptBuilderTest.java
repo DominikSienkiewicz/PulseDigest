@@ -185,6 +185,17 @@ class ReportPromptBuilderTest {
     }
 
     @Test
+    void buildUserPromptWithReducedItemCapTrimsThePayload() throws Exception {
+        // Truncation recovery: the same research is re-sent with half the items so the model's
+        // output fits under the token cap.
+        ReportPromptBuilder builder = builder(Set.of());
+
+        List<Map<String, Object>> payload = payload(builder.buildUserPrompt(researchWithEverySource(), 5));
+
+        assertThat(payload).hasSize(5);
+    }
+
+    @Test
     void preScoreHighWeightSourceBeatsLowWeightHighEngagement() {
         // arXiv eng=0: round(0.70×100)+0 = 70
         // Twitter/X eng=999: round(0.40×100)+0 = 40

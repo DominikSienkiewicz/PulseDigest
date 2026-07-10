@@ -77,7 +77,16 @@ public class ReportPromptBuilder {
         return systemPrompt + "\n\n== PROFIL ODBIORCY ==\n" + interestProfile.persona() + "\n";
     }
 
+    /** Full-intake prompt — every source capped at its own budget, then trimmed to {@code TOTAL_CAP}. */
     public String buildUserPrompt(ResearchResult research) {
+        return buildUserPrompt(research, PromptItemSelector.TOTAL_CAP);
+    }
+
+    /**
+     * Reduced-intake prompt: same payload, trimmed to at most {@code totalCap} items by pre-score.
+     * Used to recover from a truncated model response by re-sending fewer items.
+     */
+    public String buildUserPrompt(ResearchResult research, int totalCap) {
         List<Map<String, Object>> all = new ArrayList<>();
         List.of(
                 mapItems(research.tweets(), this::mapTweet),
@@ -99,7 +108,7 @@ public class ReportPromptBuilder {
         ).forEach(all::addAll);
 
         all = filterAlreadyPublished(all);
-        List<Map<String, Object>> payload = PromptItemSelector.selectTopItems(all);
+        List<Map<String, Object>> payload = PromptItemSelector.selectTopItems(all, totalCap);
 
         try {
             String json = objectMapper.writeValueAsString(payload);

@@ -44,6 +44,10 @@ final class PromptItemSelector {
     }
 
     static List<Map<String, Object>> selectTopItems(List<Map<String, Object>> all) {
+        return selectTopItems(all, TOTAL_CAP);
+    }
+
+    static List<Map<String, Object>> selectTopItems(List<Map<String, Object>> all, int totalCap) {
         List<Map<String, Object>> twitter     = new ArrayList<>();
         List<Map<String, Object>> hn          = new ArrayList<>();
         List<Map<String, Object>> github      = new ArrayList<>();
@@ -108,7 +112,7 @@ final class PromptItemSelector {
         selected.addAll(topN(talks,       CAP_TALKS,       byEngagement));
         selected.addAll(topN(social,      CAP_SOCIAL,      byEngagement));
 
-        return applyTotalCap(selected, TOTAL_CAP);
+        return applyTotalCap(selected, totalCap);
     }
 
     private static List<Map<String, Object>> topN(
