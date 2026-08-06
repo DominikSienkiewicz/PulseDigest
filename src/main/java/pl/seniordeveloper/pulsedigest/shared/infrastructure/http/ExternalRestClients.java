@@ -22,6 +22,8 @@ import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.Arrays;
+import java.util.Objects;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
@@ -90,17 +92,23 @@ public final class ExternalRestClients {
                         request.getMethod(), request.getURI(), statusCode, attempt, MAX_ATTEMPTS);
             } catch (IOException e) {
                 lastException = e;
-                if (attempt == MAX_ATTEMPTS) {
-                    recordRetry(host, "exhausted_io");
-                    throw e;
-                }
-                recordRetry(host, "io_error");
-                log.debug("Retrying {} {} after I/O error: {} (attempt {}/{})",
-                        request.getMethod(), request.getURI(), e.getMessage(), attempt, MAX_ATTEMPTS);
+                recordIoFailure(request, host, e, attempt);
             }
             sleepBeforeNextAttempt(attempt, retryAfterMillis);
         }
         throw lastException != null ? lastException : new IOException("HTTP request failed without response");
+    }
+
+    // Rethrows the original failure once the attempts are spent, so the caller never sees a wrapper.
+    private static void recordIoFailure(HttpRequest request, String host, IOException failure, int attempt)
+            throws IOException {
+        if (attempt == MAX_ATTEMPTS) {
+            recordRetry(host, "exhausted_io");
+            throw failure;
+        }
+        recordRetry(host, "io_error");
+        log.debug("Retrying {} {} after I/O error: {} (attempt {}/{})",
+                request.getMethod(), request.getURI(), failure.getMessage(), attempt, MAX_ATTEMPTS);
     }
 
     /**
@@ -155,7 +163,7 @@ public final class ExternalRestClients {
     }
 
     // A 429 saying "insufficient_quota" is a billing state, not a speed limit: no backoff can fix it.
-    private static boolean isDepletedBudget(ClientHttpResponse response) throws IOException {
+    private static boolean isDepletedBudget(ClientHttpResponse response) {
         return response instanceof BufferedResponse buffered
                 && QuotaSignals.indicatesDepletedBudget(buffered.bodyAsText());
     }
@@ -191,6 +199,26 @@ public final class ExternalRestClients {
         @Override
         public void close() {
             // nothing to release: the underlying response was closed when this one was created
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            return other instanceof BufferedResponse that
+                    && Objects.equals(statusCode, that.statusCode)
+                    && Objects.equals(statusText, that.statusText)
+                    && Objects.equals(headers, that.headers)
+                    && Arrays.equals(body, that.body);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(statusCode, statusText, headers, Arrays.hashCode(body));
+        }
+
+        @Override
+        public String toString() {
+            return "BufferedResponse[statusCode=" + statusCode + ", statusText=" + statusText
+                    + ", headers=" + headers + ", body=" + Arrays.toString(body) + ']';
         }
     }
 

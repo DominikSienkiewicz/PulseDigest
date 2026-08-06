@@ -86,7 +86,7 @@ public class GptSynthesisAdapter implements LlmSynthesisPort {
     private ReportData synthesizeWith(String model, String systemPrompt, ResearchResult research) {
         try {
             return callWithRetry(model, systemPrompt, () -> promptBuilder.buildPrompt(research));
-        } catch (LlmTruncatedException e) {
+        } catch (LlmTruncatedException _) {
             int reducedCap = PromptItemSelector.TOTAL_CAP / 2;
             log.warn("Odpowiedź {} ucięta na token capie — ponawiam z {} itemami", model, reducedCap);
             return callWithRetry(model, systemPrompt, () -> promptBuilder.buildPrompt(research, reducedCap));

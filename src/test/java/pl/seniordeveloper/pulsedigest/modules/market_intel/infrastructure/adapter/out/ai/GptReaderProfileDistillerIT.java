@@ -117,7 +117,7 @@ class GptReaderProfileDistillerIT {
         wireMock.verify(0, postRequestedFor(urlPathEqualTo("/chat/completions")));
     }
 
-    private void stubContent(String content) throws Exception {
+    private void stubContent(String content) {
         stubContentQuietly(content);
     }
 
