@@ -104,6 +104,9 @@ dependencies {
     flywayCli("org.flywaydb:flyway-core:$flywayVersion")
     flywayCli("org.flywaydb:flyway-database-postgresql:$flywayVersion")
     flywayCli("org.postgresql:postgresql")
+    // FlywayMigrate reports through SLF4J like every other class here, but neither Flyway nor the JDBC
+    // driver puts an SLF4J binding on this classpath — without one the migration step would run mute.
+    flywayCli("org.springframework.boot:spring-boot-starter-logging")
 }
 
 // Applies pending migrations to the database via the FlywayMigrate entrypoint. Credentials come from

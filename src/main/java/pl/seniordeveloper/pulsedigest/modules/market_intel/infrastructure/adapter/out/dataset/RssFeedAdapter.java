@@ -10,11 +10,14 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
+import org.xml.sax.SAXException;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RssItem;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.RssProperties;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
+import java.io.IOException;
 import java.io.StringReader;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
@@ -73,7 +76,8 @@ public class RssFeedAdapter {
 
     // ── Private helpers ───────────────────────────────────────────────────────
 
-    private List<RssItem> fetchFeed(String url, String feedName, int limit) throws Exception {
+    private List<RssItem> fetchFeed(String url, String feedName, int limit)
+            throws ParserConfigurationException, SAXException, IOException {
         // HTTP errors propagate; caller aggregates per-feed failures.
         String xml = restClient.get().uri(url).retrieve().body(String.class);
         if (xml == null || xml.isBlank()) {
@@ -85,7 +89,8 @@ public class RssFeedAdapter {
         return items;
     }
 
-    private List<RssItem> parseXml(String xml, String feedName, int limit) throws Exception {
+    private List<RssItem> parseXml(String xml, String feedName, int limit)
+            throws ParserConfigurationException, SAXException, IOException {
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
         // XXE prevention
         factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);

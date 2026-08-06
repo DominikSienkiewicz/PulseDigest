@@ -98,7 +98,7 @@ public class ReportEmailBuilder {
         if (lastSpace > 0) {
             clipped = clipped.substring(0, lastSpace);
         }
-        return clipped.replaceAll("[\\s,;·]+$", "") + "…";
+        return clipped.replaceAll("[\\s,;·]++$", "") + "…";
     }
 
     public String buildHtml(ReportData report, ResearchResult research) {

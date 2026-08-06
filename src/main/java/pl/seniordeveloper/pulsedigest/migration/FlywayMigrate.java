@@ -1,5 +1,6 @@
 package pl.seniordeveloper.pulsedigest.migration;
 
+import lombok.extern.slf4j.Slf4j;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.output.MigrateResult;
 
@@ -11,6 +12,7 @@ import org.flywaydb.core.api.output.MigrateResult;
  * <p>Deliberately outside the application: Flyway is a {@code compileOnly} dependency, so it never
  * reaches the digest's runtime classpath. Migrating the schema is the CI step's job, not the app's.
  */
+@Slf4j
 public final class FlywayMigrate {
 
     private FlywayMigrate() {
@@ -19,15 +21,16 @@ public final class FlywayMigrate {
     /**
      * Runs the migration. Exits non-zero on any failure so the CI step fails loudly.
      *
-     * @param args ignored
+     * <p>Takes no arguments: everything it needs comes from the environment, and the launch protocol
+     * has accepted an argument-less {@code main} since Java 25.
      */
-    public static void main(String[] args) {
+    public static void main() {
         MigrateResult result = Flyway.configure()
                 .dataSource(required("FLYWAY_URL"), required("FLYWAY_USER"), System.getenv("FLYWAY_PASSWORD"))
                 .locations("classpath:db/migration")
                 .load()
                 .migrate();
-        System.out.printf("Flyway: %d migration(s) applied, schema now at version %s%n",
+        log.info("Flyway: {} migration(s) applied, schema now at version {}",
                 result.migrationsExecuted, result.targetSchemaVersion);
     }
 
