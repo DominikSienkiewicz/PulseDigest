@@ -40,7 +40,7 @@ final class PreScoringTriage {
         if (isProtected(item)) {
             return Integer.MAX_VALUE;
         }
-        return triageScores.getOrDefault((String) item.get("url"), NEUTRAL_SCORE);
+        return triageScores.getOrDefault(item.get("url"), NEUTRAL_SCORE);
     }
 
     private static boolean isProtected(Map<String, Object> item) {

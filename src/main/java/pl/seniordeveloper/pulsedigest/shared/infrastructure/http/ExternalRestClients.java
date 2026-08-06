@@ -163,7 +163,7 @@ public final class ExternalRestClients {
     }
 
     // A 429 saying "insufficient_quota" is a billing state, not a speed limit: no backoff can fix it.
-    private static boolean isDepletedBudget(ClientHttpResponse response) throws IOException {
+    private static boolean isDepletedBudget(ClientHttpResponse response) {
         return response instanceof BufferedResponse buffered
                 && QuotaSignals.indicatesDepletedBudget(buffered.bodyAsText());
     }
