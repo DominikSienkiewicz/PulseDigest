@@ -38,7 +38,7 @@ public class WeeklyRecapService {
      * @return the recap, or empty when it is not Friday, there is no history, or nothing moved
      */
     public Optional<WeeklyRecap> assemble(LocalDate today, List<Signal> signals, List<PastEdition> history) {
-        if (today.getDayOfWeek() != DayOfWeek.FRIDAY || signals == null || history == null || history.isEmpty()) {
+        if (!DayOfWeek.FRIDAY.equals(today.getDayOfWeek()) || signals == null || history == null || history.isEmpty()) {
             return Optional.empty();
         }
         List<PastEdition> thisWeek = editionsSince(history, today.with(DayOfWeek.MONDAY));

@@ -22,6 +22,8 @@ import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.Arrays;
+import java.util.Objects;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
@@ -191,6 +193,26 @@ public final class ExternalRestClients {
         @Override
         public void close() {
             // nothing to release: the underlying response was closed when this one was created
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            return other instanceof BufferedResponse that
+                    && Objects.equals(statusCode, that.statusCode)
+                    && Objects.equals(statusText, that.statusText)
+                    && Objects.equals(headers, that.headers)
+                    && Arrays.equals(body, that.body);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(statusCode, statusText, headers, Arrays.hashCode(body));
+        }
+
+        @Override
+        public String toString() {
+            return "BufferedResponse[statusCode=" + statusCode + ", statusText=" + statusText
+                    + ", headers=" + headers + ", body=" + Arrays.toString(body) + ']';
         }
     }
 
