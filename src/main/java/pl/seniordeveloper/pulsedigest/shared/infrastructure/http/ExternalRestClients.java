@@ -92,17 +92,23 @@ public final class ExternalRestClients {
                         request.getMethod(), request.getURI(), statusCode, attempt, MAX_ATTEMPTS);
             } catch (IOException e) {
                 lastException = e;
-                if (attempt == MAX_ATTEMPTS) {
-                    recordRetry(host, "exhausted_io");
-                    throw e;
-                }
-                recordRetry(host, "io_error");
-                log.debug("Retrying {} {} after I/O error: {} (attempt {}/{})",
-                        request.getMethod(), request.getURI(), e.getMessage(), attempt, MAX_ATTEMPTS);
+                recordIoFailure(request, host, e, attempt);
             }
             sleepBeforeNextAttempt(attempt, retryAfterMillis);
         }
         throw lastException != null ? lastException : new IOException("HTTP request failed without response");
+    }
+
+    // Rethrows the original failure once the attempts are spent, so the caller never sees a wrapper.
+    private static void recordIoFailure(HttpRequest request, String host, IOException failure, int attempt)
+            throws IOException {
+        if (attempt == MAX_ATTEMPTS) {
+            recordRetry(host, "exhausted_io");
+            throw failure;
+        }
+        recordRetry(host, "io_error");
+        log.debug("Retrying {} {} after I/O error: {} (attempt {}/{})",
+                request.getMethod(), request.getURI(), failure.getMessage(), attempt, MAX_ATTEMPTS);
     }
 
     /**

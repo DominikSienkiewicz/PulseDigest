@@ -22,6 +22,9 @@ import static pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure
  */
 final class ScoreExplanationBuilder {
 
+    /** Separates a starting value from the value it moved to, in every "from → to" pair the mail renders. */
+    private static final String ARROW = " &rarr; ";
+
     private ScoreExplanationBuilder() {
     }
 
@@ -34,7 +37,7 @@ final class ScoreExplanationBuilder {
         StringBuilder sb = new StringBuilder("<div style=\"color:#94a3b8;font-size:11px;margin-top:3px\">")
                 .append("Dlaczego to widzisz: ")
                 .append(escapeHtml(b.sourceKey())).append(' ').append(weight(b.effectiveWeight()))
-                .append(" &rarr; ").append(b.baseScore()).append(" pkt");
+                .append(ARROW).append(b.baseScore()).append(" pkt");
         if (b.engagementBonus() > 0) {
             sb.append(" &middot; engagement +").append(b.engagementBonus());
         }
@@ -52,7 +55,7 @@ final class ScoreExplanationBuilder {
         StringBuilder sb = new StringBuilder();
         if (b.sourceWeightWasNudged()) {
             sb.append("źródło ").append(signed(b.netSourceVotes())).append(" (")
-                    .append(weight(b.baseWeight())).append(" &rarr; ").append(weight(b.effectiveWeight()))
+                    .append(weight(b.baseWeight())).append(ARROW).append(weight(b.effectiveWeight()))
                     .append(')');
         }
         if (b.categoryWasNudged()) {
@@ -84,7 +87,7 @@ final class ScoreExplanationBuilder {
                 .append("Twoje głosy w akcji:<br>");
         movedSources.values().forEach(b -> sb.append(escapeHtml(b.sourceKey())).append(": ")
                 .append(signed(b.netSourceVotes())).append(" głosów &middot; waga ")
-                .append(weight(b.baseWeight())).append(" &rarr; ").append(weight(b.effectiveWeight()))
+                .append(weight(b.baseWeight())).append(ARROW).append(weight(b.effectiveWeight()))
                 .append("<br>"));
         return sb.append("</div>").toString();
     }
