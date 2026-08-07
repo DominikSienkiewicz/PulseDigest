@@ -203,11 +203,13 @@ public final class ExternalRestClients {
 
         @Override
         public boolean equals(Object other) {
-            return other instanceof BufferedResponse that
-                    && Objects.equals(statusCode, that.statusCode)
-                    && Objects.equals(statusText, that.statusText)
-                    && Objects.equals(headers, that.headers)
-                    && Arrays.equals(body, that.body);
+            return other instanceof BufferedResponse(
+                        HttpStatusCode otherStatusCode, String otherStatusText,
+                        HttpHeaders otherHeaders, byte[] otherBody)
+                    && Objects.equals(statusCode, otherStatusCode)
+                    && Objects.equals(statusText, otherStatusText)
+                    && Objects.equals(headers, otherHeaders)
+                    && Arrays.equals(body, otherBody);
         }
 
         @Override

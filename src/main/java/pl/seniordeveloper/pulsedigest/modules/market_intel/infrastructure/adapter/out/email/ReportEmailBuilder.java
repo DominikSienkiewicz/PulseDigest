@@ -98,7 +98,21 @@ public class ReportEmailBuilder {
         if (lastSpace > 0) {
             clipped = clipped.substring(0, lastSpace);
         }
-        return clipped.replaceAll("[\\s,;·]++$", "") + "…";
+        return stripTrailingSeparators(clipped) + "…";
+    }
+
+    // A `$`-anchored regex is retried from every index, so trimming the tail with one costs O(n²)
+    // on a separator-heavy string. Walking backwards once says the same thing in linear time.
+    private static String stripTrailingSeparators(String text) {
+        int end = text.length();
+        while (end > 0 && isSubjectSeparator(text.charAt(end - 1))) {
+            end--;
+        }
+        return text.substring(0, end);
+    }
+
+    private static boolean isSubjectSeparator(char character) {
+        return Character.isWhitespace(character) || character == ',' || character == ';' || character == '·';
     }
 
     public String buildHtml(ReportData report, ResearchResult research) {
