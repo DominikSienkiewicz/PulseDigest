@@ -41,8 +41,8 @@ repositories {
 // ── Dependency versions ───────────────────────────────────────────────────────
 val springAiVersion = "2.0.0-SNAPSHOT"
 val archunitVersion = "1.4.2"
-val instancioVersion = "5.4.0"
-val testcontainersVersion = "1.20.4"
+val instancioVersion = "5.6.0"
+val testcontainersVersion = "1.21.4"
 val flywayVersion = "11.1.0"
 
 // Classpath for the flywayMigrate task only — the Flyway engine, its Postgres module and the driver.
@@ -72,7 +72,10 @@ dependencies {
     runtimeOnly("org.postgresql:postgresql")
 
     // ── Local dev: load .env at startup (parity with GH Actions secrets) ─────
-    implementation("me.paulschwarz:spring-dotenv:4.0.0")
+    // Boot-specific module: since 5.x the artifact is split per framework, and the plain
+    // `spring-dotenv` variant resolves .env keys strictly — relaxed binding is Boot-only.
+    // developmentOnly, because CI and the scheduled digest pass every secret as an env var.
+    developmentOnly("me.paulschwarz:springboot4-dotenv:5.1.0")
 
     // ── AI (Spring AI OpenAI) ─────────────────────────────────────────────────
     implementation("org.springframework.ai:spring-ai-starter-model-openai:$springAiVersion")
@@ -89,7 +92,7 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
     testImplementation("com.tngtech.archunit:archunit-junit5:$archunitVersion")
     testImplementation("org.instancio:instancio-junit:$instancioVersion")
-    testImplementation("org.wiremock:wiremock-standalone:3.13.0")
+    testImplementation("org.wiremock:wiremock-standalone:3.13.2")
     testImplementation("org.testcontainers:postgresql:$testcontainersVersion")
     testImplementation("org.testcontainers:junit-jupiter:$testcontainersVersion")
     // ITs apply the same V1 migration to their Testcontainers Postgres, so every PR proves the
