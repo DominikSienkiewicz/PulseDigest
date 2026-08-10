@@ -41,8 +41,8 @@ repositories {
 // ── Dependency versions ───────────────────────────────────────────────────────
 val springAiVersion = "2.0.0-SNAPSHOT"
 val archunitVersion = "1.4.2"
-val instancioVersion = "5.4.0"
-val testcontainersVersion = "1.20.4"
+val instancioVersion = "5.6.0"
+val testcontainersVersion = "1.21.4"
 val flywayVersion = "11.1.0"
 
 // Classpath for the flywayMigrate task only — the Flyway engine, its Postgres module and the driver.
@@ -89,7 +89,7 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
     testImplementation("com.tngtech.archunit:archunit-junit5:$archunitVersion")
     testImplementation("org.instancio:instancio-junit:$instancioVersion")
-    testImplementation("org.wiremock:wiremock-standalone:3.13.0")
+    testImplementation("org.wiremock:wiremock-standalone:3.13.2")
     testImplementation("org.testcontainers:postgresql:$testcontainersVersion")
     testImplementation("org.testcontainers:junit-jupiter:$testcontainersVersion")
     // ITs apply the same V1 migration to their Testcontainers Postgres, so every PR proves the
