@@ -72,7 +72,10 @@ dependencies {
     runtimeOnly("org.postgresql:postgresql")
 
     // ── Local dev: load .env at startup (parity with GH Actions secrets) ─────
-    implementation("me.paulschwarz:spring-dotenv:4.0.0")
+    // Boot-specific module: since 5.x the artifact is split per framework, and the plain
+    // `spring-dotenv` variant resolves .env keys strictly — relaxed binding is Boot-only.
+    // developmentOnly, because CI and the scheduled digest pass every secret as an env var.
+    developmentOnly("me.paulschwarz:springboot4-dotenv:5.1.0")
 
     // ── AI (Spring AI OpenAI) ─────────────────────────────────────────────────
     implementation("org.springframework.ai:spring-ai-starter-model-openai:$springAiVersion")
