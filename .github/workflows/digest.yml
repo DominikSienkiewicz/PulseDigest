@@ -20,6 +20,24 @@ jobs:
     steps:
       - uses: actions/checkout@v7.0.1
 
+      # README jest routerem do /docs/, więc link, który nie prowadzi do pliku, jest
+      # defektem publicznym — a nie widać go w żadnym teście Javy. Sprawdzane są wyłącznie
+      # linki względne (zewnętrzne URL-e wymagałyby sieci i psułyby się przez cudze awarie).
+      - name: Verify Markdown links
+        run: |
+          status=0
+          while IFS= read -r file; do
+            dir=$(dirname "$file")
+            grep -oE '\]\([^)#][^)]*\)' "$file" | sed 's/](\(.*\))/\1/' | sed 's/#.*//' \
+            | while IFS= read -r target; do
+                case "$target" in http*|mailto:*|'') continue ;; esac
+                [ -e "$dir/$target" ] || echo "DEAD $file -> $target"
+              done
+          done < <(git ls-files '*.md') > dead-links.txt
+          if [ -s dead-links.txt ]; then cat dead-links.txt; status=1; fi
+          rm -f dead-links.txt
+          exit $status
+
       - uses: actions/setup-java@v5.7.0
         with:
           distribution: oracle
