@@ -33,8 +33,9 @@ replay_pid*
 .worktrees/
 /CLAUDE.md
 /.claude/
-# Wyklucz zawartość /docs/, nie sam katalog — inaczej git nie wejdzie do środka i żadnego
-# wyjątku poniżej nie da się zastosować.
-/docs/*
-# ADR-y są częścią repo: README do nich linkuje.
-!/docs/adr/
+# /docs/ jest katalogiem publikowanym, nie brudnopisem: README jest routerem, który do
+# niego linkuje. Wcześniej stało tu `/docs/*` z jedynym wyjątkiem `!/docs/adr/`, przez co
+# każdy nowy dokument był cicho pomijany przez `git add` — tak właśnie cztery pliki
+# referencyjne zniknęły między lokalnym drzewem a repozytorium, zostawiając w publicznym
+# README cztery martwe linki. Nic nie generuje do /docs/, więc ignorowanie go nie chroni
+# przed niczym. Weryfikuje to krok „Verify Markdown links" w .github/workflows/digest.yml.
