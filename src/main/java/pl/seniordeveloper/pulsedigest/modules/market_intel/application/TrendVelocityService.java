@@ -29,7 +29,7 @@ import java.util.Optional;
 @Service
 public class TrendVelocityService {
 
-    /** Editions of history the trajectory is measured over. At Mon/Wed/Fri this is about a week. */
+    /** Editions of history the trajectory is measured over. At Mon/Thu this is about a week and a half. */
     private static final int VELOCITY_WINDOW_EDITIONS = 3;
     /** Cross-source promotion needs three domains, so two-and-climbing is the interesting state. */
     private static final int CANDIDATE_MIN_DOMAINS = 2;

@@ -9,8 +9,8 @@ import static pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure
         .EmailFormatting.safeHref;
 
 /**
- * Renders the Friday "week in signals" block. Absent from every other edition, and absent on Friday
- * too when nothing moved — a recap that always appears stops being a payoff.
+ * Renders the Thursday "week in signals" block. Absent from every other edition, and absent on
+ * Thursday too when nothing moved — a recap that always appears stops being a payoff.
  *
  * <p>Extracted from {@code ReportEmailBuilder} to keep that class under the 500-line budget.
  */

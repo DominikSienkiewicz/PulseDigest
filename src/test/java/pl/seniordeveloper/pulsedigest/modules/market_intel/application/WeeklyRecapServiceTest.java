@@ -19,10 +19,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class WeeklyRecapServiceTest {
 
-    private static final LocalDate FRIDAY = LocalDate.of(2026, 7, 10);
-    private static final LocalDate WEDNESDAY = LocalDate.of(2026, 7, 8);
-    private static final Instant MONDAY_RUN = Instant.parse("2026-07-06T06:00:00Z");
-    private static final Instant WEDNESDAY_RUN = Instant.parse("2026-07-08T06:00:00Z");
+    private static final LocalDate THURSDAY = LocalDate.of(2026, 7, 9);
+    private static final LocalDate MONDAY = LocalDate.of(2026, 7, 6);
+    private static final Instant MONDAY_RUN = Instant.parse("2026-07-06T04:00:00Z");
+    /** An ad-hoc {@code workflow_dispatch} run — the only way a third edition lands inside one week. */
+    private static final Instant TUESDAY_RUN = Instant.parse("2026-07-07T09:00:00Z");
 
     private final WeeklyRecapService service = new WeeklyRecapService();
 
@@ -37,8 +38,8 @@ class WeeklyRecapServiceTest {
     }
 
     @Test
-    void producesNoRecapOnANonFridayEdition() {
-        Optional<WeeklyRecap> recap = service.assemble(WEDNESDAY,
+    void producesNoRecapOnANonThursdayEdition() {
+        Optional<WeeklyRecap> recap = service.assemble(MONDAY,
                 List.of(signal("mcp", SignalRank.CRITICAL)),
                 List.of(edition(MONDAY_RUN, "mcp", SignalRank.MODERATE)));
 
@@ -47,7 +48,7 @@ class WeeklyRecapServiceTest {
 
     @Test
     void reportsAStoryThatClimbedFromModerateToCritical() {
-        Optional<WeeklyRecap> recap = service.assemble(FRIDAY,
+        Optional<WeeklyRecap> recap = service.assemble(THURSDAY,
                 List.of(signal("mcp", SignalRank.CRITICAL)),
                 List.of(edition(MONDAY_RUN, "mcp", SignalRank.MODERATE)));
 
@@ -63,7 +64,7 @@ class WeeklyRecapServiceTest {
 
     @Test
     void reportsAnEarlierCriticalThatHeldItsRank() {
-        Optional<WeeklyRecap> recap = service.assemble(FRIDAY,
+        Optional<WeeklyRecap> recap = service.assemble(THURSDAY,
                 List.of(signal("mcp", SignalRank.CRITICAL)),
                 List.of(edition(MONDAY_RUN, "mcp", SignalRank.CRITICAL)));
 
@@ -75,7 +76,7 @@ class WeeklyRecapServiceTest {
 
     @Test
     void staysSilentAboutStoriesThatNeitherClimbedNorWereCritical() {
-        Optional<WeeklyRecap> recap = service.assemble(FRIDAY,
+        Optional<WeeklyRecap> recap = service.assemble(THURSDAY,
                 List.of(signal("quiet", SignalRank.MODERATE)),
                 List.of(edition(MONDAY_RUN, "quiet", SignalRank.MODERATE)));
 
@@ -84,7 +85,7 @@ class WeeklyRecapServiceTest {
 
     @Test
     void aStoryThatFadedFromCriticalIsReportedAsFaded() {
-        Optional<WeeklyRecap> recap = service.assemble(FRIDAY,
+        Optional<WeeklyRecap> recap = service.assemble(THURSDAY,
                 List.of(signal("hype", SignalRank.WEAK)),
                 List.of(edition(MONDAY_RUN, "hype", SignalRank.CRITICAL)));
 
@@ -96,10 +97,10 @@ class WeeklyRecapServiceTest {
 
     @Test
     void usesTheEarliestRankOfTheWeekAsTheBaseline() {
-        // Monday MODERATE → Wednesday STRONG → Friday CRITICAL is one climb, measured from Monday.
-        Optional<WeeklyRecap> recap = service.assemble(FRIDAY,
+        // Monday MODERATE → ad-hoc Tuesday STRONG → Thursday CRITICAL is one climb, measured from Monday.
+        Optional<WeeklyRecap> recap = service.assemble(THURSDAY,
                 List.of(signal("mcp", SignalRank.CRITICAL)),
-                List.of(edition(WEDNESDAY_RUN, "mcp", SignalRank.STRONG),
+                List.of(edition(TUESDAY_RUN, "mcp", SignalRank.STRONG),
                         edition(MONDAY_RUN, "mcp", SignalRank.MODERATE)));
 
         assertThat(recap).get().extracting(WeeklyRecap::entries).asInstanceOf(
@@ -117,7 +118,7 @@ class WeeklyRecapServiceTest {
                 .mapToObj(i -> edition(MONDAY_RUN, "topic-" + i, SignalRank.MODERATE))
                 .toList();
 
-        Optional<WeeklyRecap> recap = service.assemble(FRIDAY, signals, history);
+        Optional<WeeklyRecap> recap = service.assemble(THURSDAY, signals, history);
 
         assertThat(recap).get().extracting(WeeklyRecap::entries).asInstanceOf(
                 org.assertj.core.api.InstanceOfAssertFactories.list(RecapEntry.class)).hasSize(7);
@@ -125,6 +126,6 @@ class WeeklyRecapServiceTest {
 
     @Test
     void producesNoRecapWhenThereIsNoHistoryToCompareAgainst() {
-        assertThat(service.assemble(FRIDAY, List.of(signal("mcp", SignalRank.CRITICAL)), List.of())).isEmpty();
+        assertThat(service.assemble(THURSDAY, List.of(signal("mcp", SignalRank.CRITICAL)), List.of())).isEmpty();
     }
 }

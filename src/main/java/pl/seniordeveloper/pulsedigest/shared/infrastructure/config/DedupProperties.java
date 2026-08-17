@@ -8,7 +8,7 @@ import org.springframework.validation.annotation.Validated;
 /**
  * Cross-edition deduplication settings. When enabled, items whose canonical URL already appeared in
  * an edition within {@code lookbackDays} are dropped before LLM scoring — so the wider lookback
- * windows of the Mon/Wed/Fri schedule do not re-surface the same item across consecutive runs.
+ * windows of the Mon/Thu schedule do not re-surface the same item across consecutive runs.
  */
 @ConfigurationProperties(prefix = "report.dedup")
 @Validated

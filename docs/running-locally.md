@@ -106,8 +106,8 @@ The workflow at [`.github/workflows/digest.yml`](../.github/workflows/digest.yml
 `./gradlew test jacocoTestReport sonar` to push code and JaCoCo coverage to
 [SonarCloud](https://sonarcloud.io/project/overview?id=DominikSienkiewicz_PulseDigest)
 (project key / organization live in [`build.gradle.kts`](../build.gradle.kts)). The digest
-job runs on a **Mon/Wed/Fri schedule** at **04:00 UTC** (= 06:00 CEST / 05:00 CET) via
-`cron: '0 4 * * 1,3,5'`, and can also be triggered manually via `workflow_dispatch`.
+job runs on a **Mon/Thu schedule** at **04:00 UTC** (= 06:00 CEST / 05:00 CET) via
+`cron: '0 4 * * 1,4'`, and can also be triggered manually via `workflow_dispatch`.
 
 > **SonarCloud — one-time setup.** The scan step is gated on `SONAR_TOKEN` and is
 > **skipped** until you set it, so CI never breaks before configuration. To enable it:

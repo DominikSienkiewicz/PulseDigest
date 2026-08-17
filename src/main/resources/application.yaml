@@ -184,7 +184,8 @@ report:
     to: "${DIGEST_TO_EMAIL:}"
 
   # Cross-edition dedup: pomija itemy (po kanonicznym URL), które pojawiły się w wydaniu z ostatnich
-  # lookback-days dni. Szersze okna lookback na cyklu pn/śr/pt nie powtarzają wtedy tego samego itemu.
+  # lookback-days dni. Okna lookback celowo zachodzą na poprzedni bieg (żeby nic nie wypadło w gapie
+  # czw->pn), więc to dedup — nie wąskie okno — gwarantuje, że item nie pojawi się w mailu dwa razy.
   dedup:
     enabled: true
     lookback-days: 10          # >= najszersze okno (open-jdk/conference-talks 10d), więc łapie każdy overlap
@@ -225,10 +226,10 @@ report:
 
   # Report history: poprzednie wydania czytane z tabeli `reports` (pełny JSONB był zapisywany od
   # zawsze, nikt go nie czytał). Daje pamięć trendów ("3. edycja z rzędu", "pierwszy sygnał: 18.06")
-  # oraz piątkowy recap tygodnia. 21 dni ≈ 9 wydań przy kadencji pn/śr/pt.
+  # oraz czwartkowy recap tygodnia. 28 dni ≈ 8 wydań przy kadencji pn/czw.
   history:
     enabled: true
-    lookback-days: 21
+    lookback-days: 28
 
   # Feedback loop (C6): headless-batch tylko CZYTA feedback. receiver-url = zewnętrzny endpoint, do
   # którego prowadzą linki 👍/👎 w mailu (np. Supabase Edge Function piszący do tabeli `feedback`).
@@ -244,7 +245,7 @@ report:
 
   research:
     min-likes: 3
-    days-back: 4               # było 2 — 96h pokrywa max gap Fri->Mon (72h) + margines (parytet z oknami 80h)
+    days-back: 5               # 120h pokrywa max gap czw->pn (96h) + margines (parytet z oknami 104h)
     authority-usernames:
       - karpathy
       - swyx
@@ -285,8 +286,8 @@ report:
       - opentelemetry
       - observability
     limit: 15
-    min-score: 40              # było 25 — wyższy próg jakości przy szerszym oknie 80h (mniej szumu)
-    lookback-hours: 80         # było 24 (zahardkodowane w adapterze) — pokrywa cykl pn/śr/pt + margines
+    min-score: 40              # było 25 — wyższy próg jakości przy szerszym oknie 104h (mniej szumu)
+    lookback-hours: 104        # pokrywa max gap czw->pn (96h) + margines; było 24 (zahardkodowane w adapterze)
 
   # Tech-demand pulse: agreguje wzmianki technologii w miesięcznym wątku HN "Who is hiring?".
   # Sekcja renderuje się TYLKO gdy wątek jest świeży (okno lookback-days) — poza tym znika,
@@ -332,11 +333,11 @@ report:
   github:
     query: "(topic:ai OR topic:machine-learning OR topic:llm)"
     limit: 8
-    lookback-days: 4           # było 1 (zahardkodowane) — pokrywa max gap Fri->Mon (3 dni) + margines
+    lookback-days: 5           # pokrywa max gap czw->pn (4 dni) + margines; było 1 (zahardkodowane)
 
   rss:
     limit: 10
-    lookback-hours: 80         # było 24 (zahardkodowane) — pokrywa cykl pn/śr/pt + margines
+    lookback-hours: 104        # pokrywa max gap czw->pn (96h) + margines; było 24 (zahardkodowane)
     feeds:
       - name: "InfoQ"
         url: "https://feed.infoq.com"
@@ -445,10 +446,10 @@ report:
     categories: "cs.AI,cs.LG,cs.CR,cs.DC,cs.PL"
     keywords: "agent,llm,rag,inference,jvm,virtual thread,kubernetes,container,orchestration,serverless,edge,mcp,vector,embedding,fine-tuning,training,alignment,safety,speculative,decoding,quantization"
     max-results: 20
-    lookback-hours: 80         # było 48 — daily-shaped okno gubiło treść w gapie Fri->Mon (72h)
+    lookback-hours: 104        # było 48 — daily-shaped okno gubiło treść w gapie czw->pn (96h)
 
   github-releases:
-    lookback-hours: 80         # było 72 — dorównać max gap (72h) + margines, by release nie wypadł
+    lookback-hours: 104        # dorównać max gap czw->pn (96h) + margines, by release nie wypadł
     repositories:
       - "spring-projects/spring-boot"
       - "spring-projects/spring-ai"
@@ -486,7 +487,7 @@ report:
     base-url: https://api.producthunt.com/v2/api/graphql
     developer-token: "${PRODUCTHUNT_DEVELOPER_TOKEN:}"
     min-votes: 100
-    lookback-hours: 80         # było 36 — daily-shaped okno gubiło launche między biegami
+    lookback-hours: 104        # było 36 — daily-shaped okno gubiło launche między biegami
     relevant-topics:
       - "Artificial Intelligence"
       - "Developer Tools"
@@ -497,7 +498,7 @@ report:
   security-advisories:
     base-url: https://api.github.com/advisories
     limit: 20
-    lookback-hours: 72
+    lookback-hours: 104        # było 72 — dorównać max gap czw->pn (96h) + margines
     min-severities:
       - HIGH
       - CRITICAL
@@ -512,7 +513,7 @@ report:
 
   open-jdk:
     base-url: https://api.github.com/repos/openjdk/jdk/commits
-    lookback-days: 10          # było 7 — >= 4d gwarantuje brak utraty ruchu JEP w cyklu pn/śr/pt
+    lookback-days: 10          # >= 5d gwarantuje brak utraty ruchu JEP w cyklu pn/czw
     relevant-statuses:
       - Candidate
       - Proposed to Target
@@ -536,7 +537,7 @@ report:
   conference-talks:
     base-url: https://www.googleapis.com/youtube/v3/search
     api-key: "${YOUTUBE_API_KEY:}"
-    lookback-days: 10          # było 7 — >= 4d, gap-free na cyklu pn/śr/pt
+    lookback-days: 10          # >= 5d, gap-free na cyklu pn/czw
     max-results: 10
     # Przycięte 6 -> 3 pod CV (JVM + cloud-native); oszczędza quotę YouTube (intake i tak capowany do 3).
     channels:
@@ -551,7 +552,7 @@ report:
         channel-id: "UCvqbFHwN-nwalWPjPUKpvTA"
 
   lab-announcements:
-    lookback-hours: 80         # było 48 — najwyższy sygnał CV (AI-lab); 48h gubił posty w gapie 72h
+    lookback-hours: 104        # było 48 — najwyższy sygnał CV (AI-lab); 48h gubił posty w gapie 96h
     # JSONLD sources have no dates on the listing — we fetch up to this many post pages per source
     # to read `datePublished` from JSON-LD. Tune up if a lab ships >N posts in the lookback window.
     post-fetch-limit: 15

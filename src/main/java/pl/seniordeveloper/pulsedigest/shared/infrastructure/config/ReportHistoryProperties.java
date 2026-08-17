@@ -10,13 +10,13 @@ import org.springframework.validation.annotation.Validated;
  * digest a memory: how many consecutive editions a story has held, when the reader first saw it,
  * and what the week added up to.
  *
- * <p>The default window spans three weeks — nine editions at the Mon/Wed/Fri cadence — which is long
+ * <p>The default window spans four weeks — eight editions at the Mon/Thu cadence — which is long
  * enough for a trend to establish itself and short enough that a resolved story stops being echoed.
  */
 @ConfigurationProperties(prefix = "report.history")
 @Validated
 public record ReportHistoryProperties(
         @DefaultValue("true") boolean enabled,
-        @DefaultValue("21") @Min(1) int lookbackDays
+        @DefaultValue("28") @Min(1) int lookbackDays
 ) {
 }

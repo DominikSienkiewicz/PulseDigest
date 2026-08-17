@@ -29,7 +29,7 @@ public record ReportData(
         this(emailPreview, editorial, topInsights, items, List.of(), null, null, null);
     }
 
-    /** Convenience constructor — scored but without a weekly recap (non-Friday editions and tests). */
+    /** Convenience constructor — scored but without a weekly recap (non-Thursday editions and tests). */
     public ReportData(String emailPreview, String editorial, List<String> topInsights,
                       List<DigestItem> items, List<Signal> signals) {
         this(emailPreview, editorial, topInsights, items, signals, null, null, null);
@@ -40,7 +40,7 @@ public record ReportData(
                 radarAccuracy, readerProfile);
     }
 
-    /** Copy of this report carrying the Friday "week in signals" block. */
+    /** Copy of this report carrying the Thursday "week in signals" block. */
     public ReportData withWeeklyRecap(WeeklyRecap recap) {
         return new ReportData(emailPreview, editorial, topInsights, items, signals, recap,
                 radarAccuracy, readerProfile);

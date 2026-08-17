@@ -171,7 +171,7 @@ public class GenerateMarketReportProcessor {
     }
 
     /**
-     * Past editions, read once and reused for both trend memory and the Friday recap. Runs before
+     * Past editions, read once and reused for both trend memory and the Thursday recap. Runs before
      * the report is persisted, so "3rd edition in a row" never counts the edition being assembled.
      * A storage failure degrades to an amnesiac digest rather than losing the whole run.
      */

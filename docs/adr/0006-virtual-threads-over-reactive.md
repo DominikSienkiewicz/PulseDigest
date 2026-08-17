@@ -2,7 +2,7 @@
 
 - **Status:** Accepted
 - **Context:** The run is I/O-bound almost end to end: sixteen source fetches, one large LLM call,
-  one database round-trip, one email send. It executes three times a week, from GitHub Actions, and
+  one database round-trip, one email send. It executes twice a week, from GitHub Actions, and
   exits. Concurrency is needed to fan out the fetches, not to hold thousands of connections open.
 
 ## Decision

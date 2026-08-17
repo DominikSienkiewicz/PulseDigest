@@ -18,7 +18,7 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Assembles the Friday "week in signals" block by comparing this edition's ranks against the
+ * Assembles the Thursday "week in signals" block by comparing this edition's ranks against the
  * earliest rank each story held during the same week.
  *
  * <p>Deterministic and free of LLM calls: the ranks were already computed, all this does is diff
@@ -32,13 +32,13 @@ public class WeeklyRecapService {
     private static final int MAX_ENTRIES = 7;
 
     /**
-     * @param today    the edition's date; recap is produced on Fridays only
+     * @param today    the edition's date; recap is produced on Thursdays only
      * @param signals  the signals of the edition being assembled
      * @param history  previously published editions (any window ≥ one week)
-     * @return the recap, or empty when it is not Friday, there is no history, or nothing moved
+     * @return the recap, or empty when it is not Thursday, there is no history, or nothing moved
      */
     public Optional<WeeklyRecap> assemble(LocalDate today, List<Signal> signals, List<PastEdition> history) {
-        if (!DayOfWeek.FRIDAY.equals(today.getDayOfWeek()) || signals == null || history == null || history.isEmpty()) {
+        if (!DayOfWeek.THURSDAY.equals(today.getDayOfWeek()) || signals == null || history == null || history.isEmpty()) {
             return Optional.empty();
         }
         List<PastEdition> thisWeek = editionsSince(history, today.with(DayOfWeek.MONDAY));

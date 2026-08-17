@@ -49,7 +49,7 @@ public class ReportPromptBuilder {
     private static final String KEY_URL = "url";
     private static final String KEY_ENGAGEMENT = "engagement_score";
     private static final String KEY_TEXT_PREVIEW = "text_preview";
-    // ~50 titles ≈ 1–2k prompt tokens. Enough to cover three editions of Mon/Wed/Fri without
+    // ~50 titles ≈ 1–2k prompt tokens. Enough to cover three editions of Mon/Thu without
     // letting the block grow with the archive.
     private static final int MAX_PUBLISHED_TITLES = 50;
 

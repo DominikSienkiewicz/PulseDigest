@@ -6,7 +6,7 @@ import java.util.List;
 
 /**
  * The week in signals: what climbed, what held, and what came to nothing. Rendered only in the
- * Friday edition, which is what gives the Mon/Wed/Fri rhythm a culmination instead of three
+ * Thursday edition, which is what gives the Mon/Thu rhythm a culmination instead of two
  * interchangeable mails.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)

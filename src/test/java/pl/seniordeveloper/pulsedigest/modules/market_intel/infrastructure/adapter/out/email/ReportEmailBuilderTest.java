@@ -183,7 +183,7 @@ class ReportEmailBuilderTest {
     }
 
     @Test
-    void weeklyRecapSectionIsAbsentOnNonFridayEditions() {
+    void weeklyRecapSectionIsAbsentOnNonThursdayEditions() {
         String html = builder.buildHtml(fullReport(), null);
 
         assertThat(html).doesNotContain("Tydzień w sygnałach");

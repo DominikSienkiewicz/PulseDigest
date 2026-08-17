@@ -367,7 +367,7 @@ public class ReportEmailBuilder {
         return "<div style=\"padding:16px 28px;background:#f9fafb;text-align:center;"
                 + "color:#9ca3af;font-size:12px\">"
                 + "Wybrano " + selectedCount + " z " + rawTotal + " itemów &middot; "
-                + sources + " &#378;róde&#322;" + sourceHealth + " &middot; okno pn/śr/pt"
+                + sources + " &#378;róde&#322;" + sourceHealth + " &middot; okno pn/czw"
                 + TrendBadgeBuilder.buildRadarAccuracyLine(radarAccuracy)
                 + "<br>Wygenerowano przez GPT-4o &middot; PulseDigest"
                 + ScoreExplanationBuilder.buildVotesInAction(signals)
