@@ -43,7 +43,7 @@ val springAiVersion = "2.0.0-SNAPSHOT"
 val archunitVersion = "1.5.0"
 val instancioVersion = "5.6.0"
 val testcontainersVersion = "1.21.4"
-val flywayVersion = "11.1.0"
+val flywayVersion = "13.3.0"
 
 // Classpath for the flywayMigrate task only — the Flyway engine, its Postgres module and the driver.
 // Kept off the app's runtime classpath on purpose: the app assumes the schema exists; migrating it is
