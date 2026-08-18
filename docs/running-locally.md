@@ -87,10 +87,16 @@ The ITs always start from an empty Postgres, so they exercise the engine *writin
 `flyway_schema_history`. The deployed database has a history table that was written by
 whatever Flyway version is on `main`, and every bump has to *read* that table before it
 writes to it — a path no fresh-database run ever touches. The **`flyway`** job covers
-exactly that difference: it seeds the history using `main`'s build file, restores the
-branch's, migrates again, and then requires a third run to report `0 migration(s) applied`.
-The no-op is asserted on that log line rather than on the exit code, because re-applying a
-migration and applying nothing both exit `0`.
+exactly that difference: it seeds the history using `main`'s build file **and `main`'s
+migration directory**, restores the branch's, migrates again, and then requires a third run
+to report `0 migration(s) applied`. The no-op is asserted on that log line rather than on
+the exit code, because re-applying a migration and applying nothing both exit `0`.
+
+Swapping the migration directory as well as the build file is what makes the job honest on
+a branch that adds `V2` *and* bumps Flyway. Seed from the branch's migrations and the old
+engine would apply `V2`, leaving the new engine nothing to do — the job would pass having
+skipped the thing it exists to exercise. Seeding from `main`'s migrations means the new
+engine both reads a history the old one wrote and applies the new migration itself.
 
 That job is also the only place `./gradlew flywayMigrate` itself runs on a pull request.
 The task hangs off its own `flywayCli` configuration and is otherwise invoked solely by the

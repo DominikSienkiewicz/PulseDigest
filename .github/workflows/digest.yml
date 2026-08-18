@@ -98,21 +98,27 @@ jobs:
           java-version: '26'
           cache: gradle
 
-      # The baseline is main's build file, not this branch's — main is what wrote the history table
-      # the deployed database carries. Only build.gradle.kts is swapped, and only for this step.
-      - name: Seed flyway_schema_history using main's Flyway version
+      # The baseline is main's state, not this branch's — main is what wrote the history table the
+      # deployed database carries. Both the build file AND the migration directory are swapped: with
+      # only the build file swapped, a branch that adds V2 *and* bumps Flyway would apply V2 here
+      # with the OLD engine, leaving the new engine with nothing to do — the job would go green
+      # having skipped the thing it exists to exercise. Seeding from main's migrations instead means
+      # the new engine both reads a history the old one wrote and applies the new migration itself.
+      - name: Seed flyway_schema_history using main's Flyway version and migrations
         run: |
           git fetch --no-tags --depth=1 origin main
-          git checkout FETCH_HEAD -- build.gradle.kts
+          git checkout FETCH_HEAD -- build.gradle.kts src/main/resources/db/migration
           grep -E 'val flywayVersion' build.gradle.kts
+          ls src/main/resources/db/migration
           ./gradlew flywayMigrate --no-daemon
-          git checkout HEAD -- build.gradle.kts
+          git checkout HEAD -- build.gradle.kts src/main/resources/db/migration
 
       # The step under test. On a Flyway bump this is the first time the new engine reads a history
       # table written by the old one — the exact path the scheduled digest takes against Supabase.
       - name: Apply migrations with this branch's Flyway version
         run: |
           grep -E 'val flywayVersion' build.gradle.kts
+          ls src/main/resources/db/migration
           ./gradlew flywayMigrate --no-daemon
 
       # A second run must apply nothing. Asserted on the line FlywayMigrate logs, not on the exit
