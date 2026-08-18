@@ -50,6 +50,80 @@ jobs:
       - name: Check
         run: ./gradlew check --no-daemon
 
+  # Why this job exists, given that `check` already runs Flyway.
+  #
+  # The persistence ITs apply db/migration to a Testcontainers Postgres, so `check` proves the
+  # migration set applies cleanly to a FRESH database using whatever Flyway version this branch
+  # pins. It cannot prove the other half, and the other half is the one production takes: the
+  # deployed flyway_schema_history was WRITTEN by the version on main, and a version bump has to
+  # read that table before it writes to it. A fresh-database run never touches that path.
+  #
+  # So this job reproduces the upgrade: seed the history with main's engine, then migrate with this
+  # branch's. On a branch that does not move flywayVersion both halves use the same version and the
+  # job degrades to an end-to-end check of the flywayMigrate task itself — which `check` also never
+  # runs, because the task lives on its own flywayCli configuration and only the digest job calls it.
+  flyway:
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        # Same image the persistence ITs use, so a failure here is a Flyway difference and not a
+        # Postgres one.
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: pulsedigest
+          POSTGRES_PASSWORD: pulsedigest
+          POSTGRES_DB: pulsedigest
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      FLYWAY_URL: jdbc:postgresql://localhost:5432/pulsedigest
+      FLYWAY_USER: pulsedigest
+      FLYWAY_PASSWORD: pulsedigest
+
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - uses: actions/setup-java@v5.7.0
+        with:
+          distribution: oracle
+          java-version: '26'
+          cache: gradle
+
+      # The baseline is main's build file, not this branch's — main is what wrote the history table
+      # the deployed database carries. Only build.gradle.kts is swapped, and only for this step.
+      - name: Seed flyway_schema_history using main's Flyway version
+        run: |
+          git fetch --no-tags --depth=1 origin main
+          git checkout FETCH_HEAD -- build.gradle.kts
+          grep -E 'val flywayVersion' build.gradle.kts
+          ./gradlew flywayMigrate --no-daemon
+          git checkout HEAD -- build.gradle.kts
+
+      # The step under test. On a Flyway bump this is the first time the new engine reads a history
+      # table written by the old one — the exact path the scheduled digest takes against Supabase.
+      - name: Apply migrations with this branch's Flyway version
+        run: |
+          grep -E 'val flywayVersion' build.gradle.kts
+          ./gradlew flywayMigrate --no-daemon
+
+      # A second run must apply nothing. Asserted on the line FlywayMigrate logs, not on the exit
+      # code: "re-applied V1" and "applied nothing" both exit 0, and only one of them is correct.
+      # Matching a string that MUST be present also keeps this from passing on an empty log.
+      - name: Second run must be a no-op
+        run: |
+          ./gradlew flywayMigrate --no-daemon 2>&1 | tee migrate.log
+          grep -q 'Flyway: 0 migration(s) applied' migrate.log \
+            || { echo "::error::Second flywayMigrate was not a no-op — see the log above."; exit 1; }
+
   sonarcloud:
     if: github.event_name == 'pull_request' || github.event_name == 'push'
     runs-on: ubuntu-latest
