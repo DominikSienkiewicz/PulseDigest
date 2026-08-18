@@ -248,6 +248,35 @@ sonar {
         // Written by the jacocoTestReport task (default location); run it before `sonar`.
         property("sonar.coverage.jacoco.xmlReportPaths", "build/reports/jacoco/test/jacocoTestReport.xml")
         property("sonar.coverage.exclusions", sonarCoverageExclusions.joinToString(","))
+
+        // ── Blokada zależności: świadomie nieobecna, nie zapomniana ───────────────────
+        //
+        // Dwie reguły żądają `gradle.lockfile` albo `gradle/verification-metadata.xml`.
+        // W tym projekcie żadnego z nich nie da się utrzymać uczciwie: build stoi CELOWO
+        // na wersjach przedpremierowych — Spring Boot 4.1.0-SNAPSHOT i Spring AI
+        // 2.0.0-SNAPSHOT — a plik blokady przypina wersję rozwiązaną, podczas gdy SNAPSHOT
+        // z definicji zmienia się pod tą samą nazwą. `.github/dependabot.yml` wyklucza obie
+        // te zależności dokładnie z tego powodu.
+        //
+        // Drugi koszt jest operacyjny: każde podbicie Dependabota wymagałoby regeneracji
+        // pliku blokady, a pozycja "domknąć PR-y Dependabota" i tak wraca cyklicznie.
+        //
+        // Wyciszenie jest zapisane TUTAJ, a nie oznaczone jako "Accepted" w interfejsie
+        // SonarCloud, świadomie: decyzja przechodzi wtedy przez przegląd kodu, jest
+        // wersjonowana i niesie powód obok siebie. Cena jest realna i warto ją znać —
+        // zgłoszenia znikają z Sonara całkowicie, także przyszłe wystąpienia tych reguł
+        // w tym pliku, więc nikt ich już tam nie zobaczy.
+        //
+        // DO PONOWNEGO ROZWAŻENIA, gdy projekt zejdzie ze SNAPSHOT-ów na wydania stabilne:
+        // wtedy blokada zależności staje się wykonalna i to wyciszenie powinno zniknąć.
+        property("sonar.issue.ignore.multicriteria", "blokadaZaleznosci,weryfikacjaZaleznosci")
+        property("sonar.issue.ignore.multicriteria.blokadaZaleznosci.ruleKey", "text:S8569")
+        property("sonar.issue.ignore.multicriteria.blokadaZaleznosci.resourceKey", "**/build.gradle.kts")
+        // To zgłoszenie Sonar wystawia na komponencie PROJEKTU, nie na pliku, więc wzorzec
+        // musi być szeroki — dopasowanie po zasobie może go w ogóle nie objąć. Sprawdzalne
+        // wyłącznie następną analizą, nie lekturą.
+        property("sonar.issue.ignore.multicriteria.weryfikacjaZaleznosci.ruleKey", "kotlin:S6474")
+        property("sonar.issue.ignore.multicriteria.weryfikacjaZaleznosci.resourceKey", "**/*")
     }
 }
 
