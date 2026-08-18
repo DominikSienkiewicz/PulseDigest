@@ -124,6 +124,25 @@ class WeeklyRecapServiceTest {
                 org.assertj.core.api.InstanceOfAssertFactories.list(RecapEntry.class)).hasSize(7);
     }
 
+    /**
+     * The guard returns empty rather than throwing, and that is a contract, not an accident: the
+     * recap is a decoration on the edition, so a missing input must never take the whole report
+     * down with it. Without this test the branch is only reachable by deleting the guard, which is
+     * exactly the change it exists to catch — the failure would surface as a NullPointerException
+     * inside an already-assembled report.
+     */
+    @Test
+    void producesNoRecapWhenTheSignalListIsMissingEntirely() {
+        assertThat(service.assemble(THURSDAY, null, List.of(edition(MONDAY_RUN, "mcp", SignalRank.MODERATE))))
+                .isEmpty();
+    }
+
+    /** Same contract as above on the other argument: absent history is not an error, it is silence. */
+    @Test
+    void producesNoRecapWhenTheHistoryIsMissingEntirely() {
+        assertThat(service.assemble(THURSDAY, List.of(signal("mcp", SignalRank.CRITICAL)), null)).isEmpty();
+    }
+
     @Test
     void producesNoRecapWhenThereIsNoHistoryToCompareAgainst() {
         assertThat(service.assemble(THURSDAY, List.of(signal("mcp", SignalRank.CRITICAL)), List.of())).isEmpty();
