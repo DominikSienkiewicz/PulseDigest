@@ -1,5 +1,7 @@
 package pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 import java.time.Instant;
 import java.util.List;
 
@@ -10,6 +12,7 @@ import java.util.List;
  * denominator of source yield. Without it the archive records what got published but not what was
  * fetched to publish it, which makes "is Reddit earning its prompt slots?" unanswerable.
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public record PersistedReport(
         ReportData report,
         String jobId,

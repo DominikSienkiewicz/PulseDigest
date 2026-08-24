@@ -1,5 +1,7 @@
 package pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 /**
  * The radar's own track record: of the stories it flagged as Critical candidates, how many actually
  * reached CRITICAL in a later edition.
@@ -8,6 +10,7 @@ package pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model;
  * trust it has not earned; publishing the number is what makes the 🟠 badge worth reading — and what
  * makes it fair to stop reading it if the number is bad.
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public record RadarAccuracy(int flagged, int confirmed) {
 
     /** No verdict yet: the radar has never flagged a story whose outcome is already known. */

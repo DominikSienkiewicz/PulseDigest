@@ -1,5 +1,9 @@
 package pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
+@JsonIgnoreProperties(ignoreUnknown = true)
 public record SourceFetchReport(
         String sourceName,
         SourceFetchStatus status,
@@ -21,6 +25,7 @@ public record SourceFetchReport(
      * limit was exhausted (e.g. depleted credits, HTTP 429/402) — the case that warrants a
      * "top up this account" banner rather than a generic transient-failure warning.
      */
+    @JsonIgnore
     public boolean isQuotaExhausted() {
         return status == SourceFetchStatus.FAILED && QuotaSignals.matches(errorMessage);
     }

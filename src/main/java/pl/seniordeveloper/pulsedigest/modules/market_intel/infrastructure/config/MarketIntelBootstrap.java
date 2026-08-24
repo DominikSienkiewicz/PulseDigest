@@ -43,12 +43,31 @@ public class MarketIntelBootstrap {
     @PostConstruct
     public void init() {
         log.info("Bootstrapping Market Intelligence module...");
-        storagePort.getLatest().ifPresent(persisted -> {
-            ReportJob job = ReportJob.done(persisted.jobId(), persisted.report(), persisted.generatedAt());
-            jobTracker.track(job);
-            log.info("Restored latest report from storage: jobId={}, date={}",
-                    persisted.jobId(), persisted.generatedAt());
-        });
+        restoreLatestReport();
+    }
+
+    /**
+     * Loads the previous edition into the job tracker on a best-effort basis.
+     *
+     * <p>The restored edition only seeds the rate-limit cooldown and the "latest report" query; it is
+     * never a precondition for generating today's digest. An archive row this build cannot read must
+     * therefore not abort the run — a single unreadable payload would otherwise wedge every future
+     * run until someone deleted it by hand. The failure is logged at WARN because losing the restore
+     * does have a consequence: the cooldown starts from an empty tracker, so a second run started
+     * within the cooldown window is no longer suppressed.
+     */
+    private void restoreLatestReport() {
+        try {
+            storagePort.getLatest().ifPresent(persisted -> {
+                ReportJob job = ReportJob.done(persisted.jobId(), persisted.report(), persisted.generatedAt());
+                jobTracker.track(job);
+                log.info("Restored latest report from storage: jobId={}, date={}",
+                        persisted.jobId(), persisted.generatedAt());
+            });
+        } catch (RuntimeException e) {
+            log.warn("Could not restore the latest report from storage — continuing without it. "
+                    + "The generation cooldown will be evaluated against an empty tracker.", e);
+        }
     }
 
     @Bean

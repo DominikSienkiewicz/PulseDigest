@@ -15,6 +15,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.DigestItem;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.PersistedReport;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportData;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceFetchReport;
 
 import javax.sql.DataSource;
 import java.time.Instant;
@@ -90,6 +91,24 @@ class SupabaseReportStorageAdapterIT {
                 .query(Integer.class)
                 .single();
         assertThat(rowCount).isEqualTo(1);
+    }
+
+    @Test
+    void savesAndRetrievesReportCarryingPerSourceFetchReports() {
+        SourceFetchReport quotaFailure = SourceFetchReport.failed("Twitter", 120L, "429 Too Many Requests");
+        PersistedReport withFetchReports = new PersistedReport(
+                sampleReport("job-fetch", Instant.parse("2026-05-04T10:00:00Z")).report(),
+                "job-fetch", Instant.parse("2026-05-04T10:00:00Z"), 10, 0, 0,
+                List.of(quotaFailure, SourceFetchReport.success("HackerNews", 5, 80L))
+        );
+
+        adapter.save(withFetchReports);
+
+        assertThat(adapter.getLatest())
+                .isPresent()
+                .get()
+                .extracting(PersistedReport::fetchReports)
+                .isEqualTo(List.of(quotaFailure, SourceFetchReport.success("HackerNews", 5, 80L)));
     }
 
     private static PersistedReport sampleReport(String jobId, Instant generatedAt) {
