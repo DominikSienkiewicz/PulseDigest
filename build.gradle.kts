@@ -41,7 +41,7 @@ repositories {
 // ── Dependency versions ───────────────────────────────────────────────────────
 val springAiVersion = "2.0.0-SNAPSHOT"
 val archunitVersion = "1.5.0"
-val instancioVersion = "5.6.0"
+val instancioVersion = "6.0.0"
 val testcontainersVersion = "1.21.4"
 val flywayVersion = "13.3.0"
 
