@@ -39,3 +39,6 @@ replay_pid*
 # referencyjne zniknęły między lokalnym drzewem a repozytorium, zostawiając w publicznym
 # README cztery martwe linki. Nic nie generuje do /docs/, więc ignorowanie go nie chroni
 # przed niczym. Weryfikuje to krok „Verify Markdown links" w .github/workflows/digest.yml.
+
+# Local project concepts
+/docs/concepts/

@@ -254,3 +254,9 @@ Sekcje README do sprawdzenia przy każdej zmianie:
 
 If a change is purely internal, such as tests or refactoring with no API/UX/setup impact, say that
 explicitly in the summary instead of changing README.
+
+## Local project concepts
+
+Keep new feature proposals, plans, audits, and exploratory notes in local
+`docs/concepts/`, which is ignored by Git. Maintained technical documentation
+and accepted architecture decisions remain tracked elsewhere under `docs/`.
