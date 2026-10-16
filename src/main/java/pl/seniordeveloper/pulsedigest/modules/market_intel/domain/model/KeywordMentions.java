@@ -7,22 +7,23 @@ import java.util.Map;
 import java.util.regex.Pattern;
 
 /**
- * Pure, framework-free counting of technology mentions across hiring posts.
+ * Pure, framework-free counting of technology mentions across a batch of texts.
  *
- * <p>Counts, for each vocabulary token, how many of the given texts mention it (at most once per
- * text — a post that lists "Kubernetes" three times still counts as one hiring opportunity for
- * Kubernetes). Matching is case-insensitive and boundary-aware so short tokens like {@code go} or
- * {@code react} do not match inside {@code google} or {@code goal}.
+ * <p>Counts, for each vocabulary token, how many of the given texts mention it — at most once per
+ * text, so a headline naming "Kubernetes" three times still counts as one. Matching is
+ * case-insensitive and boundary-aware, so short tokens like {@code go} or {@code react} do not match
+ * inside {@code google} or {@code goal}; that boundary rule is the whole reason this lives in one
+ * place rather than being re-implemented at each call site.
  */
-public final class TechDemandAggregator {
+public final class KeywordMentions {
 
-    private TechDemandAggregator() {
+    private KeywordMentions() {
     }
 
     /**
-     * @param texts      one entry per hiring post (HN comment); null/blank entries are ignored
+     * @param texts      one entry per text to scan; null/blank entries are ignored
      * @param vocabulary technology tokens to count
-     * @return map of token → number of posts mentioning it (only tokens with ≥ 1 mention)
+     * @return map of token → number of texts mentioning it (only tokens with ≥ 1 mention)
      */
     public static Map<String, Integer> countMentions(List<String> texts, List<String> vocabulary) {
         if (texts == null || texts.isEmpty() || vocabulary == null || vocabulary.isEmpty()) {

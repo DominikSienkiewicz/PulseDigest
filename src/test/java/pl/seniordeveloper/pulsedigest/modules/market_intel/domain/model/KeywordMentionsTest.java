@@ -7,7 +7,7 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class TechDemandAggregatorTest {
+class KeywordMentionsTest {
 
     private static final List<String> VOCAB =
             List.of("java", "kotlin", "spring", "go", "react", "kubernetes");
@@ -19,7 +19,7 @@ class TechDemandAggregatorTest {
                 "Kotlin shop with Spring",
                 "Backend role: Spring and Kubernetes");
 
-        Map<String, Integer> counts = TechDemandAggregator.countMentions(posts, VOCAB);
+        Map<String, Integer> counts = KeywordMentions.countMentions(posts, VOCAB);
 
         assertThat(counts).containsEntry("java", 1).containsEntry("spring", 3)
                 .containsEntry("kotlin", 1).containsEntry("kubernetes", 1);
@@ -32,27 +32,27 @@ class TechDemandAggregatorTest {
                 "google is not golang",
                 "React frontend, not reactionary");
 
-        Map<String, Integer> counts = TechDemandAggregator.countMentions(posts, VOCAB);
+        Map<String, Integer> counts = KeywordMentions.countMentions(posts, VOCAB);
 
         assertThat(counts).containsEntry("go", 1).containsEntry("react", 1);
     }
 
     @Test
     void isCaseInsensitive() {
-        Map<String, Integer> counts = TechDemandAggregator.countMentions(List.of("KUBERNETES on AWS"), VOCAB);
+        Map<String, Integer> counts = KeywordMentions.countMentions(List.of("KUBERNETES on AWS"), VOCAB);
         assertThat(counts).containsEntry("kubernetes", 1);
     }
 
     @Test
     void omitsTokensWithZeroMentions() {
-        Map<String, Integer> counts = TechDemandAggregator.countMentions(List.of("Java only"), VOCAB);
+        Map<String, Integer> counts = KeywordMentions.countMentions(List.of("Java only"), VOCAB);
         assertThat(counts).containsOnlyKeys("java");
     }
 
     @Test
     void handlesEmptyInputs() {
-        assertThat(TechDemandAggregator.countMentions(List.of(), VOCAB)).isEmpty();
-        assertThat(TechDemandAggregator.countMentions(List.of("Java"), List.of())).isEmpty();
-        assertThat(TechDemandAggregator.countMentions(null, VOCAB)).isEmpty();
+        assertThat(KeywordMentions.countMentions(List.of(), VOCAB)).isEmpty();
+        assertThat(KeywordMentions.countMentions(List.of("Java"), List.of())).isEmpty();
+        assertThat(KeywordMentions.countMentions(null, VOCAB)).isEmpty();
     }
 }

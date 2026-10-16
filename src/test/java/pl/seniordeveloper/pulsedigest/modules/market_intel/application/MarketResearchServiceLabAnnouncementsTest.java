@@ -18,13 +18,11 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RssItem;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SecurityAdvisory;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SocialPost;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SoftwareRelease;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TechDemandSignal;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Tweet;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.MarketIntelligencePort;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -144,11 +142,6 @@ class MarketResearchServiceLabAnnouncementsTest {
             return List.of(new LabAnnouncement("Claude 5 released",
                     "https://www.anthropic.com/news/claude-5?utm_source=newsletter&utm_medium=email",
                     "New frontier model", "Anthropic News", LocalDateTime.parse("2026-05-14T10:00:00")));
-        }
-
-        @Override
-        public Optional<TechDemandSignal> fetchTechDemand() {
-            return Optional.empty();
         }
     }
 }

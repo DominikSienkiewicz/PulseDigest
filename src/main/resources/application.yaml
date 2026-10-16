@@ -70,9 +70,9 @@ twitter:
     - "PostgreSQL"
     - "github"
 
-# Profil zainteresowań odbiorcy — JEDNO źródło prawdy (C1). `persona` wstrzykiwana do promptów
-# (synteza + narrator tech-demand); `relevance-keywords` zasilają filtr trafności tweetów w
-# MarketResearchService. Wcześniej zduplikowane w system-prompt.txt + 2 adapterach.
+# Profil zainteresowań odbiorcy — JEDNO źródło prawdy (C1). `persona` wstrzykiwana do promptu
+# syntezy; `relevance-keywords` zasilają filtr trafności tweetów w MarketResearchService.
+# Wcześniej zduplikowane w system-prompt.txt + 2 adapterach.
 interest-profile:
   persona: >-
     AI-Native Software Architect / Fractional Principal Engineer. Java/Spring (Boot, Modulith,
@@ -288,47 +288,6 @@ report:
     limit: 15
     min-score: 40              # było 25 — wyższy próg jakości przy szerszym oknie 104h (mniej szumu)
     lookback-hours: 104        # pokrywa max gap czw->pn (96h) + margines; było 24 (zahardkodowane w adapterze)
-
-  # Tech-demand pulse: agreguje wzmianki technologii w miesięcznym wątku HN "Who is hiring?".
-  # Sekcja renderuje się TYLKO gdy wątek jest świeży (okno lookback-days) — poza tym znika,
-  # więc nie powtarza się codziennie. Liczone poza budżetem itemów rdzenia (osobny boks).
-  tech-demand:
-    enabled: true
-    base-url: https://hn.algolia.com/api/v1
-    lookback-days: 7
-    max-comments: 1000
-    max-technologies: 8
-    min-mentions: 3
-    technologies:
-      # rdzeń odbiorcy
-      - java
-      - kotlin
-      - scala
-      - spring
-      - quarkus
-      - graalvm
-      - python
-      - fastapi
-      - pytorch
-      - kubernetes
-      - docker
-      - terraform
-      - aws
-      - gcp
-      - azure
-      # szeroki rynek (sygnał, nie tylko własny stack)
-      - go
-      - rust
-      - typescript
-      - react
-    # "Twój stack" — pokazywany w osobnej linii niezależnie od top-8 (popyt na Twój rdzeń).
-    priority-technologies:
-      - java
-      - kotlin
-      - spring
-      - quarkus
-      - graalvm
-      - python
 
   github:
     query: "(topic:ai OR topic:machine-learning OR topic:llm)"

@@ -29,7 +29,6 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.Reade
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.ReaderProfilePort;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.ReportHistoryPort;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.ReportStoragePort;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.TechDemandNarratorPort;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -52,7 +51,6 @@ class GenerateMarketReportProcessorTest {
     private final LlmSynthesisPort synthesisPort = mock(LlmSynthesisPort.class);
     private final ReportStoragePort storagePort = mock(ReportStoragePort.class);
     private final EmailDeliveryPort emailPort = mock(EmailDeliveryPort.class);
-    private final TechDemandNarratorPort techDemandNarrator = mock(TechDemandNarratorPort.class);
     private final FeedbackPort feedbackPort = mock(FeedbackPort.class);
     private final ReportHistoryPort reportHistoryPort = mock(ReportHistoryPort.class);
     private final ReaderProfilePort readerProfilePort = mock(ReaderProfilePort.class);
@@ -227,7 +225,6 @@ class GenerateMarketReportProcessorTest {
                 storagePort,
                 emailPort,
                 new SignalScoringService(),
-                techDemandNarrator,
                 feedbackPort,
                 new FeedbackNudgePolicy(true, 30),
                 reportHistoryPort,

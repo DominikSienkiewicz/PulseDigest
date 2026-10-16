@@ -33,7 +33,6 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.Feedb
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.LlmSynthesisPort;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.ReportHistoryPort;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.ReportStoragePort;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.TechDemandNarratorPort;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -63,7 +62,6 @@ public class GenerateMarketReportProcessor {
     private final ReportStoragePort storagePort;
     private final EmailDeliveryPort emailPort;
     private final SignalScoringService signalScoringService;
-    private final TechDemandNarratorPort techDemandNarrator;
     private final FeedbackPort feedbackPort;
     private final FeedbackNudgePolicy feedbackNudgePolicy;
     private final ReportHistoryPort reportHistoryPort;
@@ -99,8 +97,6 @@ public class GenerateMarketReportProcessor {
                         "Wszystkie źródła danych zwróciły pusty wynik w oknie 24h");
                 return;
             }
-
-            research = narrateTechDemand(research);
 
             Map<String, Integer> netVotesBySource = feedbackNudgePolicy.enabled()
                     ? feedbackPort.netVotesBySource(feedbackNudgePolicy.lookbackDays())
@@ -185,18 +181,6 @@ public class GenerateMarketReportProcessor {
             log.warn("Report history unavailable — publishing without trend memory: {}", e.getMessage());
             return List.of();
         }
-    }
-
-    /**
-     * Attaches the one-sentence LLM interpretation to the tech-demand pulse, if present. Narrator
-     * failures degrade gracefully (blank narrative) and never abort the pipeline.
-     */
-    private ResearchResult narrateTechDemand(ResearchResult research) {
-        if (research.techDemand() == null) {
-            return research;
-        }
-        String narrative = techDemandNarrator.narrate(research.techDemand());
-        return research.withTechDemand(research.techDemand().withNarrative(narrative));
     }
 
     /**

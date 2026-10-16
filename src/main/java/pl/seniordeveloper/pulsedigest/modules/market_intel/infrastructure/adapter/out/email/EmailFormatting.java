@@ -1,6 +1,10 @@
 package pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapter.out.email;
 
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.DigestItem;
+
+import java.util.List;
 import java.util.Locale;
+import java.util.stream.Collectors;
 
 /**
  * Presentation helpers shared between email sections — HTML escaping, badge color palette,
@@ -42,6 +46,26 @@ final class EmailFormatting {
             return escapeHtml(trimmed);
         }
         return "#";
+    }
+
+    /**
+     * Links every source that independently carried one story, or nothing when only one did.
+     *
+     * <p>This line is what makes collapsing a story into a single entry lossless. The reader meets the
+     * story once and can still reach each source's own coverage, so corroboration is visible without
+     * the same news being printed three times in three sections. Each section passes its own colour so
+     * the line reads as part of the block it sits in.
+     */
+    static String confirmationLine(List<DigestItem> corroborations, String color) {
+        if (corroborations == null || corroborations.size() < 2) {
+            return "";
+        }
+        String links = corroborations.stream()
+                .map(item -> "<a href=\"" + safeHref(item.url()) + "\" style=\"color:" + color
+                        + ";text-decoration:underline\">" + escapeHtml(item.source()) + "</a>")
+                .collect(Collectors.joining(" + "));
+        return "<div style=\"color:" + color + ";font-size:11px;margin-top:2px\">Potwierdzone w: "
+                + links + "</div>";
     }
 
     static String[] typeBadgeColors(String type) {

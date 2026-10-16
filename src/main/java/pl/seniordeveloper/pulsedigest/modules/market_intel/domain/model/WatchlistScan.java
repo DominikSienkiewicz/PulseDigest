@@ -19,13 +19,13 @@ public record WatchlistScan(List<WatchlistHit> hits) {
 
     /**
      * Scans headlines for each keyword, in the configured order, keeping zero-mention keywords.
-     * Matching reuses {@link TechDemandAggregator} so "go" does not match "Golang".
+     * Matching reuses {@link KeywordMentions} so "go" does not match "Golang".
      */
     public static WatchlistScan of(List<String> headlines, List<String> keywords) {
         if (keywords == null || keywords.isEmpty()) {
             return new WatchlistScan(List.of());
         }
-        Map<String, Integer> counts = TechDemandAggregator.countMentions(headlines, keywords);
+        Map<String, Integer> counts = KeywordMentions.countMentions(headlines, keywords);
         return new WatchlistScan(keywords.stream()
                 .map(keyword -> new WatchlistHit(keyword, counts.getOrDefault(keyword.toLowerCase(), 0)))
                 .toList());

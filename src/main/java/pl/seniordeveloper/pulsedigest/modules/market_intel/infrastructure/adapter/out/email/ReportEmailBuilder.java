@@ -11,8 +11,6 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Research
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Signal;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceFetchReport;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceFetchStatus;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TechDemandEntry;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TechDemandSignal;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.WatchlistScan;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.FeedbackProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.WatchlistProperties;
@@ -22,7 +20,6 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 import static pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapter.out.email.EmailFormatting.escapeHtml;
@@ -40,7 +37,6 @@ public class ReportEmailBuilder {
     private static final String CLOSE_DIV = "</div>";
     private static final String CLOSE_LIST_DIV = "</ul></div>";
     private static final String CLOSE_LI = "</li>";
-    private static final String CLOSE_SPAN = "</span>";
     private static final String MIDDOT = " &middot; ";
 
     private final FeedbackProperties feedbackProperties;
@@ -81,7 +77,7 @@ public class ReportEmailBuilder {
             return "🔴";
         }
         List<DigestItem> items = report.items() != null ? report.items() : List.of();
-        if (items.stream().anyMatch(i -> i.score() >= DigestHighlightBuilder.MUST_KNOW_THRESHOLD)) {
+        if (items.stream().anyMatch(i -> i.score() >= DigestLayout.MUST_KNOW_THRESHOLD)) {
             return "⚡";
         }
         return "📡";
@@ -128,9 +124,8 @@ public class ReportEmailBuilder {
         List<Signal> signals = report.signals() != null ? report.signals() : List.of();
         String editorial = report.editorial();
 
-        List<Signal> criticals = signals.stream().filter(Signal::isCriticalTrend).toList();
-        Map<String, Signal> signalByUrl = signals.stream()
-                .collect(Collectors.toMap(s -> s.item().url(), s -> s, (a, b) -> a));
+        // Membership is decided once, here, so no story is printed in two sections.
+        DigestLayout layout = DigestLayout.of(items, signals);
 
         List<SourceFetchReport> exhausted = research != null
                 ? research.sourceFetchReports().stream().filter(SourceFetchReport::isQuotaExhausted).toList()
@@ -148,14 +143,14 @@ public class ReportEmailBuilder {
                 + buildHeader(today)
                 + buildQuotaBanner(exhausted)
                 + buildEditorialSection(editorial)
-                + DigestHighlightBuilder.buildMustKnowSection(items, signalByUrl, feedbackProperties, edition)
+                + buildCriticalTrendsSection(layout.criticalTrends())
+                + DigestHighlightBuilder.buildMustKnowSection(layout.mustKnow(), feedbackProperties, edition)
                 + buildInsightsSection(insights)
-                + DigestHighlightBuilder.buildDealsAndToolsSection(items, feedbackProperties, edition)
-                + buildCriticalTrendsSection(criticals, signals)
-                + WeeklyRecapBuilder.buildWeeklyRecapSection(report.weeklyRecap())
+                + DigestHighlightBuilder.buildDealsAndToolsSection(layout.deals(), feedbackProperties, edition)
+                + WeeklyRecapBuilder.buildWeeklyRecapSection(report.weeklyRecap(), layout.renderedUrls())
                 + WatchlistBuilder.buildWatchlistSection(scanWatchlist(research))
-                + buildTechDemandSection(research != null ? research.techDemand() : null)
-                + DigestTableBuilder.buildItemsSection(items, signalByUrl, feedbackProperties, edition)
+                + DigestTableBuilder.buildItemsSection(layout.topPicks(), layout.signals(),
+                        feedbackProperties, edition)
                 + buildFooter(items.size(), research, report.radarAccuracy(), report.readerProfile(), signals)
                 + "</div></body></html>";
     }
@@ -239,67 +234,8 @@ public class ReportEmailBuilder {
         return sb.toString();
     }
 
-    // Monthly job-market demand pulse (HN "Who is hiring?"). Rendered only when a fresh signal exists.
-    private String buildTechDemandSection(TechDemandSignal demand) {
-        if (demand == null || demand.isEmpty()) {
-            return "";
-        }
-        String ranking = demand.entries().stream()
-                .map(e -> demandChip(e, true))
-                .collect(Collectors.joining(MIDDOT));
-        String stackLine = demand.stackEntries().isEmpty() ? ""
-                : "<p style=\"margin:8px 0 0;color:#0e7490;font-size:13px;line-height:1.7\">"
-                + "<span style=\"color:#155e75;font-weight:600\">Twój stack:</span> "
-                + demand.stackEntries().stream().map(e -> demandChip(e, false))
-                        .collect(Collectors.joining(MIDDOT))
-                + "</p>";
-        String narrative = demand.narrative() != null && !demand.narrative().isBlank()
-                ? "<p style=\"margin:0 0 10px;color:#0f172a;font-size:14px;line-height:1.6;font-style:italic\">"
-                + escapeHtml(demand.narrative()) + "</p>"
-                : "";
-        String vsPrev = demand.previousMonthLabel() != null
-                ? " &middot; vs " + escapeHtml(demand.previousMonthLabel()) : "";
-        return "<div style=\"padding:20px 28px;background:#ecfeff;border-bottom:1px solid #cffafe\">"
-                + "<h2 style=\"color:#155e75;font-size:15px;margin:0 0 10px\">"
-                + "&#128200; Puls rynku &mdash; popyt na technologie"
-                + (demand.monthLabel() != null ? " (" + escapeHtml(demand.monthLabel()) + ")" : "")
-                + "</h2>"
-                + narrative
-                + "<p style=\"margin:0;color:#0e7490;font-size:14px;line-height:1.7\">" + ranking + "</p>"
-                + stackLine
-                + "<p style=\"margin:8px 0 0;color:#64748b;font-size:12px\">"
-                + "na podstawie " + demand.totalPostings() + " ogłoszeń" + vsPrev + MIDDOT
-                + "<a href=\"" + safeHref(demand.threadUrl()) + "\" style=\"color:#0891b2;text-decoration:none\">"
-                + "HN Who-is-hiring</a></p>"
-                + CLOSE_DIV;
-    }
-
-    // Renders "name 26% ▲3" — share as percentage, optional month-over-month delta arrow.
-    private String demandChip(TechDemandEntry entry, boolean showDelta) {
-        return "<strong>" + escapeHtml(entry.name()) + "</strong> " + sharePct(entry.share())
-                + (showDelta ? deltaArrow(entry.deltaPp()) : "");
-    }
-
-    private String sharePct(double share) {
-        if (share <= 0) {
-            return "&mdash;";
-        }
-        long pct = Math.round(share * 100);
-        return pct < 1 ? "&lt;1%" : pct + "%";
-    }
-
-    private String deltaArrow(Double deltaPp) {
-        if (deltaPp == null || Math.abs(deltaPp) < 1.0) {
-            return "";
-        }
-        long rounded = Math.round(Math.abs(deltaPp));
-        return deltaPp > 0
-                ? " <span style=\"color:#16a34a;font-size:12px\">&#9650;" + rounded + CLOSE_SPAN
-                : " <span style=\"color:#dc2626;font-size:12px\">&#9660;" + rounded + CLOSE_SPAN;
-    }
-
-    private String buildCriticalTrendsSection(List<Signal> criticals, List<Signal> allSignals) {
-        if (criticals.isEmpty()) {
+    private String buildCriticalTrendsSection(List<DigestStory> stories) {
+        if (stories.isEmpty()) {
             return "";
         }
         StringBuilder sb = new StringBuilder();
@@ -308,9 +244,10 @@ public class ReportEmailBuilder {
         sb.append("<h2 style=\"color:#b91c1c;font-size:15px;margin:0 0 10px\">")
                 .append("&#128308; Krytyczne trendy &mdash; potwierdzenie w 3+ typach &#378;r&oacute;de&#322;</h2>");
         sb.append("<ul style=\"margin:0;padding:0;list-style:none\">");
-        for (Signal signal : criticals) {
-            DigestItem it = signal.item();
-            String domainLabel = signal.sourceDomains().isEmpty() ? ""
+        for (DigestStory story : stories) {
+            DigestItem it = story.lead();
+            Signal signal = story.signal();
+            String domainLabel = signal == null || signal.sourceDomains().isEmpty() ? ""
                     : " <span style=\"color:#9f1239;font-size:11px;font-weight:600\">"
                     + "[" + signal.sourceDomains().stream()
                             .map(d -> escapeHtml(d.name()))
@@ -327,33 +264,13 @@ public class ReportEmailBuilder {
                     .append(escapeHtml(it.title())).append("</a>")
                     .append(domainLabel)
                     .append(summaryPart)
-                    .append(buildConfirmationLine(it, allSignals))
+                    .append(EmailFormatting.confirmationLine(story.corroborations(), "#9f1239"))
                     .append(TrendBadgeBuilder.buildRecurrenceBadge(signal))
                     .append(ScoreExplanationBuilder.buildWhyYouSeeThis(signal))
                     .append(CLOSE_LI);
         }
         sb.append(CLOSE_LIST_DIV);
         return sb.toString();
-    }
-
-    /**
-     * Names the sources that independently carried this story. The domain badge above says the rule
-     * was met; this line lets the reader audit it — "🔴" is only credible if you can see the evidence.
-     */
-    private String buildConfirmationLine(DigestItem item, List<Signal> allSignals) {
-        String confirmations = allSignals.stream()
-                .filter(s -> s.item().correlationKey().equals(item.correlationKey()))
-                .map(s -> s.item().source())
-                .filter(source -> source != null && !source.isBlank())
-                .distinct()
-                .sorted()
-                .map(EmailFormatting::escapeHtml)
-                .collect(Collectors.joining(" + "));
-        if (confirmations.isBlank()) {
-            return "";
-        }
-        return "<div style=\"color:#9f1239;font-size:11px;margin-top:2px\">Potwierdzone w: "
-                + confirmations + CLOSE_DIV;
     }
 
     private String buildFooter(int selectedCount, ResearchResult research, RadarAccuracy radarAccuracy,

@@ -2,6 +2,26 @@
 
 What lands in the inbox, and the 👍/👎 loop that feeds back into scoring.
 
+## One story, one section
+
+Sections are listed below in the order they appear, which is also the order in which they
+*claim* material. Every section used to re-filter the whole item list against its own
+threshold, so a high-scoring launch satisfied four of them at once and the reader met the
+same news in four consecutive blocks. `DigestLayout` now decides membership once, before any
+section renders.
+
+Two rules follow from that:
+
+- **Items sharing a `topic_key` are one story.** It is rendered once, led by its
+  highest-scoring item, and the sources that independently carried it appear as a
+  `Potwierdzone w:` line **linking each one to its own coverage** — so collapsing the entry
+  loses the repetition, not the links. Grouping is on `topic_key` alone, never on
+  `correlationKey()`'s category fallback, which would merge two unrelated `AI/LLM` stories.
+- **The first section that can take a story, takes it.** Deals & Tools therefore means
+  "adoptable things not already covered above", and the two tables index the remainder.
+- **The weekly recap is filtered too**, against every URL the mail printed — members folded into a
+  story included, since a recap line names an item by its own URL. Only faded lines are exempt.
+
 ## Email anatomy
 
 The delivered HTML email is a structured digest, not just a link list:
@@ -10,21 +30,21 @@ The delivered HTML email is a structured digest, not just a link list:
 - **⚠️ Exhausted-limits banner** — amber block at the very top, shown only when one or more API accounts hit their quota / rate limit this run (e.g. depleted X API credits, GitHub/YouTube rate limit). Names each account to top up so the recipient knows the digest is partial. Absent when every source succeeded. Quota detection (`QuotaSignals` / `QuotaErrors`) classifies failures by HTTP 402/429/403-quota and provider wording; generic transient failures stay in the footer's source-health line instead.
 - **Subject line** — deterministic marker (🔴 Critical / ⚡ Must-know / 📡 otherwise) + `email_preview` truncated on a word boundary + the date. Falls back to the plain `📡 PulseDigest dd.MM.yyyy` when the preview is blank. No model call, no clickbait: the same report always yields the same subject, so the inbox answers "read now or tonight?" without opening the mail.
 - **Editorial lead** — 2–3 sentence meta-thesis tying together the day's most important signals (italic, prominent). Prefixed with `⚠️ Digest awaryjny (model zapasowy)` when the primary model failed and the edition was synthesized by the `gpt-4o-mini` fallback.
-- **⚡ Must-know** — hero block: the up-to-5 highest-score items (score ≥ 7), each with a one-sentence **"why it matters to you"** action line generated against the reader's profile (`why_it_matters`). When `feedback.receiver-url` is set, each item also carries 👍/👎 links. The "if you read nothing else" section. Skipped when no item clears the bar.
-- **🔴 Critical trends** — stories confirmed across 3+ source domains. Each carries a **`Potwierdzone w:` line naming the sources** that carried it (`arXiv/cs.AI + GitHub + Hacker News`), so the red frame is auditable evidence rather than a colour, plus a **`📈 narasta — N. edycja z rzędu`** badge and a `Pierwszy sygnał: dd.MM.yyyy` date once a story has survived into a second consecutive edition.
-- **🟠 Critical candidate** — title marker on Top picks / Signals rows for stories the radar expects to break next. The digest's footer carries the radar's published hit rate.
-- **📊 Tydzień w sygnałach** — Thursday only, and only when something moved: up to 7 lines showing which stories **escalated** (`MODERATE → CRITICAL`), which were **confirmed**, and which **faded**. Saying that Monday's 🔴 came to nothing is what makes the 🔴 credible.
+- **🔴 Critical trends** — the first block after the editorial, because it claims before every other section. Stories confirmed across 3+ source domains. Each carries a **`Potwierdzone w:` line naming the sources** that carried it (`arXiv/cs.AI + GitHub + Hacker News`), so the red frame is auditable evidence rather than a colour, plus a **`📈 narasta — N. edycja z rzędu`** badge and a `Pierwszy sygnał: dd.MM.yyyy` date once a story has survived into a second consecutive edition.
+- **⚡ Must-know** — hero block: the up-to-5 highest-score stories (score ≥ 7) that Critical trends did not already take, each with a one-sentence **"why it matters to you"** action line generated against the reader's profile (`why_it_matters`). When `feedback.receiver-url` is set, each entry also carries 👍/👎 links. Skipped when nothing clears the bar.
+- **🟠 Critical candidate** — title marker for stories the radar expects to break next, rendered wherever the story lands (Must-know, Deals & Tools or a table row). The digest's footer carries the radar's published hit rate.
+- **📊 Tydzień w sygnałach** — Thursday only, and only when something moved: up to 7 lines showing which stories **escalated** (`MODERATE → CRITICAL`), which were **confirmed**, and which **faded**. `WeeklyRecapService` builds every line from *this* edition's signals, so a line is kept only when it says something the sections above cannot: it **faded** (a story that was 🔴 and came to nothing has no entry up there to read, and saying so is what makes the 🔴 credible), or its story scored too low to be rendered at all. An escalation or confirmation whose story is already printed above is dropped rather than restated.
 - **🎯 Twój radar** — one line per watched technology from `report.watchlist.technologies`, scanned across **every headline fetched this run** (not just the items that survived the prompt budget). A keyword with no matches renders an explicit `0 wzmianek`: confirmed silence, not an item that quietly lost a slot.
 - **🔍 „Dlaczego to widzisz"** — a micro-line under each Must-know and Critical item reconstructing its score from the components the scorer already computed: `Hacker News 0.80 → 80 pkt · engagement +12 · potwierdzenie w 3+ domenach +50 · Twoje głosy: źródło −4 (0.80 → 0.60)`. Rendered on those two blocks only — the same line under twenty table rows would be noise, not transparency.
 - **🔑 Top insights** — top-3 takeaways extracted from the day.
-- **🛠️ Deals & Tools** — up-to-5 adoptable items of type `LAUNCH` / `RELEASE` / `FEATURE` / `PROMOTION` (score ≥ 6): new tools the reader can use and deals worth claiming. Skipped when none qualify.
-- **📈 Puls rynku (tech-demand pulse)** — demand ranking from the monthly HN "Who is hiring?" thread, computed **outside** the core item budget. Shows: a one-line **LLM interpretation**; technologies by **share of hiring posts** with month-over-month **▲/▼ delta** (e.g. "Python 26% ▲3 · TypeScript 23% ▼1 · Rust 9% ▲4"); a **„Twój stack"** line with demand for the reader's own JVM/Python-AI core (`tech-demand.priority-technologies`) even when outside the top ranking; and a "vs <prev month>" footnote. The delta is stateless — the adapter also fetches the **previous** month's thread and compares share in percentage points. Shown only in the ~week after a new monthly thread drops (`tech-demand.lookback-days`), then absent, so it never repeats every run. Off when no technology clears `min-mentions`.
-- **⭐ Top picks** — score ≥ 8, white background.
+- **🛠️ Deals & Tools** — up-to-5 adoptable stories of type `LAUNCH` / `RELEASE` / `FEATURE` / `PROMOTION` (score ≥ 6) **that Critical trends and Must-know did not already take**: new tools the reader can use and deals worth claiming. Skipped when none are left.
+- **⭐ Top picks** — score ≥ 8, white background. The remainder after the blocks above, in the order the model emitted it.
 - **🔌 Signals** — score 6–7, muted `#fafafa` background.
 - **Footer** — transparency block: "selected N of M items · K sources · source warnings · Mon/Thu window".
 
-Every item row in all four blocks carries 👍/👎 links when a feedback receiver is
-configured — roughly 15–20 points of contact per edition instead of the previous five.
+Every entry in every block carries 👍/👎 links when a feedback receiver is configured. One
+story now yields one pair of links rather than up to four, which is the point: a vote should
+mean "this story", not "this row".
 
 Both item tiers render an identical full table: **article link + 1–2 sentence Polish
 summary · category badge · type badge · source + engagement (❤/pkt/★/↑) · color-coded

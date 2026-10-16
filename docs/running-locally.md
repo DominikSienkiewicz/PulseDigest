@@ -24,7 +24,7 @@ and the dependency arrow points inward only (`infrastructure → application →
 
 - JDK 26 (Oracle EA or Temurin)
 - Twitter API v2 Bearer Token
-- OpenAI API key (GPT-4o + GPT-4o-mini for the tech-demand narrative)
+- OpenAI API key (GPT-4o for synthesis, GPT-4o-mini for the reader-model distillation)
 - Resend account + API key
 - Supabase project (free tier — Postgres for report history)
 - Docker Desktop (for Testcontainers when running `./gradlew test`)
@@ -103,10 +103,10 @@ The task hangs off its own `flywayCli` configuration and is otherwise invoked so
 scheduled `digest` job, so before this gate existed a green PR said nothing about whether
 the migration step could even resolve its classpath and start.
 
-`tech_demand_history` stores one mention snapshot per (month, vocabulary), which is what
-lets the tech-demand pulse read last month's numbers instead of re-scraping ~1000 comments
-every run. The vocabulary key exists because changing `tech-demand.technologies` changes
-what "mentions" means, so counts must never be compared across that boundary.
+`tech_demand_history` is **unused**: the job-market pulse it fed was removed from the
+digest, and another project covers that ground. The table and its migration are kept rather
+than dropped, because dropping a table is the one step here that cannot be undone and its
+rows cost nothing to keep.
 
 ## Build commands
 

@@ -40,7 +40,7 @@ default. They are project-policy defaults, not per-environment knobs.
 | `research.min-likes`           | `3`                      | Minimum likes for tweets                           |
 | `dedup.enabled`                | `true`                   | Drop items already published in recent editions    |
 | `dedup.lookback-days`          | `10`                     | Days of prior editions to dedup against (≥ widest window) |
-| `interest-profile.persona`     | (CV-derived)             | Reader profile, injected into the synthesis + tech-demand prompts (single source of truth) |
+| `interest-profile.persona`     | (CV-derived)             | Reader profile, injected into the synthesis prompt (single source of truth) |
 | `interest-profile.relevance-keywords` | ~95 terms         | Keyword set driving the client-side tweet relevance filter |
 | `feedback.enabled`             | `true`                   | Act on reader feedback: suppress 👎 URLs **and** nudge per-source weights from net votes |
 | `feedback.lookback-days`       | `30`                     | Window for both down-vote suppression and per-source net-vote nudging |
@@ -72,13 +72,6 @@ default. They are project-policy defaults, not per-environment knobs.
 | `product-hunt.lookback-hours`  | `104`                    | Product Hunt launch age window                     |
 | `security-advisories.lookback-hours` | `104`              | Security Advisory age window                       |
 | `security-advisories.limit`    | `20`                     | Max advisories fetched per run                     |
-| `tech-demand.enabled`          | `true`                   | Toggle the 📈 tech-demand pulse                    |
-| `tech-demand.lookback-days`    | `7`                      | Render only when the HN Who-is-hiring thread is this fresh |
-| `tech-demand.max-comments`     | `1000`                   | Cap on hiring posts (comments) analyzed            |
-| `tech-demand.max-technologies` | `8`                      | Top-N technologies shown in the ranking            |
-| `tech-demand.min-mentions`     | `3`                      | Ignore technologies below this many mentions       |
-| `tech-demand.technologies`     | stack + market list      | Vocabulary counted in hiring posts (configurable)  |
-| `tech-demand.priority-technologies` | JVM + Python core   | Reader's stack, shown on the „Twój stack" line     |
 | `open-jdk.lookback-days`       | `10`                     | OpenJDK JEP age window                             |
 | `cncf-landscape.lookback-days` | `7`                      | CNCF landscape change window                       |
 | `technology-radar.lookback-months` | `6`                  | Tech Radar edition age window                      |

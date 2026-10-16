@@ -175,7 +175,7 @@ class ReportPromptBuilderTest {
                                 "https://bsky.app/profile/alice.bsky.social/post/abc", 42),
                         new SocialPost("Mastodon", "bob@fosstodon.org", "Quarkus native image win",
                                 "https://fosstodon.org/@bob/123", 30)),
-                now, 0, 0, 0, 0, 0, List.of(), null);
+                now, 0, 0, 0, 0, 0, List.of());
 
         List<Map<String, Object>> payload = payload(builder(Set.of()).buildUserPrompt(research));
 
@@ -449,7 +449,7 @@ class ReportPromptBuilderTest {
                 List.of(new LabAnnouncement("Claude 5 released", "https://www.anthropic.com/news/claude-5",
                         "New frontier model", "Anthropic News", now)),
                 List.of(),
-                now, 0, 0, 0, 0, 0, List.of(), null);
+                now, 0, 0, 0, 0, 0, List.of());
     }
 
     private static ResearchResult researchWithNullOptionalFields() {

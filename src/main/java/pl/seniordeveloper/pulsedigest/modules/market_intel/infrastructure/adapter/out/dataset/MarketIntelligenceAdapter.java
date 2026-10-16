@@ -17,12 +17,10 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RssItem;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SecurityAdvisory;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SocialPost;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SoftwareRelease;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TechDemandSignal;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Tweet;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.MarketIntelligencePort;
 
 import java.util.List;
-import java.util.Optional;
 
 @RequiredArgsConstructor
 @Service
@@ -44,7 +42,6 @@ public class MarketIntelligenceAdapter implements MarketIntelligencePort {
     private final ConferenceTalksAdapter conferenceTalksAdapter;
     private final SocialSearchAdapter socialSearchAdapter;
     private final LabAnnouncementsAdapter labAnnouncementsAdapter;
-    private final TechDemandAdapter techDemandAdapter;
 
     @Override
     public List<Tweet> fetchInfluencerTweets() {
@@ -136,8 +133,4 @@ public class MarketIntelligenceAdapter implements MarketIntelligencePort {
         return labAnnouncementsAdapter.fetchAnnouncements();
     }
 
-    @Override
-    public Optional<TechDemandSignal> fetchTechDemand() {
-        return techDemandAdapter.fetchTechDemand();
-    }
 }

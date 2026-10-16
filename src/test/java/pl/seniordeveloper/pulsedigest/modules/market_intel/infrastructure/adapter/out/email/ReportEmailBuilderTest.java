@@ -13,8 +13,6 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Signal;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SignalRank;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceDomain;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceFetchReport;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TechDemandEntry;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TechDemandSignal;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TrendRecurrence;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TrendVelocity;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.FeedbackProperties;
@@ -102,13 +100,13 @@ class ReportEmailBuilderTest {
                 .contains("PulseDigest")
                 .contains("Top insights dnia")
                 .contains("Krytyczne trendy")
-                .contains("Top picks (1)")
-                .contains("Signals (2)")
+                // `top` is CRITICAL and `strong` clears the must-know bar, so both are claimed before
+                // the tables; only `moderate` is left to list, and `weak` (score 2) never qualified.
+                .doesNotContain("Top picks (")
+                .contains("Signals (1)")
                 .contains("z ostrze")
                 .contains("&lt;unsafe&gt;")
-                .contains("12k &#9733;")
-                .contains("42 &#10084;")
-                .contains("8.8k pkt");
+                .contains("8.8k pkt");           // engagement badges are a table-row affordance
     }
 
     @Test
@@ -214,7 +212,10 @@ class ReportEmailBuilderTest {
 
         String html = builder.buildHtml(report, null);
 
+        // Score 9 means Must-know claims it, so the marker has to render there too: confining it to
+        // the tables would hide it on exactly the stories the radar most wants to flag.
         assertThat(html).contains("&#128992; Title GitHub");
+        assertThat(html.indexOf("&#128992;")).isGreaterThan(html.indexOf("Must-know"));
     }
 
     @Test
@@ -233,18 +234,28 @@ class ReportEmailBuilderTest {
 
         assertThat(html)
                 .contains("Must-know")
-                .contains("Action: update your dependency now")   // top (score 9) why_it_matters
-                .contains("Action: try this new API");            // strong (score 7) why_it_matters
+                .contains("Action: try this new API")             // strong (score 7) why_it_matters
+                // `top` is CRITICAL, so it is rendered once — by Critical trends, above Must-know.
+                .doesNotContain("Action: update your dependency now");
     }
 
     @Test
-    void buildHtmlRendersDealsAndToolsSectionForToolTypes() {
-        String html = builder.buildHtml(fullReport(), researchWithFailedSource());
+    void dealsAndToolsCarriesOnlyWhatTheBlocksAboveDidNotAlreadyTake() {
+        // A deal that clears the must-know bar belongs at the top of the mail, not printed a second
+        // time two sections later. Deals & Tools is the adoptable remainder.
+        DigestItem claimed = new DigestItem("Claimed by must-know", "https://example.com/claimed",
+                "GitHub Releases", "Releases", "RELEASE", 9, null, "Summary", "Why", "claimed");
+        DigestItem leftover = new DigestItem("Left for deals", "https://example.com/leftover",
+                "CNCF Landscape", "Cloud/DevOps", "RELEASE", 6, null, "Summary", null, "leftover");
+        ReportData report = new ReportData("Preview", "Lead", List.of(),
+                List.of(claimed, leftover), List.of());
 
-        // top=RELEASE and strong=FEATURE qualify; moderate=OPINION, weak=DISCUSSION do not.
-        assertThat(html)
-                .contains("Deals &amp; Tools")
-                .contains("Strong signal");
+        String html = builder.buildHtml(report, null);
+
+        int mustKnow = html.indexOf("Must-know");
+        int deals = html.indexOf("Deals &amp; Tools");
+        assertThat(deals).isGreaterThan(mustKnow);
+        assertThat(html.substring(deals)).contains("Left for deals").doesNotContain("Claimed by must-know");
     }
 
     @Test
@@ -314,41 +325,6 @@ class ReportEmailBuilderTest {
         String html = builder.buildHtml(fullReport(), researchWithFailedSource());
 
         assertThat(html).doesNotContain("Wyczerpane limity API");
-    }
-
-    @Test
-    void buildHtmlShowsTechDemandPulseWhenSignalPresent() {
-        TechDemandSignal demand = new TechDemandSignal(
-                "czerwiec 2026",
-                "maj 2026",
-                "https://news.ycombinator.com/item?id=999",
-                120,
-                "Front-end dominuje, JVM marginalny na HN.",
-                List.of(
-                        new TechDemandEntry("kubernetes", 38, 0.32, 4.0),
-                        new TechDemandEntry("spring", 24, 0.20, -2.0)),
-                List.of(new TechDemandEntry("java", 6, 0.05, null)));
-        ResearchResult research = researchWithFailedSource().withTechDemand(demand);
-
-        String html = builder.buildHtml(fullReport(), research);
-
-        assertThat(html)
-                .contains("Puls rynku")
-                .contains("Front-end dominuje")        // narrative
-                .contains("kubernetes")
-                .contains("32%")                        // share, not raw count
-                .contains("&#9650;4")                   // ▲ delta arrow
-                .contains("Twój stack:")
-                .contains("czerwiec 2026")
-                .contains("vs maj 2026")
-                .contains("na podstawie 120 og");
-    }
-
-    @Test
-    void buildHtmlOmitsTechDemandPulseWhenAbsent() {
-        String html = builder.buildHtml(fullReport(), researchWithFailedSource());
-
-        assertThat(html).doesNotContain("Puls rynku");
     }
 
     private static ReportData fullReport() {

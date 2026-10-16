@@ -30,8 +30,7 @@ public record ResearchResult(
         int rawGithubCount,
         int rawRssCount,
         int rawRedditCount,
-        List<SourceFetchReport> sourceFetchReports,
-        TechDemandSignal techDemand
+        List<SourceFetchReport> sourceFetchReports
 ) {
 
     public ResearchResult {
@@ -65,7 +64,7 @@ public record ResearchResult(
         this(tweets, hackerNewsPosts, githubRepos, rssItems, redditPosts,
                 papers, releases, huggingFaceModels, productHuntPosts, securityAdvisories,
                 jepUpdates, cncfProjectUpdates, radarEntries, conferenceTalks, List.of(), List.of(), collectedAt,
-                rawTweetsCount, rawHackerNewsCount, rawGithubCount, rawRssCount, rawRedditCount, List.of(), null);
+                rawTweetsCount, rawHackerNewsCount, rawGithubCount, rawRssCount, rawRedditCount, List.of());
     }
 
     public ResearchResult(
@@ -95,17 +94,7 @@ public record ResearchResult(
                 papers, releases, huggingFaceModels, productHuntPosts, securityAdvisories,
                 jepUpdates, cncfProjectUpdates, radarEntries, conferenceTalks, List.of(), List.of(), collectedAt,
                 rawTweetsCount, rawHackerNewsCount, rawGithubCount, rawRssCount, rawRedditCount,
-                sourceFetchReports, null);
-    }
-
-    /** Copy of this result with the tech-demand pulse attached (other fields unchanged). */
-    public ResearchResult withTechDemand(TechDemandSignal newTechDemand) {
-        return new ResearchResult(
-                tweets, hackerNewsPosts, githubRepos, rssItems, redditPosts,
-                papers, releases, huggingFaceModels, productHuntPosts, securityAdvisories,
-                jepUpdates, cncfProjectUpdates, radarEntries, conferenceTalks, labAnnouncements, socialPosts,
-                collectedAt, rawTweetsCount, rawHackerNewsCount, rawGithubCount, rawRssCount, rawRedditCount,
-                sourceFetchReports, newTechDemand);
+                sourceFetchReports);
     }
 
     public boolean isEmpty() {

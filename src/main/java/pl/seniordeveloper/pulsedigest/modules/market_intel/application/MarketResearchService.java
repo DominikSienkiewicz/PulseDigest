@@ -22,7 +22,6 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Security
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SocialPost;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceFetchReport;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SoftwareRelease;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TechDemandSignal;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Tweet;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.policy.ResearchPolicy;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.MarketIntelligencePort;
@@ -94,14 +93,12 @@ public class MarketResearchService {
                 fetchSource("Social", intelligencePort::fetchSocialPosts);
         CompletableFuture<FetchOutcome<LabAnnouncement>> futureAnnouncements =
                 fetchSource("Lab Announcements", intelligencePort::fetchLabAnnouncements);
-        CompletableFuture<FetchOutcome<TechDemandSignal>> futureTechDemand =
-                fetchSource("Tech Demand", () -> intelligencePort.fetchTechDemand().map(List::of).orElse(List.of()));
 
         CompletableFuture.allOf(futureInfluencer, futureTopic, futureAnthropic, futureHn, futureGh,
                 futureRss, futureReddit, futurePapers, futureReleases,
                 futureHf, futurePh, futureAdvisories,
-                futureJep, futureCncf, futureRadar, futureTalks, futureSocial, futureAnnouncements,
-                futureTechDemand).join();
+                futureJep, futureCncf, futureRadar, futureTalks, futureSocial,
+                futureAnnouncements).join();
 
         FetchOutcome<Tweet> influencer = futureInfluencer.join();
         FetchOutcome<Tweet> topic = futureTopic.join();
@@ -121,7 +118,6 @@ public class MarketResearchService {
         FetchOutcome<ConferenceTalk> talks = futureTalks.join();
         FetchOutcome<SocialPost> social = futureSocial.join();
         FetchOutcome<LabAnnouncement> announcements = futureAnnouncements.join();
-        FetchOutcome<TechDemandSignal> techDemand = futureTechDemand.join();
 
         List<Tweet> rawInfluencer = influencer.items();
         List<Tweet> rawTopic = topic.items();
@@ -141,13 +137,11 @@ public class MarketResearchService {
         List<ConferenceTalk> rawTalks = talks.items();
         List<SocialPost> rawSocial = social.items();
         List<LabAnnouncement> rawAnnouncements = announcements.items();
-        List<TechDemandSignal> rawTechDemand = techDemand.items();
-        TechDemandSignal techDemandSignal = rawTechDemand.isEmpty() ? null : rawTechDemand.get(0);
         List<SourceFetchReport> sourceFetchReports = Stream.of(
                         influencer.report(), topic.report(), anthropic.report(), hn.report(), gh.report(),
                         rss.report(), reddit.report(), papers.report(), releases.report(), hf.report(), ph.report(),
                         advisories.report(), jep.report(), cncf.report(),
-                        radar.report(), talks.report(), social.report(), announcements.report(), techDemand.report())
+                        radar.report(), talks.report(), social.report(), announcements.report())
                 .toList();
 
         Set<String> authorityUsernames = Set.copyOf(researchPolicy.authorityUsernames());
@@ -203,8 +197,7 @@ public class MarketResearchService {
                 LocalDateTime.now(ZoneOffset.UTC),
                 rawInfluencer.size() + rawTopic.size() + rawAnthropic.size(),
                 rawHn.size(), rawGh.size(), rawRss.size(), rawReddit.size(),
-                sourceFetchReports,
-                techDemandSignal
+                sourceFetchReports
         );
     }
 
