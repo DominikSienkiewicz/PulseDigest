@@ -26,6 +26,13 @@ tasks.withType<JavaCompile> {
 tasks.withType<Test> {
     jvmArgs("--enable-preview")
     useJUnitPlatform()
+    // Opt-in re-recording of the email golden file (docs/sample-digest.html). Absent this flag the
+    // property is unset and ReportEmailGoldenFileTest can only assert, never write — so no ordinary
+    // `test` run, locally or in CI, can overwrite the expected document. Passing the flag rewrites the
+    // file AND fails the run, so a re-record is always followed by a deliberate confirming run.
+    if (project.hasProperty("update-golden")) {
+        systemProperty("pulsedigest.golden.update", "true")
+    }
 }
 tasks.withType<JavaExec> {
     jvmArgs("--enable-preview")

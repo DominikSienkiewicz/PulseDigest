@@ -11,6 +11,16 @@ Headless batch application that collects tech news from 16 sources twice a week 
 ![Quality Gate](https://img.shields.io/sonar/quality_gate/DominikSienkiewicz_PulseDigest?server=https%3A%2F%2Fsonarcloud.io&style=for-the-badge&logo=sonarcloud&label=Quality%20Gate)
 ![Coverage](https://img.shields.io/sonar/coverage/DominikSienkiewicz_PulseDigest?server=https%3A%2F%2Fsonarcloud.io&style=for-the-badge&logo=sonarcloud)
 
+## 📬 What lands in the inbox
+
+![Top of a PulseDigest edition: the dated header, the editorial, a red Critical trends block naming the three sources that confirmed one story, and the must-know hero block where every entry carries a 1–10 score, a one-line "why it matters to you", a plain-language explanation of how that score was reached, and 👍/👎 feedback links](docs/images/sample-digest.png)
+
+*Rendered from the committed test fixture — real markup, synthetic content. Each story appears in
+exactly one section; where several sources carried it, `Potwierdzone w:` links each one to its own
+coverage instead of repeating the story. The whole document is
+[`docs/sample-digest.html`](docs/sample-digest.html); `ReportEmailGoldenFileTest` re-renders the fixture
+on every build and fails if a single byte of it changes, so this sample cannot go stale.*
+
 ## 🧠 The Vision: Signal over Noise
 In the era of AI-driven information overload, this tool is my personal solution to maintain situational awareness without manual scrolling. Every collected item gets a 1–10 score and a category; only what clears the threshold reaches the digest, and a topic surfacing in unrelated sources within the same run is flagged as a trend. It's not just a scraper — most of what it collects never reaches the inbox.
 
@@ -57,7 +67,7 @@ are described in **[docs/how-it-works.md](docs/how-it-works.md)**.
 
 - JDK 26 (Oracle EA or Temurin)
 - Twitter API v2 Bearer Token
-- OpenAI API key (GPT-4o + GPT-4o-mini for the tech-demand narrative)
+- OpenAI API key (GPT-4o for synthesis, GPT-4o-mini for the reader-model distillation)
 - Resend account + API key
 - Supabase project (free tier — Postgres for report history)
 - Docker Desktop (for Testcontainers when running `./gradlew test`)
