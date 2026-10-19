@@ -64,6 +64,16 @@ jobs:
       - name: Verify Markdown links
         run: ./scripts/check-markdown-links.sh
 
+      # Skrypty w `scripts/` są dziś gate'ami pozostałych reguł, więc cichy błąd w nich wyłącza
+      # kontrolę, nie zapalając niczego na czerwono — a w shellu nie ma żadnego innego strażnika
+      # klas błędów, które shellcheck łapie (niecytowane zmienne, przypadkowy splitting). Lista
+      # z `git ls-files`, nie z globa po dysku, i po `*.sh`: to z rozmysłem omija `gradlew`, który
+      # jest generowany przez Gradle i nie jest nasz do poprawiania. Binarka jest preinstalowana
+      # na obrazie runnera (apt `shellcheck`); gdyby wypadła przy przejściu `ubuntu-latest` na
+      # 26.04 w listopadzie 2026, krok padnie głośno na "command not found" — nie przemilczy.
+      - name: Verify shell scripts
+        run: shellcheck $(git ls-files '*.sh')
+
       - uses: actions/setup-java@v5.7.0
         with:
           distribution: oracle
