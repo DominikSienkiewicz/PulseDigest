@@ -1,6 +1,7 @@
 package pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapter.out.ai;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -99,7 +100,7 @@ public class GptSelfCritiqueAdapter implements SelfCritiquePort {
         return sb.toString();
     }
 
-    private String buildRequest(String userPrompt) throws Exception {
+    private String buildRequest(String userPrompt) throws JsonProcessingException {
         Map<String, Object> request = Map.of(
                 "model", llm.preScoring().model(),
                 "temperature", llm.preScoring().temperature(),
@@ -113,7 +114,7 @@ public class GptSelfCritiqueAdapter implements SelfCritiquePort {
         return objectMapper.writeValueAsString(request);
     }
 
-    private CritiqueVerdict parse(String content, List<DigestItem> items) throws Exception {
+    private CritiqueVerdict parse(String content, List<DigestItem> items) throws JsonProcessingException {
         CutPayload payload = objectMapper.readValue(content, CutPayload.class);
         if (payload.cuts() == null) {
             return CritiqueVerdict.NOTHING;
@@ -129,13 +130,13 @@ public class GptSelfCritiqueAdapter implements SelfCritiquePort {
         return new CritiqueVerdict(cuts);
     }
 
-    private String extractContent(String json) throws Exception {
+    private String extractContent(String json) throws JsonProcessingException {
         OpenAiResponse response = objectMapper.readValue(json, OpenAiResponse.class);
         if (response.choices() == null || response.choices().isEmpty()) {
             throw new IllegalStateException("OpenAI returned empty choices[]");
         }
         if (response.usage() != null) {
-            usageMeter.record("self-critique", llm.preScoring().model(),
+            usageMeter.recordCall("self-critique", llm.preScoring().model(),
                     response.usage().promptTokens(), response.usage().completionTokens());
         }
         return response.choices().getFirst().message().content();

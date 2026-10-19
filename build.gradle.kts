@@ -82,6 +82,8 @@ val archunitVersion = "1.5.0"
 val instancioVersion = "5.6.0"
 val testcontainersVersion = "1.21.4"
 val flywayVersion = "13.3.0"
+val wiremockVersion = "3.13.2"
+val dotenvVersion = "5.1.0"
 
 // Classpath for the flywayMigrate task only — the Flyway engine, its Postgres module and the driver.
 // Kept off the app's runtime classpath on purpose: the app assumes the schema exists; migrating it is
@@ -100,14 +102,6 @@ dependencies {
     implementation("io.micrometer:micrometer-core")
     implementation("com.fasterxml.jackson.core:jackson-databind")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
-    runtimeOnly("org.postgresql:postgresql")
-
-    // ── Local dev: load .env at startup (parity with GH Actions secrets) ─────
-    // Boot-specific module: since 5.x the artifact is split per framework, and the plain
-    // `spring-dotenv` variant resolves .env keys strictly — relaxed binding is Boot-only.
-    // developmentOnly, because CI and the scheduled digest pass every secret as an env var.
-    developmentOnly("me.paulschwarz:springboot4-dotenv:5.1.0")
-
     // ── HTTP client ───────────────────────────────────────────────────────────
     // RestClient is what every outbound adapter actually uses, so it is declared directly.
     // It arrived transitively until now, via a Spring AI starter the code never imported — and
@@ -117,19 +111,26 @@ dependencies {
     // that forbids them can no longer pass merely because nobody reached for them.
     implementation("org.springframework.boot:spring-boot-starter-restclient")
 
-    // ── Lombok ────────────────────────────────────────────────────────────────
+    // ── Compile-time only ─────────────────────────────────────────────────────
     compileOnly("org.projectlombok:lombok")
+    // Flyway is used only by the FlywayMigrate entrypoint, never at app runtime.
+    compileOnly("org.flywaydb:flyway-core:$flywayVersion")
     annotationProcessor("org.projectlombok:lombok")
 
-    // ── Flyway (compileOnly: used only by the FlywayMigrate entrypoint, never at app runtime) ──
-    compileOnly("org.flywaydb:flyway-core:$flywayVersion")
+    // ── Runtime ───────────────────────────────────────────────────────────────
+    runtimeOnly("org.postgresql:postgresql")
+    // Local dev: load .env at startup (parity with GH Actions secrets).
+    // Boot-specific module: since 5.x the artifact is split per framework, and the plain
+    // `spring-dotenv` variant resolves .env keys strictly — relaxed binding is Boot-only.
+    // developmentOnly, because CI and the scheduled digest pass every secret as an env var.
+    developmentOnly("me.paulschwarz:springboot4-dotenv:$dotenvVersion")
 
     // ── Tests ─────────────────────────────────────────────────────────────────
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
     testImplementation("com.tngtech.archunit:archunit-junit5:$archunitVersion")
     testImplementation("org.instancio:instancio-junit:$instancioVersion")
-    testImplementation("org.wiremock:wiremock-standalone:3.13.2")
+    testImplementation("org.wiremock:wiremock-standalone:$wiremockVersion")
     testImplementation("org.testcontainers:postgresql:$testcontainersVersion")
     testImplementation("org.testcontainers:junit-jupiter:$testcontainersVersion")
     // ITs apply the same V1 migration to their Testcontainers Postgres, so every PR proves the
@@ -138,6 +139,7 @@ dependencies {
     testImplementation("org.flywaydb:flyway-database-postgresql:$flywayVersion")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 
+    // ── flywayMigrate task classpath ──────────────────────────────────────────
     // Runtime classpath for the flywayMigrate task: the Flyway engine, its Postgres module and the
     // JDBC driver. (flyway-commandline is not consumable as a normal dependency — its POM pulls
     // unpublished flyway-experimental-* modules — so we run flyway-core through our own entrypoint.)
@@ -213,6 +215,32 @@ fun recordAndEnumCoverageExclusions(): List<String> {
     }
 }
 
+/**
+ * The source-path twin of [recordAndEnumCoverageExclusions], for Sonar.
+ *
+ * JaCoCo excludes by CLASS, Sonar by SOURCE PATH, and that difference is not cosmetic: a record
+ * nested inside a class has a class file of its own but no file of its own, so excluding it from
+ * Sonar would mean excluding the enclosing class's real logic along with it. Only files whose
+ * TOP-LEVEL type is a record or enum can be mirrored honestly — and those are exactly the ones
+ * that sank the gate, because JaCoCo reports nothing for them while Sonar still parses their
+ * lines as lines to cover and therefore scores every one of them at 0%.
+ *
+ * The detection is deliberately the same scan as the JaCoCo half, so the two lists cannot drift.
+ */
+fun recordAndEnumSourceExclusions(): List<String> {
+    val sourceRoot = layout.projectDirectory.dir("src/main/java").asFile.toPath()
+    return fileTree("src/main/java") {
+        include("**/*.java")
+    }.files.filter { sourceFile ->
+        val topLevelType = sourceFile.nameWithoutExtension
+        Regex("""\b(record|enum)\s+([A-Za-z_][A-Za-z0-9_]*)\b""")
+            .findAll(sourceFile.readText())
+            .any { match -> match.groupValues[2] == topLevelType }
+    }.map { sourceFile ->
+        "**/" + sourceRoot.relativize(sourceFile.toPath()).toString().replace(File.separatorChar, '/')
+    }.sorted()
+}
+
 val structuralCoverageExclusions = coverageExclusions + recordAndEnumCoverageExclusions()
 
 tasks.jacocoTestReport {
@@ -258,7 +286,15 @@ tasks.check {
 // Sonar derives its own "lines to cover" from the source parser (NOT from JaCoCo), so
 // the structural exclusions used by JaCoCo above must be declared again here — otherwise
 // records/enums/DTOs/config would count as uncovered and sink the "coverage on new code"
-// gate. These globs mirror `coverageExclusions` (the static half) on the `.java` sources.
+// gate.
+//
+// Until 2026-10-19 this list mirrored only `coverageExclusions` — the STATIC half — and the
+// sentence above was a statement of intent the build did not keep. The dynamic half was never
+// mirrored, so all 48 record and enum files carried by the report scored 0% in Sonar while
+// being absent from JaCoCo entirely: 349 of 816 uncovered lines, and the whole of the gap
+// between JaCoCo's passing 80% and SonarCloud's failing one. Both halves are mirrored now
+// (see `recordAndEnumSourceExclusions`), so the two tools finally measure the same denominator.
+// The 80% threshold itself is untouched.
 val sonarCoverageExclusions = listOf(
     "**/*Application.java",
     "**/*Bootstrap.java",
@@ -281,7 +317,10 @@ sonar {
         property("sonar.host.url", "https://sonarcloud.io")
         // Written by the jacocoTestReport task (default location); run it before `sonar`.
         property("sonar.coverage.jacoco.xmlReportPaths", "build/reports/jacoco/test/jacocoTestReport.xml")
-        property("sonar.coverage.exclusions", sonarCoverageExclusions.joinToString(","))
+        property(
+            "sonar.coverage.exclusions",
+            (sonarCoverageExclusions + recordAndEnumSourceExclusions()).joinToString(",")
+        )
 
         // ── Blokada zależności: świadomie nieobecna, nie zapomniana ───────────────────
         //
@@ -307,7 +346,7 @@ sonar {
         //
         // DO PONOWNEGO ROZWAŻENIA, gdy projekt zejdzie ze SNAPSHOT-ów na wydania stabilne:
         // wtedy blokada zależności staje się wykonalna i to wyciszenie powinno zniknąć.
-        property("sonar.issue.ignore.multicriteria", "blokadaZaleznosci,weryfikacjaZaleznosci")
+        property("sonar.issue.ignore.multicriteria", "blokadaZaleznosci,weryfikacjaZaleznosci,hasloUslugiCi")
         property("sonar.issue.ignore.multicriteria.blokadaZaleznosci.ruleKey", "text:S8569")
         property("sonar.issue.ignore.multicriteria.blokadaZaleznosci.resourceKey", "**/build.gradle.kts")
         // C2. Ten wzorzec był `**/*` — wyciszenie całego repozytorium dla jednej reguły, bo
@@ -322,6 +361,23 @@ sonar {
         // oparte na ostrożności, nawet jeśli wygląda tak samo.
         property("sonar.issue.ignore.multicriteria.weryfikacjaZaleznosci.ruleKey", "kotlin:S6474")
         property("sonar.issue.ignore.multicriteria.weryfikacjaZaleznosci.resourceKey", "**/*.gradle.kts")
+
+        // ── Hasło kontenera usługowego Postgresa w CI ────────────────────────────────
+        //
+        // yaml:S2068 wskazuje `POSTGRES_PASSWORD: pulsedigest` i `FLYWAY_PASSWORD: pulsedigest`
+        // w `.github/workflows/`. To nie jest sekret i nie da się go nim zrobić: kontener
+        // usługowy GitHub Actions startuje ZANIM wykona się pierwszy krok joba, więc nie można
+        // zasilić go wartością wygenerowaną w kroku ani wyjściem innego kroku. Baza żyje tyle,
+        // co job, słucha wyłącznie na loopbacku runnera i nigdy nie zawiera danych.
+        //
+        // Wyciszenie jest zapisane TUTAJ, a nie oznaczone jako "Safe" w interfejsie SonarCloud,
+        // z tego samego powodu co dwa wyciszenia powyżej: decyzja przechodzi wtedy przez przegląd
+        // kodu, jest wersjonowana i niesie powód obok siebie.
+        //
+        // WARUNEK WYCOFANIA: gdyby którykolwiek workflow zaczął łączyć się tymi zmiennymi do bazy
+        // przeżywającej joba — wtedy to JEST sekret i wyciszenie musi zniknąć razem z literałem.
+        property("sonar.issue.ignore.multicriteria.hasloUslugiCi.ruleKey", "yaml:S2068")
+        property("sonar.issue.ignore.multicriteria.hasloUslugiCi.resourceKey", "**/.github/workflows/*.yml")
     }
 }
 

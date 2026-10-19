@@ -70,14 +70,16 @@ class ResultTest {
 
     @Test
     void gettersThrowWhenAccessingWrongSide() {
-        assertThatThrownBy(() -> Result.failure(ERROR).getValue())
+        var failure = Result.failure(ERROR);
+        assertThatThrownBy(failure::getValue)
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Cannot get value");
-        assertThatThrownBy(() -> Result.success("value").getError())
+        var success = Result.success("value");
+        assertThatThrownBy(success::getError)
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Cannot get error");
-        assertThatThrownBy(() -> Result.<String, MarketIntelError>failure(ERROR)
-                .orElseThrow(error -> new IllegalArgumentException(error.message())))
+        var typed = Result.<String, MarketIntelError>failure(ERROR);
+        assertThatThrownBy(() -> typed.orElseThrow(error -> new IllegalArgumentException(error.message())))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Digest run job-1 left no job in the tracker");
     }

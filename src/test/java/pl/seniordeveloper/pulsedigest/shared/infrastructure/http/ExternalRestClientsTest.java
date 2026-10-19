@@ -1,6 +1,7 @@
 package pl.seniordeveloper.pulsedigest.shared.infrastructure.http;
 
 import com.github.tomakehurst.wiremock.WireMockServer;
+import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.AfterEach;
@@ -154,7 +155,7 @@ class ExternalRestClientsTest {
 
     private double retryCounterTotal() {
         return registry.find("http.client.retries").counters().stream()
-                .mapToDouble(c -> c.count())
+                .mapToDouble(Counter::count)
                 .sum();
     }
 }

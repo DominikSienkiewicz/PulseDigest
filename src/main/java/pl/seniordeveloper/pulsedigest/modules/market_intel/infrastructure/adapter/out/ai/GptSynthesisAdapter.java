@@ -1,6 +1,7 @@
 package pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapter.out.ai;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.Metrics;
@@ -233,7 +234,7 @@ public class GptSynthesisAdapter implements LlmSynthesisPort {
     // OpenAI API helpers
     // -------------------------------------------------------------------------
 
-    private String buildOpenAiRequest(String model, String systemPrompt, String userPrompt) throws Exception {
+    private String buildOpenAiRequest(String model, String systemPrompt, String userPrompt) throws JsonProcessingException {
         Map<String, Object> request = Map.of(
                 "model", model,
                 "temperature", llm.synthesis().temperature(),
@@ -273,7 +274,7 @@ public class GptSynthesisAdapter implements LlmSynthesisPort {
         log.info("OpenAI usage ({}): prompt={} completion={} total={} tokens (max_tokens cap={})",
                 model, usage.promptTokens(), usage.completionTokens(), usage.totalTokens(),
                 llm.synthesis().maxTokens());
-        usageMeter.record("synthesis", model, usage.promptTokens(), usage.completionTokens());
+        usageMeter.recordCall("synthesis", model, usage.promptTokens(), usage.completionTokens());
     }
 
     // -------------------------------------------------------------------------

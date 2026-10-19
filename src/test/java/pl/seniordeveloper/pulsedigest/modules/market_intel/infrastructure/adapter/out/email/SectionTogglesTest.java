@@ -32,8 +32,8 @@ class SectionTogglesTest {
     void aDisabledSectionIsAbsentAndTheRestSurvives() {
         String html = render(Set.of(DigestSections.WATCHLIST));
 
-        assertThat(html).doesNotContain("Twój radar");
-        assertThat(html).as("the rest of the document is untouched").contains("Top picks", "Must-know");
+        assertThat(html).doesNotContain("Twój radar")
+                .as("the rest of the document is untouched").contains("Top picks", "Must-know");
     }
 
     @Test
@@ -42,8 +42,8 @@ class SectionTogglesTest {
         // the audit specifically wondered about.
         String html = render(Set.of(DigestSections.SCORE_EXPLANATIONS));
 
-        assertThat(html).doesNotContain("Dlaczego to widzisz");
-        assertThat(html).contains("Must-know", "Top picks");
+        assertThat(html).doesNotContain("Dlaczego to widzisz")
+                .contains("Must-know", "Top picks");
     }
 
     @Test
@@ -52,8 +52,8 @@ class SectionTogglesTest {
         // and the shell has to close properly or the mail renders as raw markup.
         String html = render(DigestSections.ALL);
 
-        assertThat(html).startsWith("<!DOCTYPE html>").endsWith("</div></body></html>");
-        assertThat(html).contains("PulseDigest");
+        assertThat(html).startsWith("<!DOCTYPE html>").endsWith("</div></body></html>")
+                .contains("PulseDigest");
     }
 
     @Test

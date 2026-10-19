@@ -56,8 +56,7 @@ class PublicEditionRendererTest {
         assertThat(html)
                 .as("the reader's own voting history is printed inline in score explanations")
                 .doesNotContain("Twoje głosy")
-                .doesNotContain("Dlaczego to widzisz");
-        assertThat(html)
+                .doesNotContain("Dlaczego to widzisz")
                 .as("the saved shelf is a list of one person's bookmarks")
                 .doesNotContain("Zapisane na później")
                 .doesNotContain("https://example.com/bookmarked");

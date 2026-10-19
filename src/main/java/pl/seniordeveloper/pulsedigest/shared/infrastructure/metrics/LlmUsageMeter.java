@@ -23,23 +23,26 @@ import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.LlmProperties
 @Component
 public class LlmUsageMeter {
 
+    private static final String TAG_CALL = "call";
+    private static final String TAG_MODEL = "model";
+
     private final LlmProperties llm;
 
     /**
      * Records one completed call. A null or absent usage block is normal — some error paths return
      * before the provider reports usage — and is simply not counted rather than counted as zero.
      */
-    public void record(String callSite, String model, Number promptTokens, Number completionTokens) {
+    public void recordCall(String callSite, String model, Number promptTokens, Number completionTokens) {
         if (model == null || model.isBlank() || promptTokens == null || completionTokens == null) {
             return;
         }
         long prompt = promptTokens.longValue();
         long completion = completionTokens.longValue();
-        Metrics.counter("llm.tokens", "call", callSite, "model", model, "kind", "prompt")
-                .increment(prompt);
-        Metrics.counter("llm.tokens", "call", callSite, "model", model, "kind", "completion")
-                .increment(completion);
-        Metrics.counter("llm.calls", "call", callSite, "model", model).increment();
+        Metrics.counter("llm.tokens", TAG_CALL, callSite, TAG_MODEL, model, "kind", "prompt")
+                .increment((double) prompt);
+        Metrics.counter("llm.tokens", TAG_CALL, callSite, TAG_MODEL, model, "kind", "completion")
+                .increment((double) completion);
+        Metrics.counter("llm.calls", TAG_CALL, callSite, TAG_MODEL, model).increment();
 
         LlmProperties.Price price = llm.priceOf(model);
         if (!price.isKnown()) {
@@ -48,7 +51,7 @@ public class LlmUsageMeter {
             return;
         }
         double cost = price.costOf(prompt, completion);
-        Metrics.counter("llm.cost.usd", "call", callSite, "model", model).increment(cost);
+        Metrics.counter("llm.cost.usd", TAG_CALL, callSite, TAG_MODEL, model).increment(cost);
         log.info("llm-usage call={} model={} prompt={} completion={} cost=${}",
                 callSite, model, prompt, completion, String.format(java.util.Locale.ROOT, "%.4f", cost));
     }

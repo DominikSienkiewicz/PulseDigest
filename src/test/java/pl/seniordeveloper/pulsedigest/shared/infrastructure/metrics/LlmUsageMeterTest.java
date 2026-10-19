@@ -31,7 +31,7 @@ class LlmUsageMeterTest {
 
     @Test
     void attributesTokensToTheCallSiteAndModelThatSpentThem() {
-        meter(Map.of()).record("pre-scoring", "gpt-4o-mini", 1_200, 300);
+        meter(Map.of()).recordCall("pre-scoring", "gpt-4o-mini", 1_200, 300);
 
         assertThat(counter("llm.tokens", "call", "pre-scoring", "model", "gpt-4o-mini", "kind", "prompt"))
                 .isEqualTo(1_200.0);
@@ -51,7 +51,7 @@ class LlmUsageMeterTest {
      */
     @Test
     void anUnpricedModelIsMeteredInTokensAndNotInMoney() {
-        meter(Map.of()).record("synthesis", "model-without-a-price", 10_000, 2_000);
+        meter(Map.of()).recordCall("synthesis", "model-without-a-price", 10_000, 2_000);
 
         assertThat(counter("llm.tokens", "call", "synthesis", "model", "model-without-a-price",
                 "kind", "prompt")).isEqualTo(10_000.0);
@@ -64,7 +64,7 @@ class LlmUsageMeterTest {
     void aPricedModelAlsoAccumulatesCost() {
         // $2.50 per million prompt tokens, $10.00 per million completion tokens.
         meter(Map.of("gpt-4o", new LlmProperties.Price(2.50, 10.00)))
-                .record("synthesis", "gpt-4o", 400_000, 50_000);
+                .recordCall("synthesis", "gpt-4o", 400_000, 50_000);
 
         // 0.4M × 2.50 = 1.00 ; 0.05M × 10.00 = 0.50
         assertThat(counter("llm.cost.usd", "call", "synthesis", "model", "gpt-4o")).isEqualTo(1.50);
@@ -72,7 +72,7 @@ class LlmUsageMeterTest {
 
     @Test
     void anAbsentUsageBlockIsNotCountedAsZero() {
-        meter(Map.of()).record("synthesis", "model-never-metered", null, null);
+        meter(Map.of()).recordCall("synthesis", "model-never-metered", null, null);
 
         assertThat(registry.find("llm.tokens").tag("model", "model-never-metered").counters()).isEmpty();
         assertThat(registry.find("llm.calls").tag("model", "model-never-metered").counters()).isEmpty();

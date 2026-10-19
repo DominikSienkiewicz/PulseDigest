@@ -76,15 +76,14 @@ public class SourceYieldService {
                     continue;
                 }
                 String source = report.sourceName();
-                if (source == null || source.isBlank()) {
-                    continue;
+                if (source != null && !source.isBlank()) {
+                    int[] counts = tally.computeIfAbsent(source, key -> new int[3]);
+                    counts[0]++;
+                    if (report.itemCount() == 0) {
+                        counts[1]++;
+                    }
+                    counts[2] += report.itemCount();
                 }
-                int[] counts = tally.computeIfAbsent(source, key -> new int[3]);
-                counts[0]++;
-                if (report.itemCount() == 0) {
-                    counts[1]++;
-                }
-                counts[2] += report.itemCount();
             }
         }
         return tally.entrySet().stream()

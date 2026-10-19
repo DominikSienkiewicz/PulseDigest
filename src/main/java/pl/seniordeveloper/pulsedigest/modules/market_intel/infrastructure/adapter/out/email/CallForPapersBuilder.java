@@ -54,10 +54,17 @@ final class CallForPapersBuilder {
     /** The number of days, because "do 14.11.2026" alone makes the reader do the arithmetic. */
     private static String deadline(CallForPapers call, LocalDate today) {
         long left = call.daysLeft(today);
-        String urgency = left == 0 ? "dzi&#347; ostatni dzie&#324;"
-                : left == 1 ? "zosta&#322; 1 dzie&#324;"
-                : "zosta&#322;o " + left + " dni";
-        return "zg&#322;oszenia do " + call.deadline().format(DATE) + " &mdash; " + urgency;
+        return "zg&#322;oszenia do " + call.deadline().format(DATE) + " &mdash; " + urgency(left);
+    }
+
+    private static String urgency(long daysLeft) {
+        if (daysLeft == 0) {
+            return "dzi&#347; ostatni dzie&#324;";
+        }
+        if (daysLeft == 1) {
+            return "zosta&#322; 1 dzie&#324;";
+        }
+        return "zosta&#322;o " + daysLeft + " dni";
     }
 
     private static String location(CallForPapers call) {

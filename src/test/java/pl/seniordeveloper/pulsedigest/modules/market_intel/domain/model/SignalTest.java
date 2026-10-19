@@ -32,7 +32,8 @@ class SignalTest {
         List<SourceDomain> mutable = new ArrayList<>();
         mutable.add(SourceDomain.SCIENCE);
         Signal signal = TestModels.signal(ITEM, SignalRank.MODERATE, 60, mutable);
-        assertThatThrownBy(() -> signal.sourceDomains().add(SourceDomain.CODE))
+        var domains = signal.sourceDomains();
+        assertThatThrownBy(() -> domains.add(SourceDomain.CODE))
                 .isInstanceOf(UnsupportedOperationException.class);
     }
 

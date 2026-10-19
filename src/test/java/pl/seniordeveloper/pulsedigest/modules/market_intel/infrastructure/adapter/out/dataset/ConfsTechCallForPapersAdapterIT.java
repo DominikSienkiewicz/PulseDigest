@@ -91,7 +91,7 @@ class ConfsTechCallForPapersAdapterIT {
     }
 
     @Test
-    void disabledMeansNoCallAtAll() throws Exception {
+    void disabledMeansNoCallAtAll() {
         CallForPapersProperties off = new CallForPapersProperties(false,
                 "http://localhost:" + wireMock.port(), List.of("java"), 120, 5);
 
@@ -108,7 +108,7 @@ class ConfsTechCallForPapersAdapterIT {
         stub(body);
     }
 
-    private ConfsTechCallForPapersAdapter adapter(int lookaheadDays) throws Exception {
+    private ConfsTechCallForPapersAdapter adapter(int lookaheadDays) {
         return adapterQuietly(lookaheadDays);
     }
 

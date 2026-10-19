@@ -4,6 +4,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.CalibrationService;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.application.EditionDeliveryGuard;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.EolRadarService;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.MarketIntelJobTracker;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.MarketResearchService;
@@ -322,8 +323,7 @@ class GenerateMarketReportProcessorSourceFloorTest {
                         new SemanticClusteringPolicy(false, false, 0.86, 4)),
                 today -> List.of(),
                 SAVED_SHELF_ON,
-                editionDeliveryPort,
-                new DeliveryGuardPolicy(true),
+                new EditionDeliveryGuard(new DeliveryGuardPolicy(true), editionDeliveryPort),
                 new SignalScoringService(ScoringPolicy.defaults()),
                 feedbackPort,
                 new FeedbackNudgePolicy(true, 30),

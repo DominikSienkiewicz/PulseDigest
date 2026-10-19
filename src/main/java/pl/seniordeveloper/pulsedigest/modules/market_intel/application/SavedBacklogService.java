@@ -11,6 +11,7 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SavedIte
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Signal;
 
 /**
  * Turns saved feedback rows back into something the reader can recognise (N05 follow-up).
@@ -64,7 +65,7 @@ public class SavedBacklogService {
         history.stream()
                 .sorted((a, b) -> a.generatedAt().compareTo(b.generatedAt()))
                 .flatMap(edition -> edition.signals().stream())
-                .map(signal -> signal.item())
+                .map(Signal::item)
                 .filter(item -> item != null && item.url() != null && item.title() != null)
                 .forEach(item -> titles.put(item.url(), item.title()));
         return titles;

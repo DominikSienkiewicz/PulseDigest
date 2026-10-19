@@ -112,7 +112,9 @@ class ResendEmailAdapterIT {
     @Test
     void sendFailsFastWhenConfigIsMissingAndWrapsProviderFailure() throws Exception {
         ResendEmailAdapter missingConfig = adapter(emailProperties("", "from@example.com", "to@example.com"));
-        assertThatThrownBy(() -> missingConfig.send(report(), emptyResearch()))
+        var report = report();
+        var research = emptyResearch();
+        assertThatThrownBy(() -> missingConfig.send(report, research))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Email not configured");
 
@@ -120,7 +122,7 @@ class ResendEmailAdapterIT {
                 .willReturn(aResponse().withStatus(500).withBody("boom")));
         ResendEmailAdapter providerFailure = adapter(emailProperties("resend-key", "from@example.com", "to@example.com"));
 
-        assertThatThrownBy(() -> providerFailure.send(report(), emptyResearch()))
+        assertThatThrownBy(() -> providerFailure.send(report, research))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Failed to send email via Resend");
     }

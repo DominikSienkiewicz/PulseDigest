@@ -1,6 +1,7 @@
 package pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapter.out.ai;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -133,7 +134,7 @@ public class GptReaderProfileDistiller implements ReaderProfileDistillerPort {
                         .append(e.getValue() > 0 ? "+" : "").append(e.getValue()).append('\n'));
     }
 
-    private String buildRequest(String userPrompt) throws Exception {
+    private String buildRequest(String userPrompt) throws JsonProcessingException {
         Map<String, Object> request = Map.of(
                 "model", llm.readerProfile().model(),
                 "temperature", llm.readerProfile().temperature(),
@@ -148,12 +149,12 @@ public class GptReaderProfileDistiller implements ReaderProfileDistillerPort {
         return objectMapper.writeValueAsString(request);
     }
 
-    private List<ProfileHypothesis> parse(String content) throws Exception {
+    private List<ProfileHypothesis> parse(String content) throws JsonProcessingException {
         HypothesesPayload payload = objectMapper.readValue(content, HypothesesPayload.class);
         return payload.hypotheses() != null ? payload.hypotheses() : List.of();
     }
 
-    private String extractContent(String json) throws Exception {
+    private String extractContent(String json) throws JsonProcessingException {
         OpenAiResponse response = objectMapper.readValue(json, OpenAiResponse.class);
         if (response.choices() == null || response.choices().isEmpty()) {
             throw new IllegalStateException("OpenAI returned empty choices[]");
@@ -165,7 +166,7 @@ public class GptReaderProfileDistiller implements ReaderProfileDistillerPort {
     /** Attributes this call's tokens before the content is handed on. */
     private void meter(Usage usage) {
         if (usage != null) {
-            usageMeter.record("reader-profile", llm.readerProfile().model(), usage.promptTokens(), usage.completionTokens());
+            usageMeter.recordCall("reader-profile", llm.readerProfile().model(), usage.promptTokens(), usage.completionTokens());
         }
     }
 

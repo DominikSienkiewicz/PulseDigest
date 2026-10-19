@@ -88,8 +88,8 @@ class ReportEmailBuilderTest {
 
         String subject = builder.buildSubject(report);
 
-        assertThat(subject).contains("…").endsWith(today());
-        assertThat(subject).doesNotContain("Rust in the kernel");
+        assertThat(subject).contains("…").endsWith(today())
+                .doesNotContain("Rust in the kernel");
         // Marker + preview + separator + date must stay inside the inbox-visible budget.
         assertThat(subject.length()).isLessThanOrEqualTo(100);
     }
@@ -138,8 +138,8 @@ class ReportEmailBuilderTest {
 
         String html = builder.buildHtml(report, null);
 
-        assertThat(html).contains("Potwierdzone w:");
-        assertThat(html).contains("arXiv/cs.AI").contains("GitHub").contains("Hacker News");
+        assertThat(html).contains("Potwierdzone w:")
+                .contains("arXiv/cs.AI").contains("GitHub").contains("Hacker News");
     }
 
     private static DigestItem topicItem(String source, String topicKey, int score) {
@@ -156,8 +156,8 @@ class ReportEmailBuilderTest {
 
         String html = builder.buildHtml(report, null);
 
-        assertThat(html).contains("narasta").contains("3. edycja");
-        assertThat(html).contains("Pierwszy sygnał: 18.06.2026");
+        assertThat(html).contains("narasta").contains("3. edycja")
+                .contains("Pierwszy sygnał: 18.06.2026");
     }
 
     @Test
@@ -186,9 +186,9 @@ class ReportEmailBuilderTest {
 
         String html = builder.buildHtml(report, null);
 
-        assertThat(html).contains("Tydzień w sygnałach");
-        assertThat(html).contains("MCP everywhere").contains("Gemini 3").contains("Hype train");
-        assertThat(html).contains("urosło").contains("potwierdzony").contains("wygasł");
+        assertThat(html).contains("Tydzień w sygnałach")
+                .contains("MCP everywhere").contains("Gemini 3").contains("Hype train")
+                .contains("urosło").contains("potwierdzony").contains("wygasł");
     }
 
     @Test
@@ -206,8 +206,8 @@ class ReportEmailBuilderTest {
 
         String html = withWatchlist.buildHtml(fullReport(), researchWithFailedSource());
 
-        assertThat(html).contains("Twój radar");
-        assertThat(html).contains("spring ai").contains("0 wzmianek");
+        assertThat(html).contains("Twój radar")
+                .contains("spring ai").contains("0 wzmianek");
     }
 
     @Test

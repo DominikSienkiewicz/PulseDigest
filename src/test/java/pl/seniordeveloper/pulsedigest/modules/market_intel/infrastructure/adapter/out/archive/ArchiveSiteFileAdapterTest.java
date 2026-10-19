@@ -113,7 +113,7 @@ class ArchiveSiteFileAdapterTest {
         try {
             String body = Files.readString(file);
             return Stream.of(needles).anyMatch(body::contains);
-        } catch (IOException e) {
+        } catch (IOException _) {
             return false;
         }
     }

@@ -108,7 +108,8 @@ class GptSynthesisAdapterIT {
                         .withHeader("Content-Type", "application/json")
                         .withBody("{\"choices\":[]}")));
 
-        assertThatThrownBy(() -> adapter.synthesize(emptyResearch()))
+        var research = emptyResearch();
+        assertThatThrownBy(() -> adapter.synthesize(research))
                 .isInstanceOf(LlmSynthesisException.class)
                 .hasMessageContaining("OpenAI synthesis failed");
     }
@@ -125,7 +126,8 @@ class GptSynthesisAdapterIT {
                         .withHeader("Content-Type", "application/json")
                         .withBody(truncated)));
 
-        assertThatThrownBy(() -> adapter.synthesize(emptyResearch()))
+        var research = emptyResearch();
+        assertThatThrownBy(() -> adapter.synthesize(research))
                 .isInstanceOf(LlmSynthesisException.class)
                 .hasMessageContaining("finish_reason=length");
     }
@@ -178,7 +180,8 @@ class GptSynthesisAdapterIT {
                         .withHeader("Content-Type", "application/json")
                         .withBody("{\"error\":{\"code\":\"insufficient_quota\"}}")));
 
-        assertThatThrownBy(() -> adapter.synthesize(emptyResearch()))
+        var research = emptyResearch();
+        assertThatThrownBy(() -> adapter.synthesize(research))
                 .isInstanceOf(LlmQuotaException.class);
 
         wireMock.verify(1, postRequestedFor(urlPathEqualTo("/chat/completions")));
@@ -342,14 +345,15 @@ class GptSynthesisAdapterIT {
                     new LlmProperties.Call("gpt-4o-mini", "", 0.0, 4_000),
                     new LlmProperties.Call("gpt-4o-mini", "", 0.2, 700),
                     Map.of(), new LlmProperties.Budget(true, 1_000, 0));
-            new LlmUsageMeter(capped).record("pre-scoring", "gpt-4o-mini", 900, 300);
+            new LlmUsageMeter(capped).recordCall("pre-scoring", "gpt-4o-mini", 900, 300);
 
             GptSynthesisAdapter guarded = new GptSynthesisAdapter(
                     new OpenAiProperties("test-openai-key"), capped, new LlmUsageMeter(capped),
                     new CostCeiling(capped, registry), new ObjectMapper(), new StubPromptBuilder());
             setOpenAiClient(guarded, "http://localhost:" + wireMock.port());
 
-            assertThatThrownBy(() -> guarded.synthesize(emptyResearch()))
+            var research = emptyResearch();
+            assertThatThrownBy(() -> guarded.synthesize(research))
                     .isInstanceOf(BudgetExceededException.class);
             wireMock.verify(0, postRequestedFor(urlPathEqualTo("/chat/completions")));
         } finally {

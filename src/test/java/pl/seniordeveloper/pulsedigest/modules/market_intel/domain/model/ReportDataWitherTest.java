@@ -88,7 +88,9 @@ class ReportDataWitherTest {
         caller.add(Instancio.create(EolNotice.class));
 
         assertThat(report.eolNotices()).hasSize(1);
-        assertThatThrownBy(() -> report.eolNotices().add(Instancio.create(EolNotice.class)))
+        var notices = report.eolNotices();
+        var extra = Instancio.create(EolNotice.class);
+        assertThatThrownBy(() -> notices.add(extra))
                 .isInstanceOf(UnsupportedOperationException.class);
     }
 
@@ -100,7 +102,8 @@ class ReportDataWitherTest {
         caller.add("https://example.com/b");
 
         assertThat(report.stackAffectingUrls()).containsExactly("https://example.com/a");
-        assertThatThrownBy(() -> report.stackAffectingUrls().add("https://example.com/c"))
+        var urls = report.stackAffectingUrls();
+        assertThatThrownBy(() -> urls.add("https://example.com/c"))
                 .isInstanceOf(UnsupportedOperationException.class);
     }
 

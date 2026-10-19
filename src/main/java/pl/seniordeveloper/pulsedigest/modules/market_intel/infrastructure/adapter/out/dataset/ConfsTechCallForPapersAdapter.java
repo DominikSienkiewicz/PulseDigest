@@ -97,7 +97,7 @@ public class ConfsTechCallForPapersAdapter implements CallForPapersPort {
         LocalDate deadline;
         try {
             deadline = LocalDate.parse(conference.cfpEndDate());
-        } catch (Exception e) {
+        } catch (Exception _) {
             return null;
         }
         if (deadline.isBefore(today) || deadline.isAfter(horizon)) {

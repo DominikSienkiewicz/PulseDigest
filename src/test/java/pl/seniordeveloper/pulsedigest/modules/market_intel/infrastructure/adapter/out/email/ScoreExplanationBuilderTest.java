@@ -33,8 +33,8 @@ class ScoreExplanationBuilderTest {
     void namesTheCredibilityAndEngagementThatEarnedTheScore() {
         String html = ScoreExplanationBuilder.buildWhyYouSeeThis(signal("Hacker News", breakdown(0, 0, 1.0, 0)));
 
-        assertThat(html).contains("Dlaczego to widzisz");
-        assertThat(html).contains("Hacker News").contains("80").contains("+12");
+        assertThat(html).contains("Dlaczego to widzisz")
+                .contains("Hacker News").contains("80").contains("+12");
     }
 
     @Test
@@ -72,9 +72,9 @@ class ScoreExplanationBuilderTest {
         String html = ScoreExplanationBuilder.buildVotesInAction(List.of(signal("Hacker News", breakdown(-4, 0, 1.0, 0)),
                 signal("Hacker News", breakdown(-4, 0, 1.0, 0))));
 
-        assertThat(html).contains("Twoje głosy w akcji");
-        assertThat(html).contains("Hacker News");
-        assertThat(html).contains("0.80").contains("0.60");
+        assertThat(html).contains("Twoje głosy w akcji")
+                .contains("Hacker News")
+                .contains("0.80").contains("0.60");
     }
 
     @Test

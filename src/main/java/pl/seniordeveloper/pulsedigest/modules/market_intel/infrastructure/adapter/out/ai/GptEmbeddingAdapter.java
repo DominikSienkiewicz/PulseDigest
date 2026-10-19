@@ -1,6 +1,7 @@
 package pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapter.out.ai;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
@@ -78,7 +79,7 @@ public class GptEmbeddingAdapter implements EmbeddingPort {
         }
     }
 
-    private List<float[]> parse(String json, int expected) throws Exception {
+    private List<float[]> parse(String json, int expected) throws JsonProcessingException {
         EmbeddingResponse response = objectMapper.readValue(json, EmbeddingResponse.class);
         if (response.data() == null || response.data().size() != expected) {
             log.warn("Embeddings: expected {} vectors, got {}",
@@ -88,20 +89,38 @@ public class GptEmbeddingAdapter implements EmbeddingPort {
         if (response.usage() != null) {
             // Embeddings bill prompt tokens only; recording zero completions keeps the per-call-site
             // meter honest rather than inventing a number.
-            usageMeter.record("embeddings", model, response.usage().promptTokens(), 0L);
+            usageMeter.recordCall("embeddings", model, response.usage().promptTokens(), 0L);
         }
         return response.data().stream()
                 .sorted(Comparator.comparingInt(Embedding::index))
-                .map(Embedding::embedding)
+                .map(embedding -> toVector(embedding.embedding()))
                 .toList();
+    }
+
+    private static float[] toVector(List<Float> values) {
+        float[] vector = new float[values.size()];
+        for (int i = 0; i < values.size(); i++) {
+            vector[i] = values.get(i);
+        }
+        return vector;
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     private record EmbeddingResponse(List<Embedding> data, Usage usage) {
     }
 
+    /**
+     * Binds the vector as a {@code List<Float>} rather than a {@code float[]} on purpose.
+     *
+     * <p>An array component gives a record reference equality and a useless {@code toString} —
+     * the trap behind java:S6218 — and the usual answer is to hand-write {@code equals},
+     * {@code hashCode} and {@code toString} over {@link java.util.Arrays}. That would be a dozen
+     * lines no caller ever reaches, written to satisfy an analyser rather than a need. Binding to
+     * a list removes the array, and with it the surprise; the primitive {@code float[]} the port
+     * promises is built once, at the boundary, by {@code toVector}.
+     */
     @JsonIgnoreProperties(ignoreUnknown = true)
-    private record Embedding(int index, float[] embedding) {
+    private record Embedding(int index, List<Float> embedding) {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

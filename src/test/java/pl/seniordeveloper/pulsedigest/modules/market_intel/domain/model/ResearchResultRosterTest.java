@@ -44,10 +44,10 @@ class ResearchResultRosterTest {
         // timestamp, and has a comma of its own.
         String counts = result.summary().split(" \u2014 ")[0];
 
-        assertThat(counts.split(", ").length)
+        assertThat(counts.split(", "))
                 .as("summary prints one entry per registered source — if this drifts from the "
                         + "component count above, a source is on the record but not in sections()")
-                .isEqualTo(sourceComponents.size());
+                .hasSize(sourceComponents.size());
     }
 
     @Test

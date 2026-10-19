@@ -148,8 +148,9 @@ class ReportEmailGoldenFileTest {
         // makes it unclickable, which is a worse defect than a long line.
         String text = textBuilder().buildText(fixture.report(), fixture.research());
 
-        assertThat(text.lines().filter(line -> line.length() > 78).toList())
-                .allSatisfy(line -> assertThat(line).contains("http"));
+        assertThat(text.lines().filter(line -> line.length() > 78 && !line.contains("http")).toList())
+                .as("plain-text lines may run past 78 columns only to keep a URL intact")
+                .isEmpty();
     }
 
     @Test

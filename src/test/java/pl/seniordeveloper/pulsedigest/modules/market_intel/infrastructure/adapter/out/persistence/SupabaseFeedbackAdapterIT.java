@@ -35,7 +35,7 @@ class SupabaseFeedbackAdapterIT {
     private SupabaseFeedbackAdapter adapter;
 
     @BeforeAll
-    static void setupDataSource() throws Exception {
+    static void setupDataSource() {
         HikariConfig config = new HikariConfig();
         config.setJdbcUrl(postgres.getJdbcUrl());
         config.setUsername(postgres.getUsername());
@@ -93,8 +93,9 @@ class SupabaseFeedbackAdapterIT {
         jdbc.sql("INSERT INTO feedback (item_url, source, vote, edition) VALUES (?, ?, ?, ?)")
                 .params("https://example.com/a", "GitHub", "UP", "2026-07-10").update();
 
-        assertThatThrownBy(() -> jdbc.sql("INSERT INTO feedback (item_url, source, vote, edition) VALUES (?, ?, ?, ?)")
-                .params("https://example.com/a", "GitHub", "DOWN", "2026-07-10").update())
+        var duplicate = jdbc.sql("INSERT INTO feedback (item_url, source, vote, edition) VALUES (?, ?, ?, ?)")
+                .params("https://example.com/a", "GitHub", "DOWN", "2026-07-10");
+        assertThatThrownBy(duplicate::update)
                 .isInstanceOf(DuplicateKeyException.class);
     }
 

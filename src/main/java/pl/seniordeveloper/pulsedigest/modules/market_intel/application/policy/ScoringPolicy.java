@@ -73,7 +73,7 @@ public record ScoringPolicy(
             return false;
         }
         String needle = value.strip().toLowerCase(Locale.ROOT);
-        return mutedTopics.stream().anyMatch(muted -> needle.contains(muted));
+        return mutedTopics.stream().anyMatch(needle::contains);
     }
 
     /**

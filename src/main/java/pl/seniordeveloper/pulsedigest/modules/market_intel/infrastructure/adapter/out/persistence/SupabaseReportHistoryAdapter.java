@@ -27,6 +27,8 @@ import java.util.Optional;
 @Repository
 public class SupabaseReportHistoryAdapter implements ReportHistoryPort {
 
+    private static final String COLUMN_GENERATED_AT = "generated_at";
+
     private static final String RECENT_EDITIONS_SQL = """
             SELECT generated_at,
                    payload->'report'->'signals' AS signals,
@@ -62,7 +64,7 @@ public class SupabaseReportHistoryAdapter implements ReportHistoryPort {
         List<PastEdition> editions = jdbcClient.sql(RECENT_EDITIONS_SQL)
                 .param(cutoff)
                 .query((rs, rowNum) -> toEdition(
-                        rs.getObject("generated_at", OffsetDateTime.class),
+                        rs.getObject(COLUMN_GENERATED_AT, OffsetDateTime.class),
                         rs.getString("signals"),
                         rs.getString("fetch_reports")))
                 .list()
@@ -80,7 +82,7 @@ public class SupabaseReportHistoryAdapter implements ReportHistoryPort {
                 .param(cutoff)
                 .query((rs, rowNum) -> new ArchivedEdition(
                         rs.getString("job_id"),
-                        rs.getObject("generated_at", OffsetDateTime.class).toInstant(),
+                        rs.getObject(COLUMN_GENERATED_AT, OffsetDateTime.class).toInstant(),
                         readReport(rs.getString("report"))))
                 .list()
                 .stream()
@@ -109,7 +111,7 @@ public class SupabaseReportHistoryAdapter implements ReportHistoryPort {
         return jdbcClient.sql(EDITION_BY_ID_SQL)
                 .param(jobId)
                 .query((rs, rowNum) -> toEdition(
-                        rs.getObject("generated_at", OffsetDateTime.class),
+                        rs.getObject(COLUMN_GENERATED_AT, OffsetDateTime.class),
                         rs.getString("signals"),
                         rs.getString("fetch_reports")))
                 .optional();

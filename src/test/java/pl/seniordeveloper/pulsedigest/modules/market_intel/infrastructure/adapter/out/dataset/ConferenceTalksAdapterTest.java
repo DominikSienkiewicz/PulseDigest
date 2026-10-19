@@ -74,7 +74,8 @@ class ConferenceTalksAdapterTest {
         List<ConferenceTalk> talks = adapter.parseSearchResults(
                 SEARCH_JSON, "SpringDeveloper", "Spring I/O");
 
-        assertThat(talks).extracting(ConferenceTalk::title)
+        assertThat(talks).isNotEmpty()
+                .extracting(ConferenceTalk::title)
                 .doesNotContain("Old Talk from Last Year");
     }
 

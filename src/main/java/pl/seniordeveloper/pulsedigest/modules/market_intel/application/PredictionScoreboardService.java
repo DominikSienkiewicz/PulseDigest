@@ -54,11 +54,10 @@ public class PredictionScoreboardService {
                     continue;
                 }
                 String url = signal.item().url();
-                if (url == null || url.isBlank()) {
-                    continue;
+                if (url != null && !url.isBlank()) {
+                    outcomes.add(new PredictionOutcome(signal.item().title(), url, edition.generatedAt(),
+                            countLaterAppearances(later, signal), upvoted.contains(url)));
                 }
-                outcomes.add(new PredictionOutcome(signal.item().title(), url, edition.generatedAt(),
-                        countLaterAppearances(later, signal), upvoted.contains(url)));
             }
         }
 

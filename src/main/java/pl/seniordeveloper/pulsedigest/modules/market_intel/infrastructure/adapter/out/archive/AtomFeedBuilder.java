@@ -26,6 +26,8 @@ import java.util.List;
 @Component
 public class AtomFeedBuilder {
 
+    private static final String HREF_CLOSE = "\"/>\n";
+
     private static final DateTimeFormatter RFC3339 = DateTimeFormatter.ISO_INSTANT;
     private static final int SUMMARY_ITEMS = 5;
 
@@ -37,9 +39,9 @@ public class AtomFeedBuilder {
                 .append("  <subtitle>Dwa razy w tygodniu: sygnał zamiast szumu</subtitle>\n")
                 .append("  <id>").append(xml(base)).append("</id>\n")
                 .append("  <link rel=\"alternate\" type=\"text/html\" href=\"")
-                .append(xml(base)).append("\"/>\n")
+                .append(xml(base)).append(HREF_CLOSE)
                 .append("  <link rel=\"self\" type=\"application/atom+xml\" href=\"")
-                .append(xml(base + "feed.xml")).append("\"/>\n")
+                .append(xml(base + "feed.xml")).append(HREF_CLOSE)
                 .append("  <updated>").append(updated(editions)).append("</updated>\n");
 
         for (ArchivedEdition edition : editions) {
@@ -51,7 +53,7 @@ public class AtomFeedBuilder {
                     // date-based page is both.
                     .append("    <id>").append(xml(url)).append("</id>\n")
                     .append("    <link rel=\"alternate\" type=\"text/html\" href=\"")
-                    .append(xml(url)).append("\"/>\n")
+                    .append(xml(url)).append(HREF_CLOSE)
                     .append("    <updated>").append(RFC3339.format(edition.generatedAt()))
                     .append("</updated>\n")
                     .append("    <summary type=\"text\">").append(xml(summary(edition)))

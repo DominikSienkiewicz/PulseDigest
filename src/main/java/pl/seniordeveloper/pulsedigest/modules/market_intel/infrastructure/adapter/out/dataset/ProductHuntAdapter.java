@@ -3,6 +3,7 @@ package pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapt
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -17,7 +18,6 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Optional;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -146,12 +146,9 @@ public class ProductHuntAdapter {
     }
 
     private Set<String> lowerSet(List<String> values) {
-        Set<String> out = new HashSet<>();
-        for (String v : values) {
-            if (v != null && !v.isBlank()) {
-                out.add(v.toLowerCase(Locale.ROOT));
-            }
-        }
-        return out;
+        return values.stream()
+                .filter(v -> v != null && !v.isBlank())
+                .map(v -> v.toLowerCase(Locale.ROOT))
+                .collect(Collectors.toSet());
     }
 }

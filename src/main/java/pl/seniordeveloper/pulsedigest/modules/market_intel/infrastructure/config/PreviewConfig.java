@@ -67,6 +67,9 @@ import java.util.Set;
 @Configuration
 public class PreviewConfig {
 
+    private static final String PREVIEW_CHANNEL = "preview";
+    private static final String NOTHING_SENT = "nothing was sent";
+
     /** Says what is off, at the top of the run, where nobody can miss it. */
     @PostConstruct
     void announce() {
@@ -83,19 +86,19 @@ public class PreviewConfig {
             public EmailDeliveryReceipt send(ReportData report, ResearchResult research) {
                 log.info("PREVIEW: would mail {} item(s); the rendered edition is on disk instead",
                         report.items() != null ? report.items().size() : 0);
-                return new EmailDeliveryReceipt("preview", "nothing was sent");
+                return new EmailDeliveryReceipt(PREVIEW_CHANNEL, NOTHING_SENT);
             }
 
             @Override
             public EmailDeliveryReceipt sendQuotaAlert(QuotaAlert alert) {
                 log.info("PREVIEW: would send a quota alert");
-                return new EmailDeliveryReceipt("preview", "nothing was sent");
+                return new EmailDeliveryReceipt(PREVIEW_CHANNEL, NOTHING_SENT);
             }
 
             @Override
             public EmailDeliveryReceipt sendRetrospective(Retrospective retrospective) {
                 log.info("PREVIEW: would send a retrospective");
-                return new EmailDeliveryReceipt("preview", "nothing was sent");
+                return new EmailDeliveryReceipt(PREVIEW_CHANNEL, NOTHING_SENT);
             }
         };
     }

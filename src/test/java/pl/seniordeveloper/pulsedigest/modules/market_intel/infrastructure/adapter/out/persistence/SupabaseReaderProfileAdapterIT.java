@@ -33,7 +33,7 @@ class SupabaseReaderProfileAdapterIT {
     private SupabaseReaderProfileAdapter adapter;
 
     @BeforeAll
-    static void setupDataSource() throws Exception {
+    static void setupDataSource() {
         HikariConfig config = new HikariConfig();
         config.setJdbcUrl(postgres.getJdbcUrl());
         config.setUsername(postgres.getUsername());

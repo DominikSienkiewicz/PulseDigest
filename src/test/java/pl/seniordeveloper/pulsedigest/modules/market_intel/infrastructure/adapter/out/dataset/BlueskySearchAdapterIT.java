@@ -75,7 +75,7 @@ class BlueskySearchAdapterIT {
     }
 
     @Test
-    void returnsEmptyWhenNoHandlesConfigured() throws Exception {
+    void returnsEmptyWhenNoHandlesConfigured() {
         SocialProperties props = new SocialProperties(5, 5,
                 new SocialProperties.Bluesky("http://localhost:" + wireMock.port(), 0, List.of()),
                 new SocialProperties.Mastodon("http://localhost:" + wireMock.port(), 0, List.of()));

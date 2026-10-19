@@ -76,7 +76,8 @@ class OpenJdkJepAdapterTest {
     void filtersOutCommitsWithoutJepReference() {
         List<JepUpdate> updates = adapter.parseJepUpdates(COMMITS_JSON);
 
-        assertThat(updates).extracting(JepUpdate::jepId)
+        assertThat(updates).isNotEmpty()
+                .extracting(JepUpdate::jepId)
                 .doesNotContain("No JEP reference");
     }
 
