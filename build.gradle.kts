@@ -50,10 +50,18 @@ tasks.withType<Test> {
         "receiver/index.ts",
         "receiver/index_test.ts",
     ).withPropertyName("goldenFiles").withPathSensitivity(PathSensitivity.RELATIVE)
-    inputs.dir(layout.buildDirectory.dir("mobile"))
+    // A file collection rather than `inputs.dir()`, and the difference is not cosmetic: `inputs.dir()`
+    // validates that the path exists and fails the task outright when it does not, and `.optional()`
+    // does not rescue it — optional permits an ABSENT value, while `layout.buildDirectory.dir(...)`
+    // always has one and only its target is missing. So `./gradlew test` without a rendered snapshot
+    // died in task validation instead of skipping the comparison, which took the `sonarcloud` job red
+    // from c2b40ad onwards (it never runs the renderer) and did the same on any machine without
+    // Docker — the one case MobileRenderingRegressionTest documents itself as tolerating. A file
+    // collection fingerprints a missing directory as empty, so the up-to-date behaviour the paragraph
+    // above exists for is unchanged: re-rendering the snapshot still re-runs the tests.
+    inputs.files(layout.buildDirectory.dir("mobile"))
         .withPropertyName("mobileSnapshot")
         .withPathSensitivity(PathSensitivity.RELATIVE)
-        .optional()
     // Opt-in re-recording of the email golden file (docs/sample-digest.html). Absent this flag the
     // property is unset and ReportEmailGoldenFileTest can only assert, never write — so no ordinary
     // `test` run, locally or in CI, can overwrite the expected document. Passing the flag rewrites the
