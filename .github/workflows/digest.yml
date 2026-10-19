@@ -92,8 +92,10 @@ jobs:
       # Installed with `go install` rather than from an action, because actionlint publishes no
       # GitHub Action of its own. The alternatives were a `docker://rhysd/actionlint` digest and a
       # curl-to-bash of its install script; both need a hand-bumped pin that Dependabot does not
-      # track, and neither is verified beyond the name it is fetched by. `go install` at a tag is
-      # checked against the Go checksum database, so this pin is cryptographic rather than nominal.
+      # track, and neither is verified beyond the name it is fetched by. The pin is the commit SHA
+      # rather than the `v1.7.12` tag that points at it: a tag can be re-pointed at its source, a
+      # commit cannot, and `go install` checks either against the Go checksum database. That makes
+      # the pin cryptographic rather than nominal, which is also the form Sonar S8545 asks for.
       # Go is preinstalled on the runner image, exactly as shellcheck is for the step above — if
       # that stops being true the step fails loudly on "command not found" instead of passing mute.
       #
@@ -102,7 +104,7 @@ jobs:
       # Locally: `brew install actionlint && actionlint`.
       - name: Verify workflows
         run: |
-          go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+          go install github.com/rhysd/actionlint/cmd/actionlint@914e7df21a07ef503a81201c76d2b11c789d3fca
           "$(go env GOPATH)/bin/actionlint"
 
       # The Gradle dependency cache belongs to gradle/actions/setup-gradle, not to setup-java's
