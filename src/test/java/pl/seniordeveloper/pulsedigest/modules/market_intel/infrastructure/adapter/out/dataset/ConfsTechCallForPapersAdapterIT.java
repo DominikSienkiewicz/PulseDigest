@@ -38,7 +38,7 @@ class ConfsTechCallForPapersAdapterIT {
     }
 
     @Test
-    void readsOpenCallsAndSkipsTheOnesAlreadyClosed() throws Exception {
+    void readsOpenCallsAndSkipsTheOnesAlreadyClosed() {
         stub("""
                 [
                   {"name":"Devnexus","city":"Atlanta","country":"U.S.A.","online":false,
@@ -55,7 +55,7 @@ class ConfsTechCallForPapersAdapterIT {
     }
 
     @Test
-    void skipsCallsBeyondTheHorizonSoTheSectionStaysActionable() throws Exception {
+    void skipsCallsBeyondTheHorizonSoTheSectionStaysActionable() {
         stub("""
                 [{"name":"Far Future","cfpUrl":"https://example.com/far","cfpEndDate":"2027-06-01"}]
                 """);
@@ -75,14 +75,14 @@ class ConfsTechCallForPapersAdapterIT {
     }
 
     @Test
-    void aMissingTopicFileIsNormalRatherThanAFailure() throws Exception {
+    void aMissingTopicFileIsNormalRatherThanAFailure() {
         wireMock.stubFor(get(urlPathMatching("/.*")).willReturn(aResponse().withStatus(404)));
 
         assertThat(adapter(120).openCalls(TODAY)).isEmpty();
     }
 
     @Test
-    void theSameConferenceInTwoTopicFilesIsListedOnce() throws Exception {
+    void theSameConferenceInTwoTopicFilesIsListedOnce() {
         stub("""
                 [{"name":"Devnexus","cfpUrl":"https://sessionize.com/devnexus","cfpEndDate":"2026-11-20"}]
                 """);

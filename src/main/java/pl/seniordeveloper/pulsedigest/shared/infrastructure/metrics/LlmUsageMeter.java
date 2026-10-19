@@ -39,9 +39,9 @@ public class LlmUsageMeter {
         long prompt = promptTokens.longValue();
         long completion = completionTokens.longValue();
         Metrics.counter("llm.tokens", TAG_CALL, callSite, TAG_MODEL, model, "kind", "prompt")
-                .increment((double) prompt);
+                .increment(prompt);
         Metrics.counter("llm.tokens", TAG_CALL, callSite, TAG_MODEL, model, "kind", "completion")
-                .increment((double) completion);
+                .increment(completion);
         Metrics.counter("llm.calls", TAG_CALL, callSite, TAG_MODEL, model).increment();
 
         LlmProperties.Price price = llm.priceOf(model);
