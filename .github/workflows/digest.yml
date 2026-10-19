@@ -277,7 +277,7 @@ jobs:
           path: build/archive
 
       - id: deploy
-        uses: actions/deploy-pages@v4.0.5
+        uses: actions/deploy-pages@v5.0.1
 
   digest:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
