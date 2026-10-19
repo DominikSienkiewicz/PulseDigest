@@ -71,14 +71,67 @@ jobs:
       # jest generowany przez Gradle i nie jest nasz do poprawiania. Binarka jest preinstalowana
       # na obrazie runnera (apt `shellcheck`); gdyby wypadła przy przejściu `ubuntu-latest` na
       # 26.04 w listopadzie 2026, krok padnie głośno na "command not found" — nie przemilczy.
+      #
+      # The file list arrives NUL-delimited rather than through `$(git ls-files '*.sh')`, which is
+      # what the `Verify workflows` step below reports as SC2046. The word splitting there was
+      # deliberate — it is how the list becomes separate arguments — but deliberate and correct are
+      # not the same thing: the unquoted form also breaks on any tracked path containing a space.
+      # `-z | xargs -0` gets the arguments apart without either hazard. Preferred over an inline
+      # `shellcheck disable=SC2046`, because a suppression records the hazard while leaving it in
+      # place, and this removes it instead.
       - name: Verify shell scripts
-        run: shellcheck $(git ls-files '*.sh')
+        run: git ls-files -z '*.sh' | xargs -0 -r shellcheck
 
+      # Workflow files were the last substantial artefact here with no gate, and they carry most of
+      # this repository's operational logic: six jobs, the Mon/Thu schedule, the Flyway upgrade-path
+      # job, the Pages publish. actionlint is the only tool in the build that reads them as more than
+      # YAML — it type-checks ${{ }} expressions against the real context shapes, rejects unknown
+      # action inputs and invalid cron, and runs shellcheck over every `run:` block. That last part
+      # is not hypothetical: it is what found the SC2046 corrected in the step above.
+      #
+      # Installed with `go install` rather than from an action, because actionlint publishes no
+      # GitHub Action of its own. The alternatives were a `docker://rhysd/actionlint` digest and a
+      # curl-to-bash of its install script; both need a hand-bumped pin that Dependabot does not
+      # track, and neither is verified beyond the name it is fetched by. `go install` at a tag is
+      # checked against the Go checksum database, so this pin is cryptographic rather than nominal.
+      # Go is preinstalled on the runner image, exactly as shellcheck is for the step above — if
+      # that stops being true the step fails loudly on "command not found" instead of passing mute.
+      #
+      # Invoked bare, so actionlint lints every file under .github/workflows: a workflow added later
+      # is covered the day it appears rather than when someone remembers to extend a list.
+      # Locally: `brew install actionlint && actionlint`.
+      - name: Verify workflows
+        run: |
+          go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+          "$(go env GOPATH)/bin/actionlint"
+
+      # The Gradle dependency cache belongs to gradle/actions/setup-gradle, not to setup-java's
+      # `cache: gradle`. The difference is not cosmetic: setup-java keys ONE entry on a hash of the
+      # build files and then never updates it — every job logs "Cache hit occurred on the primary
+      # key ..., not saving cache" — so whichever of these five parallel jobs saves it first fixes its
+      # contents for every job that follows, until a build file changes.
+      #
+      # What that cost, 2026-10-19: the entry (53 MB, written 22:17) left enough of the test classpath
+      # unresolved that `sonarcloud` went red at 22:38:47 on eighteen modules, from
+      # `com.tngtech.archunit:archunit-junit5:1.5.0` to `org.assertj:assertj-core:3.27.7` — every one
+      # of which Maven Central serves, and every one of which `check` resolved from the SAME restored
+      # cache twelve seconds later. The identical command had passed ten minutes earlier on that key,
+      # so the pins were never the problem; the re-resolution on every job was.
+      #
+      # It landed on `sonarcloud` rather than `check` because the sonarqube plugin resolves
+      # testCompileClasspath during TASK-GRAPH CONSTRUCTION, eight seconds into the build, and Gradle
+      # reuses a configuration's failed resolution for the rest of that build — so one early miss also
+      # condemned :compileTestJava, which is why that run reported the same failure twice.
+      #
+      # setup-gradle writes a per-job entry and refreshes it on every push to the default branch
+      # (`cache-read-only` defaults to false there and true on branches), so PR jobs read a warm cache
+      # without five of them racing to write one.
       - uses: actions/setup-java@v5.7.0
         with:
           distribution: oracle
           java-version: '26'
-          cache: gradle
+
+      - uses: gradle/actions/setup-gradle@b9bee63ef481cc545e4517ec730544a4d8b1dfa0 # v6.4.0
 
       # N17 — render the recorded digest at phone width before the gate, so
       # MobileRenderingRegressionTest has something to compare against. The renderer is a pinned
@@ -148,7 +201,8 @@ jobs:
         with:
           distribution: oracle
           java-version: '26'
-          cache: gradle
+
+      - uses: gradle/actions/setup-gradle@b9bee63ef481cc545e4517ec730544a4d8b1dfa0 # v6.4.0
 
       # The baseline is main's state, not this branch's — main is what wrote the history table the
       # deployed database carries. Both the build file AND the migration directory are swapped: with
@@ -204,7 +258,8 @@ jobs:
         with:
           distribution: oracle
           java-version: '26'
-          cache: gradle
+
+      - uses: gradle/actions/setup-gradle@b9bee63ef481cc545e4517ec730544a4d8b1dfa0 # v6.4.0
 
       # Runs tests, produces the JaCoCo XML report, then the Gradle Sonar plugin uploads
       # sources + bytecode + coverage to SonarCloud. Skipped until SONAR_TOKEN is set
@@ -242,7 +297,8 @@ jobs:
         with:
           distribution: oracle
           java-version: '26'
-          cache: gradle
+
+      - uses: gradle/actions/setup-gradle@b9bee63ef481cc545e4517ec730544a4d8b1dfa0 # v6.4.0
 
       - name: Build the archive from stored editions
         run: |
@@ -304,7 +360,8 @@ jobs:
         with:
           distribution: oracle
           java-version: '26'
-          cache: gradle
+
+      - uses: gradle/actions/setup-gradle@b9bee63ef481cc545e4517ec730544a4d8b1dfa0 # v6.4.0
 
       - name: Verify required secrets are present
         env:
