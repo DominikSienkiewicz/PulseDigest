@@ -56,22 +56,13 @@ jobs:
         run: ./scripts/check-merge-subjects.sh
 
       # README jest routerem do /docs/, więc link, który nie prowadzi do pliku, jest
-      # defektem publicznym — a nie widać go w żadnym teście Javy. Sprawdzane są wyłącznie
-      # linki względne (zewnętrzne URL-e wymagałyby sieci i psułyby się przez cudze awarie).
+      # defektem publicznym — a nie widać go w żadnym teście Javy. Do 2026-10-19 ta logika
+      # siedziała inline tutaj i rozstrzygała cele po dysku, przez co miała dwie dziury naraz:
+      # autor nie mógł jej uruchomić przed pushem, a link do ignorowanego `docs/concepts/`
+      # przechodził u niego i wywalał się dopiero w checkoucie. Skrypt pyta o pliki ŚLEDZONE
+      # przez gita i chodzi lokalnie; resztę zakresu tłumaczy jego nagłówek.
       - name: Verify Markdown links
-        run: |
-          status=0
-          while IFS= read -r file; do
-            dir=$(dirname "$file")
-            grep -oE '\]\([^)#][^)]*\)' "$file" | sed 's/](\(.*\))/\1/' | sed 's/#.*//' \
-            | while IFS= read -r target; do
-                case "$target" in http*|mailto:*|'') continue ;; esac
-                [ -e "$dir/$target" ] || echo "DEAD $file -> $target"
-              done
-          done < <(git ls-files '*.md') > dead-links.txt
-          if [ -s dead-links.txt ]; then cat dead-links.txt; status=1; fi
-          rm -f dead-links.txt
-          exit $status
+        run: ./scripts/check-markdown-links.sh
 
       - uses: actions/setup-java@v5.7.0
         with:
