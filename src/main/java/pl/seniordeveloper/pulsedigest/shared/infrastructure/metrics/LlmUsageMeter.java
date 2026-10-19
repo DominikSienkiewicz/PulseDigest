@@ -38,10 +38,14 @@ public class LlmUsageMeter {
         }
         long prompt = promptTokens.longValue();
         long completion = completionTokens.longValue();
+        // The casts are redundant for the compiler but required by Sonar S9395, which wants every
+        // long-to-double conversion spelled out; the S1905 "redundant cast" findings they raise in
+        // return are accepted in SonarCloud rather than fixed. Removing them only trades a MINOR
+        // finding for a MAJOR one.
         Metrics.counter("llm.tokens", TAG_CALL, callSite, TAG_MODEL, model, "kind", "prompt")
-                .increment(prompt);
+                .increment((double) prompt);
         Metrics.counter("llm.tokens", TAG_CALL, callSite, TAG_MODEL, model, "kind", "completion")
-                .increment(completion);
+                .increment((double) completion);
         Metrics.counter("llm.calls", TAG_CALL, callSite, TAG_MODEL, model).increment();
 
         LlmProperties.Price price = llm.priceOf(model);
