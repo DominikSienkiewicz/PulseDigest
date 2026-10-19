@@ -368,7 +368,7 @@ jobs:
           output-file: build/libs/sbom.cyclonedx.json
 
       - name: Attest build provenance
-        uses: actions/attest-build-provenance@v3.0.0
+        uses: actions/attest-build-provenance@v4.2.2
         with:
           subject-path: build/libs/app.jar
 
