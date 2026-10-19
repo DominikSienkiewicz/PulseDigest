@@ -7,13 +7,17 @@ import io.micrometer.core.instrument.Metrics;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.LlmProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.OpenAiProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.metrics.CostCeiling;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.metrics.LlmUsageMeter;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.http.ExternalRestClients;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.PromptItemMeta;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.QuotaSignals;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.EditionProvenance;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportData;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ResearchResult;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.LlmSynthesisPort;
@@ -26,27 +30,26 @@ import java.util.function.Supplier;
 /**
  * Kroki 3–5 pipeline'u raportowego: Synteza → Personalizacja → Formatowanie.
  *
- * <p>Jeden przejściowy błąd OpenAI po kilkunastu (często płatnych) fetchach oznaczałby stracony
- * digest, więc synteza broni się trójstopniowo: retry z backoffem, ponowienie z mniejszą liczbą
- * itemów przy ucięciu odpowiedzi na token capie, a na końcu awaryjny model zapasowy. Wyczerpana
- * kwota jest jedynym błędem propagowanym natychmiast — powtórka spaliłaby czas bez szansy na sukces.
+ * <p>One transient OpenAI error, after a dozen fetches that were often paid for, would cost the
+ * whole edition — so synthesis defends itself three ways: retry with backoff, a retry with fewer
+ * items when the response was cut off at the token cap, and finally the fallback model. An
+ * exhausted quota is the one error propagated immediately, because retrying it burns the run's time
+ * with no prospect of succeeding.
  */
 @Slf4j
 @RequiredArgsConstructor
 @Service
 public class GptSynthesisAdapter implements LlmSynthesisPort {
     private static final String OPENAI_BASE_URL = "https://api.openai.com/v1";
-    private static final String MODEL = "gpt-4o";
-    private static final String FALLBACK_MODEL = "gpt-4o-mini";
     private static final String EMERGENCY_MARKER = "⚠️ Digest awaryjny (model zapasowy) — ";
-    private static final double TEMPERATURE = 0.25;
-    private static final int MAX_TOKENS = 10000;
     private static final int MAX_ATTEMPTS = 2;
     private static final Duration RETRY_BACKOFF = Duration.ofSeconds(2);
     private static final Duration LLM_READ_TIMEOUT = Duration.ofSeconds(180);
 
-    @Value("${spring.ai.openai.api-key:}")
-    private String openAiApiKey;
+    private final OpenAiProperties openAi;
+    private final LlmProperties llm;
+    private final LlmUsageMeter usageMeter;
+    private final CostCeiling costCeiling;
     private final ObjectMapper objectMapper;
     private final ReportPromptBuilder promptBuilder;
     private RestClient openAiClient;
@@ -55,7 +58,7 @@ public class GptSynthesisAdapter implements LlmSynthesisPort {
     void init() {
         this.openAiClient = ExternalRestClients.builder(LLM_READ_TIMEOUT)
                 .baseUrl(OPENAI_BASE_URL)
-                .defaultHeader("Authorization", "Bearer " + openAiApiKey)
+                .defaultHeader("Authorization", "Bearer " + openAi.apiKey())
                 .defaultHeader("Content-Type", MediaType.APPLICATION_JSON_VALUE)
                 .build();
     }
@@ -66,16 +69,54 @@ public class GptSynthesisAdapter implements LlmSynthesisPort {
         log.info("Dane wejściowe: {} tweetów, {} HN, {} GH repos",
                 research.tweets().size(), research.hackerNewsPosts().size(), research.githubRepos().size());
 
+        // N40. Nothing to degrade to: an edition without synthesis is not an edition. Failing here
+        // reaches the author through the same alert any other broken run does, having spent at most
+        // one call past the ceiling.
+        costCeiling.requireHeadroom("synthesis");
+
         String systemPrompt = promptBuilder.buildSystemPrompt();
         log.debug("System prompt length: {} znaków", systemPrompt.length());
 
+        // N26. Hashed here, where the exact string that was sent is in hand — hashing the file
+        // instead would describe what is on disk now rather than what produced this edition.
+        String promptHash = sha256(systemPrompt);
+        LlmProperties.Call call = llm.synthesis();
         try {
-            return synthesizeWith(MODEL, systemPrompt, research);
+            return stamped(synthesizeWith(call.model(), systemPrompt, research),
+                    promptHash, call.model(), false);
         } catch (LlmQuotaException e) {
             throw e;
         } catch (LlmSynthesisException e) {
-            log.warn("Model {} zawiódł ({}) — awaryjna synteza na {}", MODEL, e.getMessage(), FALLBACK_MODEL);
-            return markAsEmergency(synthesizeWith(FALLBACK_MODEL, systemPrompt, research));
+            if (!call.hasFallback()) {
+                throw e;
+            }
+            log.warn("Model {} zawiódł ({}) — awaryjna synteza na {}",
+                    call.model(), e.getMessage(), call.fallbackModel());
+            return stamped(markAsEmergency(synthesizeWith(call.fallbackModel(), systemPrompt, research)),
+                    promptHash, call.fallbackModel(), true);
+        }
+    }
+
+    /** Records which prompt and which model produced this edition, before anything else sees it. */
+    private ReportData stamped(ReportData report, String promptHash, String model, boolean fallbackUsed) {
+        EditionProvenance provenance = new EditionProvenance(promptHash, model, fallbackUsed);
+        log.info("edition-provenance prompt_version={} model={} fallback_used={}",
+                provenance.promptVersion(), model, fallbackUsed);
+        return report.withProvenance(provenance);
+    }
+
+    private static String sha256(String value) {
+        try {
+            byte[] digest = java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(value.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            StringBuilder hex = new StringBuilder(digest.length * 2);
+            for (byte b : digest) {
+                hex.append("%02x".formatted(b));
+            }
+            return hex.toString();
+        } catch (java.security.NoSuchAlgorithmException e) {
+            // SHA-256 is required of every JVM; if it is missing, provenance is the least of it.
+            throw new IllegalStateException("SHA-256 unavailable", e);
         }
     }
 
@@ -168,8 +209,7 @@ public class GptSynthesisAdapter implements LlmSynthesisPort {
      */
     private static ReportData markAsEmergency(ReportData report) {
         String editorial = report.editorial() == null ? "" : report.editorial();
-        return new ReportData(report.emailPreview(), EMERGENCY_MARKER + editorial,
-                report.topInsights(), report.items(), report.signals());
+        return report.withEditorial(EMERGENCY_MARKER + editorial);
     }
 
     private static void backoff(int attempt) {
@@ -196,9 +236,13 @@ public class GptSynthesisAdapter implements LlmSynthesisPort {
     private String buildOpenAiRequest(String model, String systemPrompt, String userPrompt) throws Exception {
         Map<String, Object> request = Map.of(
                 "model", model,
-                "temperature", TEMPERATURE,
-                "max_tokens", MAX_TOKENS,
-                "response_format", Map.of("type", "json_object"),
+                "temperature", llm.synthesis().temperature(),
+                "max_tokens", llm.synthesis().maxTokens(),
+                // N22. A named schema in strict mode rather than "give me some JSON": the provider
+                // will not return a document of the wrong shape, which removes most of what the
+                // retry ladder and the fallback model below exist to survive.
+                "response_format", LlmResponseSchemas.responseFormat(
+                        "pulsedigest_edition", LlmResponseSchemas.synthesisSchema()),
                 "messages", List.of(
                         Map.of("role", "system", "content", systemPrompt),
                         Map.of("role", "user", "content", userPrompt)
@@ -227,7 +271,9 @@ public class GptSynthesisAdapter implements LlmSynthesisPort {
             return;
         }
         log.info("OpenAI usage ({}): prompt={} completion={} total={} tokens (max_tokens cap={})",
-                model, usage.promptTokens(), usage.completionTokens(), usage.totalTokens(), MAX_TOKENS);
+                model, usage.promptTokens(), usage.completionTokens(), usage.totalTokens(),
+                llm.synthesis().maxTokens());
+        usageMeter.record("synthesis", model, usage.promptTokens(), usage.completionTokens());
     }
 
     // -------------------------------------------------------------------------

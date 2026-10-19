@@ -1,0 +1,31 @@
+# N37 — the profile that lets `--dry-run` boot with no credentials at all.
+#
+# Four properties are @NotBlank so that a missing key fails at startup rather than at the first call
+# — which is right for a scheduled run and exactly wrong for a visitor who just cloned the repository
+# and wants to see what the thing produces. These are obviously-fake values: the dry run reaches no
+# network, so nothing is ever sent to them, and a placeholder that looked real would be worse.
+openai:
+  api-key: dry-run-no-calls-are-made
+twitter:
+  bearer-token: dry-run-no-calls-are-made
+report:
+  email:
+    resend-api-key: dry-run-no-mail-is-sent
+    from: dry-run@example.invalid
+    to: dry-run@example.invalid
+
+# The dry run never touches the database, but the adapters that would still need a DataSource bean
+# to exist. Hikari connects lazily, so a URL pointing at nothing is enough to start the context and
+# is never dialled — and Flyway is off because there is no schema to migrate.
+spring:
+  datasource:
+    url: jdbc:postgresql://dry-run.invalid:5432/pulsedigest
+    username: dry-run
+    password: dry-run
+    hikari:
+      initialization-fail-timeout: -1
+  flyway:
+    enabled: false
+  sql:
+    init:
+      mode: never

@@ -15,13 +15,45 @@ on:
   workflow_dispatch:
 
 jobs:
+  # N45 — the control exists rather than being inferred from good luck. The repository has eight
+  # credentials in play and a public history; the 2026-10-15 audit found no committed secret, which
+  # is evidence about the past and not a guarantee about the next commit. Allowlists live in
+  # .gitleaks.toml and are narrow by design: a scanner that cries wolf on test fixtures gets
+  # switched off, and a switched-off scanner is worse than none because the badge stays.
+  secrets:
+    name: Secret scan
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          # Full history: a secret removed from the tip is still a leaked secret.
+          fetch-depth: 0
+
+      - name: gitleaks
+        uses: gitleaks/gitleaks-action@v2.3.9
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: .gitleaks.toml
+
   check:
     if: github.event_name == 'pull_request' || github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
     steps:
+      # fetch-depth: 0 — bez pełnej historii krok "Verify merge subjects" nie ma czego sprawdzać
+      # (shallow clone nie zawiera commita bazowego, a skrypt wtedy świadomie przepuszcza).
       - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+
+      # C5 — konwencja tematów merge'y jako gate, nie jako notatka. Zapisana reguła działa tylko
+      # tak dobrze, jak pamięć autora w dniu merge'a; historia ma cztery pary zdublowanych tematów,
+      # bo lokalny merge domyślnie bierze temat gałęzi i nic nie protestowało.
+      - name: Verify merge subjects
+        run: ./scripts/check-merge-subjects.sh
 
       # README jest routerem do /docs/, więc link, który nie prowadzi do pliku, jest
       # defektem publicznym — a nie widać go w żadnym teście Javy. Sprawdzane są wyłącznie
@@ -47,8 +79,27 @@ jobs:
           java-version: '26'
           cache: gradle
 
+      # N17 — render the recorded digest at phone width before the gate, so
+      # MobileRenderingRegressionTest has something to compare against. The renderer is a pinned
+      # container rather than whatever Chrome this runner ships, because a screenshot diff is only a
+      # test when both sides come from the same renderer. Without this step the test aborts rather
+      # than fails, which is right for a developer without Docker and wrong for CI — so CI runs it.
+      - name: Render mobile snapshot
+        run: ./scripts/mobile-snapshot.sh
+
       - name: Check
         run: ./gradlew check --no-daemon
+
+      # The rendered snapshot, on every run. A pixel-diff failure is unreadable from a log line; the
+      # only useful response is to look at the image, so CI has to hand it over.
+      - name: Upload mobile snapshot
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: mobile-snapshot-${{ github.run_id }}
+          path: build/mobile/sample-digest-mobile.png
+          retention-days: 14
+          if-no-files-found: ignore
 
   # Why this job exists, given that `check` already runs Flyway.
   #
@@ -161,10 +212,84 @@ jobs:
         if: ${{ env.SONAR_TOKEN != '' }}
         run: ./gradlew test jacocoTestReport sonar --no-daemon
 
+  # N31–N33 — the public archive. A separate job, after the digest, deliberately:
+  #
+  # Publishing is the one irreversible thing this project does, so it is its own step with its own
+  # permissions rather than a side effect of sending an edition. It rebuilds the whole site from the
+  # database every time — the site is then a pure function of what is stored, and a bad deployment
+  # is fixed by running the job again rather than by repairing a directory nobody can see.
+  #
+  # `needs: digest` with `if: success()` means a failed or skipped digest never republishes: an
+  # archive is a record, and a record that changes when the thing it records failed is not one.
+  archive:
+    needs: digest
+    if: success() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - uses: actions/setup-java@v5.7.0
+        with:
+          distribution: oracle
+          java-version: '26'
+          cache: gradle
+
+      - name: Build the archive from stored editions
+        run: |
+          ./gradlew bootJar --no-daemon
+          java -jar build/libs/app.jar --publish-archive
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          SUPABASE_DB_USERNAME: ${{ secrets.SUPABASE_DB_USERNAME }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          DIGEST_FROM_EMAIL: ${{ secrets.DIGEST_FROM_EMAIL }}
+          DIGEST_TO_EMAIL: ${{ secrets.DIGEST_TO_EMAIL }}
+          # Deliberately absent: FEEDBACK_SIGNING_SECRET and FEEDBACK_RECEIVER_URL. The published
+          # rendering strips every feedback link regardless, and a job that cannot sign a link
+          # cannot leak a signed one even if that code changed.
+
+      # The belt to the renderer's braces. PublicEditionRendererTest and ArchiveSiteFileAdapterTest
+      # already assert this, but those run against a fixture; this runs against what is about to be
+      # made public, and fails the deployment rather than the build.
+      - name: Refuse to publish anything carrying a feedback link
+        run: |
+          if grep -rlE 'sig=|vote=|edition=' build/archive/ ; then
+            echo "::error::A generated archive file carries a feedback link. Not publishing."
+            exit 1
+          fi
+          echo "Archive is clean: no feedback links in $(find build/archive -type f | wc -l) file(s)."
+
+      - uses: actions/configure-pages@v5.0.0
+
+      - uses: actions/upload-pages-artifact@v4.0.0
+        with:
+          path: build/archive
+
+      - id: deploy
+        uses: actions/deploy-pages@v4.0.5
+
   digest:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # N44. `id-token` and `attestations` are what signing build provenance needs; `contents: read`
+    # is the default this would otherwise widen. Scoped to this job because it is the only one that
+    # produces the artifact that actually runs.
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     # Never run two digests at once (a manual dispatch overlapping the scheduled run would
     # otherwise double-send the email and double-spend OpenAI credits).
     concurrency:
@@ -182,7 +307,6 @@ jobs:
 
       - name: Verify required secrets are present
         env:
-          TWITTER_BEARER_TOKEN: ${{ secrets.TWITTER_BEARER_TOKEN }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           DIGEST_FROM_EMAIL: ${{ secrets.DIGEST_FROM_EMAIL }}
@@ -191,8 +315,12 @@ jobs:
           SUPABASE_DB_USERNAME: ${{ secrets.SUPABASE_DB_USERNAME }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
+          # K7 (2026-10-19): TWITTER_BEARER_TOKEN is no longer required. X stays in the code but is
+          # disabled in report.sources.disabled, and a scheduled run must not fail for want of a paid
+          # credential it never uses. Re-enabling the source puts it back on this list — and the
+          # application refuses to start without it in that case, so the gap is not silent.
           missing=()
-          for var in TWITTER_BEARER_TOKEN OPENAI_API_KEY RESEND_API_KEY \
+          for var in OPENAI_API_KEY RESEND_API_KEY \
                      DIGEST_FROM_EMAIL DIGEST_TO_EMAIL \
                      SUPABASE_DB_URL SUPABASE_DB_USERNAME SUPABASE_DB_PASSWORD; do
             if [ -z "${!var}" ]; then
@@ -221,9 +349,44 @@ jobs:
           FLYWAY_USER: ${{ secrets.SUPABASE_DB_USERNAME }}
           FLYWAY_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
 
+      # N44 — supply chain, for a repository that holds eight credentials and runs unattended twice
+      # a week. The SBOM is taken from the built JAR rather than from the dependency graph, so it
+      # describes what shipped rather than what the build file asked for; the attestation is signed
+      # against the same file, so "which dependencies were in the run that sent Thursday's edition"
+      # has an answer that does not depend on anyone remembering.
+      #
+      # Both degrade honestly under the one remaining SNAPSHOT (Spring Boot 4.1.0-SNAPSHOT, see C2):
+      # the SBOM records the version string, which resolves to different bytes over time. That is a
+      # limitation of depending on a pre-release, not of the SBOM, and it disappears with the
+      # SNAPSHOT.
+      - name: Generate SBOM
+        uses: anchore/sbom-action@v0.20.9
+        with:
+          file: build/libs/app.jar
+          format: cyclonedx-json
+          artifact-name: sbom-${{ github.run_id }}.cyclonedx.json
+          output-file: build/libs/sbom.cyclonedx.json
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v3.0.0
+        with:
+          subject-path: build/libs/app.jar
+
+      - name: Upload the attested JAR
+        uses: actions/upload-artifact@v7
+        with:
+          name: app-jar-${{ github.run_id }}
+          path: |
+            build/libs/app.jar
+            build/libs/sbom.cyclonedx.json
+          retention-days: 30
+
       - name: Run digest
-        run: java --enable-preview -jar build/libs/app.jar 2>&1 | tee digest.log
+        run: java -jar build/libs/app.jar 2>&1 | tee digest.log
         env:
+          # N41 — the `ci` profile turns the console log into ECS JSON, so a failed run is
+          # greppable by source and stage instead of by sentence. Local runs keep prose.
+          SPRING_PROFILES_ACTIVE: ci
           TWITTER_BEARER_TOKEN: ${{ secrets.TWITTER_BEARER_TOKEN }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
@@ -238,6 +401,18 @@ jobs:
           # (non-sensitive public URL), not a secret. Blank/unset = no links rendered.
           FEEDBACK_RECEIVER_URL: ${{ vars.FEEDBACK_RECEIVER_URL }}
           FEEDBACK_SIGNING_SECRET: ${{ secrets.FEEDBACK_SIGNING_SECRET }}
+
+      # N34: the rendered edition, on every run and not only on failure. The app writes it before it
+      # attempts delivery, so a run whose email bounced still leaves the digest downloadable here —
+      # and "what did Thursday's edition look like?" is answerable from the Actions tab.
+      - name: Upload rendered edition
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: digest-edition-${{ github.run_id }}
+          path: build/digest.html
+          retention-days: 30
+          if-no-files-found: warn
 
       - name: Upload digest log on failure
         if: failure()

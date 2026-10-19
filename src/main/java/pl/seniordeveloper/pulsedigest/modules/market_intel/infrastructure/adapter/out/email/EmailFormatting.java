@@ -13,12 +13,15 @@ import java.util.stream.Collectors;
  * <p>Kept in its own type so that {@code ReportEmailBuilder} stays focused on document
  * structure and so the helpers can be unit-tested in isolation.
  */
-final class EmailFormatting {
+// Public since N31: the archive renders the same data to HTML and needs the same escaping.
+// Widened to these two helpers only — everything else here stays an email-package detail, and a
+// second implementation of escaping is precisely the duplication that goes wrong quietly.
+public final class EmailFormatting {
 
     private EmailFormatting() {
     }
 
-    static String escapeHtml(String input) {
+    public static String escapeHtml(String input) {
         if (input == null) {
             return "";
         }
@@ -36,7 +39,7 @@ final class EmailFormatting {
      * URL cannot become a clickable script/redirect in the delivered email. The allowed URL is still
      * HTML-escaped to neutralise attribute breakout.
      */
-    static String safeHref(String url) {
+    public static String safeHref(String url) {
         if (url == null || url.isBlank()) {
             return "#";
         }

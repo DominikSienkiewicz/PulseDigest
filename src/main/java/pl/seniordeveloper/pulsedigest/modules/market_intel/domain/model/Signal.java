@@ -34,23 +34,6 @@ public record Signal(
         sourceDomains = List.copyOf(sourceDomains);
     }
 
-    /** A freshly scored signal, before report history has been consulted. */
-    public Signal(DigestItem item, SignalRank rank, int signalScore, List<SourceDomain> sourceDomains) {
-        this(item, rank, signalScore, sourceDomains, null, null, null);
-    }
-
-    /** A signal carrying recurrence but no velocity (used by trend memory before the radar runs). */
-    public Signal(DigestItem item, SignalRank rank, int signalScore, List<SourceDomain> sourceDomains,
-                  TrendRecurrence recurrence) {
-        this(item, rank, signalScore, sourceDomains, recurrence, null, null);
-    }
-
-    /** A signal carrying recurrence and velocity but no score breakdown (legacy editions). */
-    public Signal(DigestItem item, SignalRank rank, int signalScore, List<SourceDomain> sourceDomains,
-                  TrendRecurrence recurrence, TrendVelocity velocity) {
-        this(item, rank, signalScore, sourceDomains, recurrence, velocity, null);
-    }
-
     /** Copy of this signal carrying its cross-edition recurrence. */
     public Signal withRecurrence(TrendRecurrence newRecurrence) {
         return new Signal(item, rank, signalScore, sourceDomains, newRecurrence, velocity, breakdown);

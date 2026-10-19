@@ -1,5 +1,13 @@
 package pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapter.out.email;
 
+import pl.seniordeveloper.pulsedigest.modules.market_intel.application.policy.SectionsPolicy;
+
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RawCounts;
+
+import pl.seniordeveloper.pulsedigest.testing.ResearchResults;
+
+import pl.seniordeveloper.pulsedigest.testing.TestModels;
+
 import org.junit.jupiter.api.Test;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.DigestItem;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.HackerNewsPost;
@@ -16,6 +24,7 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceFe
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TrendRecurrence;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TrendVelocity;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.FeedbackProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ThinWeekProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.WatchlistProperties;
 
 import java.time.LocalDate;
@@ -27,7 +36,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ReportEmailBuilderTest {
 
     private final ReportEmailBuilder builder =
-            new ReportEmailBuilder(new FeedbackProperties(false, 30, "", ""), new WatchlistProperties(false, List.of()));
+            new ReportEmailBuilder(new FeedbackProperties(false, 30, "", ""),
+                    new WatchlistProperties(false, List.of()),
+                    new ThinWeekProperties(false, 3),
+                new SectionsPolicy(java.util.Set.of()));
 
     @Test
     void buildSubjectUsesDigestPrefix() {
@@ -47,7 +59,7 @@ class ReportEmailBuilderTest {
 
     @Test
     void buildSubjectUsesMustKnowMarkerWhenNoCriticalTrend() {
-        ReportData report = new ReportData("Spring Boot 4.2 GA", "Lead", List.of(),
+        ReportData report = TestModels.reportData("Spring Boot 4.2 GA", "Lead", List.of(),
                 List.of(itemWithScore(8)), List.of());
 
         assertThat(builder.buildSubject(report)).startsWith("⚡ ").contains("Spring Boot 4.2 GA");
@@ -55,7 +67,7 @@ class ReportEmailBuilderTest {
 
     @Test
     void buildSubjectUsesNeutralMarkerWhenNothingClearsTheMustKnowBar() {
-        ReportData report = new ReportData("Quiet day", "Lead", List.of(),
+        ReportData report = TestModels.reportData("Quiet day", "Lead", List.of(),
                 List.of(itemWithScore(6)), List.of());
 
         assertThat(builder.buildSubject(report)).startsWith("📡 ").contains("Quiet day");
@@ -63,7 +75,7 @@ class ReportEmailBuilderTest {
 
     @Test
     void buildSubjectFallsBackToDatedFormatWhenPreviewIsBlank() {
-        ReportData report = new ReportData("   ", "Lead", List.of(), List.of(itemWithScore(9)), List.of());
+        ReportData report = TestModels.reportData("   ", "Lead", List.of(), List.of(itemWithScore(9)), List.of());
 
         assertThat(builder.buildSubject(report)).isEqualTo("📡 PulseDigest " + today());
     }
@@ -72,7 +84,7 @@ class ReportEmailBuilderTest {
     void buildSubjectTruncatesAnOverlongPreviewOnAWordBoundary() {
         String longPreview = "Spring Boot 4.2 GA, Quarkus 4 native image, Kubernetes 1.35 sidecars, "
                 + "PyTorch 3 compile, Rust in the kernel";
-        ReportData report = new ReportData(longPreview, "Lead", List.of(), List.of(), List.of());
+        ReportData report = TestModels.reportData(longPreview, "Lead", List.of(), List.of(), List.of());
 
         String subject = builder.buildSubject(report);
 
@@ -88,7 +100,7 @@ class ReportEmailBuilderTest {
     }
 
     private static DigestItem itemWithScore(int score) {
-        return new DigestItem("Item", "https://example.com/item", "GitHub", "Java", "RELEASE",
+        return TestModels.digestItem("Item", "https://example.com/item", "GitHub", "Java", "RELEASE",
                 score, 10, "Summary", null);
     }
 
@@ -115,14 +127,13 @@ class ReportEmailBuilderTest {
         DigestItem paper = topicItem("arXiv/cs.AI", "mcp", 9);
         DigestItem repo = topicItem("GitHub", "mcp", 8);
         DigestItem discussion = topicItem("Hacker News", "mcp", 8);
-        ReportData report = new ReportData("Preview", "Lead", List.of(),
+        ReportData report = TestModels.reportData("Preview", "Lead", List.of(),
                 List.of(paper, repo, discussion),
-                List.of(
-                        new Signal(paper, SignalRank.CRITICAL, 120,
+                List.of(TestModels.signal(paper, SignalRank.CRITICAL, 120,
                                 List.of(SourceDomain.SCIENCE, SourceDomain.CODE, SourceDomain.BUSINESS)),
-                        new Signal(repo, SignalRank.CRITICAL, 135,
+                        TestModels.signal(repo, SignalRank.CRITICAL, 135,
                                 List.of(SourceDomain.SCIENCE, SourceDomain.CODE, SourceDomain.BUSINESS)),
-                        new Signal(discussion, SignalRank.CRITICAL, 130,
+                        TestModels.signal(discussion, SignalRank.CRITICAL, 130,
                                 List.of(SourceDomain.SCIENCE, SourceDomain.CODE, SourceDomain.BUSINESS))));
 
         String html = builder.buildHtml(report, null);
@@ -139,9 +150,9 @@ class ReportEmailBuilderTest {
     @Test
     void criticalTrendShowsHowLongTheStoryHasBeenBuildingAndWhenItFirstAppeared() {
         DigestItem item = topicItem("GitHub", "mcp", 9);
-        Signal building = new Signal(item, SignalRank.CRITICAL, 130, List.of(SourceDomain.CODE),
+        Signal building = TestModels.signal(item, SignalRank.CRITICAL, 130, List.of(SourceDomain.CODE),
                 new TrendRecurrence(3, LocalDate.of(2026, 6, 18)));
-        ReportData report = new ReportData("Preview", "Lead", List.of(), List.of(item), List.of(building));
+        ReportData report = TestModels.reportData("Preview", "Lead", List.of(), List.of(item), List.of(building));
 
         String html = builder.buildHtml(report, null);
 
@@ -152,9 +163,9 @@ class ReportEmailBuilderTest {
     @Test
     void aFirstTimeStoryCarriesNoRecurrenceBadge() {
         DigestItem item = topicItem("GitHub", "gemini-3", 9);
-        Signal fresh = new Signal(item, SignalRank.CRITICAL, 130, List.of(SourceDomain.CODE),
+        Signal fresh = TestModels.signal(item, SignalRank.CRITICAL, 130, List.of(SourceDomain.CODE),
                 new TrendRecurrence(1, null));
-        ReportData report = new ReportData("Preview", "Lead", List.of(), List.of(item), List.of(fresh));
+        ReportData report = TestModels.reportData("Preview", "Lead", List.of(), List.of(item), List.of(fresh));
 
         String html = builder.buildHtml(report, null);
 
@@ -170,7 +181,7 @@ class ReportEmailBuilderTest {
                         RecapChange.CONFIRMED, SignalRank.CRITICAL, SignalRank.CRITICAL),
                 new RecapEntry("Hype train", "https://example.com/hype",
                         RecapChange.FADED, SignalRank.CRITICAL, SignalRank.WEAK)));
-        ReportData report = new ReportData("Preview", "Lead", List.of(), List.of(), List.of())
+        ReportData report = TestModels.reportData("Preview", "Lead", List.of(), List.of(), List.of())
                 .withWeeklyRecap(recap);
 
         String html = builder.buildHtml(report, null);
@@ -190,7 +201,8 @@ class ReportEmailBuilderTest {
     @Test
     void watchlistSectionConfirmsSilenceForTechnologiesNobodyMentioned() {
         ReportEmailBuilder withWatchlist = new ReportEmailBuilder(new FeedbackProperties(false, 30, "", ""),
-                new WatchlistProperties(true, List.of("spring ai", "kubernetes")));
+                new WatchlistProperties(true, List.of("spring ai", "kubernetes")), new ThinWeekProperties(false, 3),
+                new SectionsPolicy(java.util.Set.of()));
 
         String html = withWatchlist.buildHtml(fullReport(), researchWithFailedSource());
 
@@ -206,9 +218,9 @@ class ReportEmailBuilderTest {
     @Test
     void aCriticalCandidateIsMarkedOnItsRowSoTheReaderSeesItBeforeItBreaks() {
         DigestItem item = topicItem("GitHub", "mcp", 9);
-        Signal candidate = new Signal(item, SignalRank.STRONG, 95,
+        Signal candidate = TestModels.signal(item, SignalRank.STRONG, 95,
                 List.of(SourceDomain.CODE, SourceDomain.SCIENCE), null, new TrendVelocity(1, 25, true));
-        ReportData report = new ReportData("Preview", "Lead", List.of(), List.of(item), List.of(candidate));
+        ReportData report = TestModels.reportData("Preview", "Lead", List.of(), List.of(item), List.of(candidate));
 
         String html = builder.buildHtml(report, null);
 
@@ -221,9 +233,9 @@ class ReportEmailBuilderTest {
     @Test
     void anOrdinarySignalCarriesNoRadarMarker() {
         DigestItem item = topicItem("GitHub", "mcp", 9);
-        Signal plain = new Signal(item, SignalRank.STRONG, 95,
+        Signal plain = TestModels.signal(item, SignalRank.STRONG, 95,
                 List.of(SourceDomain.CODE, SourceDomain.SCIENCE), null, new TrendVelocity(0, 2, false));
-        ReportData report = new ReportData("Preview", "Lead", List.of(), List.of(item), List.of(plain));
+        ReportData report = TestModels.reportData("Preview", "Lead", List.of(), List.of(item), List.of(plain));
 
         assertThat(builder.buildHtml(report, null)).doesNotContain("&#128992;");
     }
@@ -247,7 +259,7 @@ class ReportEmailBuilderTest {
                 "GitHub Releases", "Releases", "RELEASE", 9, null, "Summary", "Why", "claimed");
         DigestItem leftover = new DigestItem("Left for deals", "https://example.com/leftover",
                 "CNCF Landscape", "Cloud/DevOps", "RELEASE", 6, null, "Summary", null, "leftover");
-        ReportData report = new ReportData("Preview", "Lead", List.of(),
+        ReportData report = TestModels.reportData("Preview", "Lead", List.of(),
                 List.of(claimed, leftover), List.of());
 
         String html = builder.buildHtml(report, null);
@@ -262,7 +274,8 @@ class ReportEmailBuilderTest {
     void buildHtmlRendersFeedbackLinksWhenReceiverConfigured() {
         ReportEmailBuilder withFeedback = new ReportEmailBuilder(
                 new FeedbackProperties(true, 30, "https://fb.example/vote", ""),
-                new WatchlistProperties(false, List.of()));
+                new WatchlistProperties(false, List.of()), new ThinWeekProperties(false, 3),
+                new SectionsPolicy(java.util.Set.of()));
 
         String html = withFeedback.buildHtml(fullReport(), researchWithFailedSource());
 
@@ -292,7 +305,7 @@ class ReportEmailBuilderTest {
 
     @Test
     void buildHtmlHandlesEmptyOptionalSections() {
-        ReportData report = new ReportData(null, null, null, null, null);
+        ReportData report = TestModels.reportData(null, null, null, null, null);
 
         String html = builder.buildHtml(report, null);
 
@@ -305,12 +318,12 @@ class ReportEmailBuilderTest {
 
     @Test
     void buildHtmlShowsExhaustedLimitBannerWhenSourceRateLimited() {
-        ResearchResult research = new ResearchResult(
-                List.of(), List.of(new HackerNewsPost("HN", "https://news.example/1", 1)),
-                List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(),
-                List.of(), List.of(), List.of(), List.of(),
-                LocalDateTime.parse("2026-05-14T10:00:00"), 0, 1, 0, 0, 0,
-                List.of(SourceFetchReport.failed("Twitter/X topic", 12, "429 Too Many Requests")));
+        ResearchResult research = ResearchResults.builder()
+                .hackerNews(List.of(new HackerNewsPost("HN", "https://news.example/1", 1)))
+                .collectedAt(LocalDateTime.parse("2026-05-14T10:00:00"))
+                .rawCounts(RawCounts.builder().hackerNews(1).build())
+                .fetchReports(List.of(SourceFetchReport.failed("Twitter/X topic", 12, "429 Too Many Requests")))
+                .build();
 
         String html = builder.buildHtml(fullReport(), research);
 
@@ -328,7 +341,7 @@ class ReportEmailBuilderTest {
     }
 
     private static ReportData fullReport() {
-        DigestItem top = new DigestItem(
+        DigestItem top = TestModels.digestItem(
                 "Top <unsafe>",
                 "https://example.com/top",
                 "GitHub",
@@ -338,7 +351,7 @@ class ReportEmailBuilderTest {
                 12_345,
                 "Important <summary>",
                 "Action: update your dependency now");
-        DigestItem strong = new DigestItem(
+        DigestItem strong = TestModels.digestItem(
                 "Strong signal",
                 "https://example.com/strong",
                 "Twitter/X",
@@ -348,7 +361,7 @@ class ReportEmailBuilderTest {
                 42,
                 "Strong summary",
                 "Action: try this new API");
-        DigestItem moderate = new DigestItem(
+        DigestItem moderate = TestModels.digestItem(
                 "Moderate signal",
                 "https://example.com/moderate",
                 "Hacker News",
@@ -358,7 +371,7 @@ class ReportEmailBuilderTest {
                 8_800,
                 "Moderate summary",
                 null);
-        DigestItem weak = new DigestItem(
+        DigestItem weak = TestModels.digestItem(
                 "Weak signal",
                 "https://example.com/weak",
                 "Reddit/r/java",
@@ -368,46 +381,27 @@ class ReportEmailBuilderTest {
                 10,
                 "Weak summary",
                 null);
-        return new ReportData(
+        return TestModels.reportData(
                 "Preview",
                 "Editorial lead",
                 List.of("Insight one"),
                 List.of(top, strong, moderate, weak),
-                List.of(
-                        new Signal(top, SignalRank.CRITICAL, 120,
+                List.of(TestModels.signal(top, SignalRank.CRITICAL, 120,
                                 List.of(SourceDomain.CODE, SourceDomain.SCIENCE, SourceDomain.BUSINESS)),
-                        new Signal(strong, SignalRank.STRONG, 90, List.of(SourceDomain.SOCIAL)),
-                        new Signal(moderate, SignalRank.MODERATE, 60, List.of(SourceDomain.BUSINESS)),
-                        new Signal(weak, SignalRank.WEAK, 10, List.of(SourceDomain.SOCIAL)))
+                        TestModels.signal(strong, SignalRank.STRONG, 90, List.of(SourceDomain.SOCIAL)),
+                        TestModels.signal(moderate, SignalRank.MODERATE, 60, List.of(SourceDomain.BUSINESS)),
+                        TestModels.signal(weak, SignalRank.WEAK, 10, List.of(SourceDomain.SOCIAL)))
         );
     }
 
     private static ResearchResult researchWithFailedSource() {
         LocalDateTime now = LocalDateTime.parse("2026-05-14T10:00:00");
-        return new ResearchResult(
-                List.of(),
-                List.of(new HackerNewsPost("HN", "https://news.example/1", 1)),
-                List.of(),
-                List.of(new RssItem("RSS", "https://blog.example/1", "desc", "Java")),
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                now,
-                0,
-                1,
-                0,
-                1,
-                0,
-                List.of(
-                        SourceFetchReport.success("Hacker News", 1, 10),
-                        SourceFetchReport.failed("RSS", 12, "timeout"))
-        );
+        return ResearchResults.builder()
+                .hackerNews(List.of(new HackerNewsPost("HN", "https://news.example/1", 1)))
+                .rss(List.of(new RssItem("RSS", "https://blog.example/1", "desc", "Java")))
+                .collectedAt(now)
+                .rawCounts(RawCounts.builder().hackerNews(1).rss(1).build())
+                .fetchReports(List.of(SourceFetchReport.success("Hacker News", 1, 10), SourceFetchReport.failed("RSS", 12, "timeout")))
+                .build();
     }
 }

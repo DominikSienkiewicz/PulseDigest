@@ -32,7 +32,8 @@ final class DigestHighlightBuilder {
 
     // Hero block: the highest-scoring stories, each with a one-sentence "why it matters to you" action
     // line, plus 👍/👎 feedback links when a receiver URL is configured.
-    static String buildMustKnowSection(List<DigestStory> stories, FeedbackProperties feedback, String edition) {
+    static String buildMustKnowSection(List<DigestStory> stories, FeedbackProperties feedback,
+                                       String edition, boolean explainScores) {
         if (stories.isEmpty()) {
             return "";
         }
@@ -56,8 +57,10 @@ final class DigestHighlightBuilder {
                     .append(item.score()).append("/10</span>")
                     .append(FeedbackLinkBuilder.render(item.url(), item.source(), item.category(), edition, feedback))
                     .append(why)
+                    .append(StackMarkerBuilder.buildStackMarker(story))
                     .append(confirmationLine(story.corroborations(), "#a16207"))
-                    .append(ScoreExplanationBuilder.buildWhyYouSeeThis(story.signal()))
+                    .append(TrendBadgeBuilder.buildRecurrenceBadge(story.signal()))
+                    .append(explainScores ? ScoreExplanationBuilder.buildWhyYouSeeThis(story.signal()) : "")
                     .append("</li>");
         }
         sb.append("</ul></div>");
@@ -90,7 +93,9 @@ final class DigestHighlightBuilder {
                     .append(typeBadge(item.type() != null ? item.type() : "OTHER"))
                     .append(FeedbackLinkBuilder.render(item.url(), item.source(), item.category(), edition, feedback))
                     .append(summaryPart)
+                    .append(StackMarkerBuilder.buildStackMarker(story))
                     .append(confirmationLine(story.corroborations(), "#a855f7"))
+                    .append(TrendBadgeBuilder.buildRecurrenceBadge(story.signal()))
                     .append("</li>");
         }
         sb.append("</ul></div>");

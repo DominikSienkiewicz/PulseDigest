@@ -1,5 +1,7 @@
 package pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model;
 
+import pl.seniordeveloper.pulsedigest.testing.TestModels;
+
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
@@ -17,19 +19,18 @@ class TrendMemoryTest {
     private static Signal signal(String topicKey, SignalRank rank) {
         DigestItem item = new DigestItem("Title", "https://example.com/" + topicKey, "GitHub",
                 "AI/LLM", "RELEASE", 8, 10, "Summary", null, topicKey);
-        return new Signal(item, rank, 100, List.of(SourceDomain.CODE));
+        return TestModels.signal(item, rank, 100, List.of(SourceDomain.CODE));
     }
 
     private static PastEdition edition(Instant at, String... topicKeys) {
-        return new PastEdition(at, List.of(topicKeys).stream()
+        return TestModels.pastEdition(at, List.of(topicKeys).stream()
                 .map(k -> signal(k, SignalRank.MODERATE))
                 .toList());
     }
 
     @Test
     void aTopicSeenInTheTwoPreviousEditionsIsTheThirdInARow() {
-        List<Signal> annotated = TrendMemory.annotate(
-                List.of(signal("mcp", SignalRank.CRITICAL)),
+        List<Signal> annotated = TrendMemory.annotate(List.of(signal("mcp", SignalRank.CRITICAL)),
                 List.of(edition(JUN_22, "mcp"), edition(JUN_20, "mcp"), edition(JUN_18, "other")));
 
         assertThat(annotated).singleElement().satisfies(s -> {
@@ -41,8 +42,7 @@ class TrendMemoryTest {
     @Test
     void aStreakBreaksWhenAnEditionInBetweenOmittedTheTopic() {
         // Present, absent, present → the run of consecutive editions ending now is just this one.
-        List<Signal> annotated = TrendMemory.annotate(
-                List.of(signal("mcp", SignalRank.CRITICAL)),
+        List<Signal> annotated = TrendMemory.annotate(List.of(signal("mcp", SignalRank.CRITICAL)),
                 List.of(edition(JUN_22, "other"), edition(JUN_20, "mcp"), edition(JUN_18, "mcp")));
 
         assertThat(annotated).singleElement().satisfies(s -> {
@@ -76,7 +76,7 @@ class TrendMemoryTest {
     void signalsWithoutACorrelationKeyAreLeftUnannotated() {
         DigestItem item = new DigestItem("Title", "https://example.com/x", "GitHub",
                 null, "RELEASE", 8, 10, "Summary", null, null);
-        Signal blank = new Signal(item, SignalRank.WEAK, 40, List.of(SourceDomain.CODE));
+        Signal blank = TestModels.signal(item, SignalRank.WEAK, 40, List.of(SourceDomain.CODE));
 
         List<Signal> annotated = TrendMemory.annotate(List.of(blank), List.of(edition(JUN_22, "mcp")));
 

@@ -5,13 +5,16 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.PreScoringCandidate;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.PreScoringPort;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.InterestProfileProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.LlmProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.OpenAiProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.metrics.CostCeiling;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.metrics.LlmUsageMeter;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.http.ExternalRestClients;
 
 import java.util.HashMap;
@@ -31,13 +34,12 @@ import java.util.Map;
 public class GptPreScoringAdapter implements PreScoringPort {
 
     private static final String OPENAI_BASE_URL = "https://api.openai.com/v1";
-    private static final String MODEL = "gpt-4o-mini";
-    private static final double TEMPERATURE = 0.0;
-    private static final int MAX_TOKENS = 4000;
     private static final int TITLE_CLIP = 110;
 
-    @Value("${spring.ai.openai.api-key:}")
-    private String openAiApiKey;
+    private final OpenAiProperties openAi;
+    private final LlmProperties llm;
+    private final LlmUsageMeter usageMeter;
+    private final CostCeiling costCeiling;
     private final ObjectMapper objectMapper;
     private final InterestProfileProperties interestProfile;
     private RestClient openAiClient;
@@ -46,7 +48,7 @@ public class GptPreScoringAdapter implements PreScoringPort {
     void init() {
         this.openAiClient = ExternalRestClients.builder()
                 .baseUrl(OPENAI_BASE_URL)
-                .defaultHeader("Authorization", "Bearer " + openAiApiKey)
+                .defaultHeader("Authorization", "Bearer " + openAi.apiKey())
                 .defaultHeader("Content-Type", MediaType.APPLICATION_JSON_VALUE)
                 .build();
     }
@@ -56,6 +58,11 @@ public class GptPreScoringAdapter implements PreScoringPort {
         if (candidates == null || candidates.isEmpty()) {
             return Map.of();
         }
+        // N40. Skipping triage costs the run accuracy, not the edition: the full payload simply
+        // goes to the main model, which is the documented fallback for a failed pre-scoring call.
+        if (!costCeiling.allows("pre-scoring")) {
+            return Map.of();
+        }
         try {
             String rawResponse = openAiClient.post()
                     .uri("/chat/completions")
@@ -63,7 +70,8 @@ public class GptPreScoringAdapter implements PreScoringPort {
                     .retrieve()
                     .body(String.class);
             Map<String, Integer> scores = parseScores(extractContent(rawResponse), candidates);
-            log.info("Pre-scoring: {} of {} candidates rated by {}", scores.size(), candidates.size(), MODEL);
+            log.info("Pre-scoring: {} of {} candidates rated by {}",
+                    scores.size(), candidates.size(), llm.preScoring().model());
             return scores;
         } catch (Exception e) {
             log.warn("Pre-scoring call failed, sending the full payload to the main model: {}", e.getMessage());
@@ -105,10 +113,13 @@ public class GptPreScoringAdapter implements PreScoringPort {
 
     private String buildRequest(String userPrompt) throws Exception {
         Map<String, Object> request = Map.of(
-                "model", MODEL,
-                "temperature", TEMPERATURE,
-                "max_tokens", MAX_TOKENS,
-                "response_format", Map.of("type", "json_object"),
+                "model", llm.preScoring().model(),
+                "temperature", llm.preScoring().temperature(),
+                "max_tokens", llm.preScoring().maxTokens(),
+                // N22. Same strict schema treatment as synthesis; here the shape is two integers,
+                // and a malformed triage response silently degraded to "no opinion".
+                "response_format", LlmResponseSchemas.responseFormat(
+                        "pulsedigest_prescoring", LlmResponseSchemas.preScoringSchema()),
                 "messages", List.of(
                         Map.of("role", "system",
                                 "content", "Jesteś triage'em nagłówków technologicznych. Odpowiadasz wyłącznie w JSON."),
@@ -123,11 +134,25 @@ public class GptPreScoringAdapter implements PreScoringPort {
         if (response.choices() == null || response.choices().isEmpty()) {
             throw new IllegalStateException("OpenAI returned empty choices[]");
         }
+        meter(response.usage());
         return response.choices().getFirst().message().content();
     }
 
+    /** Attributes this call's tokens before the content is handed on. */
+    private void meter(Usage usage) {
+        if (usage != null) {
+            usageMeter.record("pre-scoring", llm.preScoring().model(), usage.promptTokens(), usage.completionTokens());
+        }
+    }
+
     @JsonIgnoreProperties(ignoreUnknown = true)
-    private record OpenAiResponse(List<Choice> choices) {
+    private record OpenAiResponse(List<Choice> choices, Usage usage) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private record Usage(
+            @com.fasterxml.jackson.annotation.JsonProperty("prompt_tokens") Long promptTokens,
+            @com.fasterxml.jackson.annotation.JsonProperty("completion_tokens") Long completionTokens) {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

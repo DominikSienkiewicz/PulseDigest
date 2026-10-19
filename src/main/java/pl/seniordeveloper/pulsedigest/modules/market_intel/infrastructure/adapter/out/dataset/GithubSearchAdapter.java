@@ -20,7 +20,7 @@ import java.time.ZoneOffset;
 import java.util.List;
 
 /**
- * Szuka najciekawszych repozytoriów na GitHubie jako dowód adopcji technologicznej (kod > słowa).
+ * Finds the most interesting repositories on GitHub, as evidence of adoption: code over talk.
  */
 @Slf4j
 @RequiredArgsConstructor

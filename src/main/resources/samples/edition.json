@@ -1,0 +1,1191 @@
+{
+  "_comment": [
+    "One complete PulseDigest edition in the state it reaches ReportEmailBuilder: a scored ReportData",
+    "plus the ResearchResult the same run collected.",
+    "",
+    "The content is SYNTHETIC. Project and organisation names are real because the rendering genuinely",
+    "depends on them — SourceDomain.from, SourceWeights.of and ApiAccounts.label all branch on the",
+    "source label — but no announcement, version, benchmark or advisory described here is a real event.",
+    "",
+    "`signals` references its item by `url` instead of repeating it, which keeps the file readable; the",
+    "loader re-attaches the DigestItem. Everything else matches the production JSON shape, including",
+    "the mixed camelCase/snake_case that the @JsonProperty annotations on the domain records impose.",
+    "",
+    "`reader_votes`, `config` and `edition_date` are not part of ReportData. They record the state this",
+    "edition was rendered under: `reader_votes` lets ReportEmailGoldenFileTest re-derive every `signals`",
+    "entry through the real SignalScoringService and prove the stored ranks, scores and breakdowns are",
+    "values production can actually produce (a fixture nobody checks drifts into a shape the pipeline",
+    "never emits); `config` supplies the two settings the mail reads, with a placeholder receiver host",
+    "rather than the deployed one; `edition_date` is the date the committed golden file was rendered for,",
+    "which is what lets the test compare a render made today against it.",
+    "",
+    "Deliberate coverage choices. All four SignalRank values occur, so every rank glyph renders. One",
+    "source FAILED with a non-quota error, so the footer reports its warning while the amber 'exhausted",
+    "limits' banner stays absent. `spring ai`, `langgraph` and `vllm` appear in no fetched headline, so",
+    "the watchlist renders confirmed silence. Three topic keys are carried by more than one item —",
+    "mcp-tool-registry by three — so the collapsed-story path and its `Potwierdzone w:` links render;",
+    "and enough stories clear score 8 to overflow the Must-know cap, so the Top picks table is not empty.",
+    "",
+    "The weekly recap carries four entries on purpose: two are filtered out because their story is",
+    "printed above (one CONFIRMED, one ESCALATED) and two survive because they FADED. Every entry",
+    "names a url this edition actually carries, which is the only shape WeeklyRecapService can emit.",
+    "",
+    "No item here is a lab announcement on its own topic key, deliberately. SourceWeights gives the lab",
+    "blogs 0.95 and PromptItemMapper hard-codes their engagement at 10_000, so any such item scores",
+    "95 + 10 = 105 and reaches CRITICAL with ONE source domain — which would put a single-source story",
+    "under the '3+ typach źródeł' heading at the very top of the committed sample. That arithmetic is",
+    "finding F2 of docs/audit/2026-10-15-value-audit.md and belongs in that fix, not in this fixture."
+  ],
+  "edition_date": "2026-10-15",
+  "config": {
+    "feedback_receiver_url": "https://feedback.pulsedigest.example/vote",
+    "watchlist_technologies": [
+      "spring ai",
+      "spring boot",
+      "quarkus",
+      "graalvm",
+      "virtual threads",
+      "langgraph",
+      "mcp",
+      "ollama",
+      "vllm",
+      "pgvector"
+    ]
+  },
+  "reader_votes": {
+    "by_source": {
+      "GitHub Releases": 4,
+      "Reddit/r/java": -3,
+      "Security Advisories": -2
+    },
+    "by_category": {
+      "ai/llm": 3,
+      "security/privacy": -4
+    }
+  },
+  "report": {
+    "email_preview": "Rejestr narzędzi MCP, JEP 533 do JDK 27, Quarkus 3.30, batch o5-mini -60%",
+    "editorial": "Dwie rzeczy dzieją się naraz: ekosystem agentowy dostaje wreszcie rejestr, z którego da się przypiąć wersję narzędzia, a JVM przestaje udawać, że układ pamięci obiektu to szczegół implementacyjny. Jedno i drugie przenosi decyzję z „co da się napisać” na „co da się odtworzyć za pół roku”. Reszta wydania to rachunek za tę zmianę: nowe wydania, nowe ceny i jedna deserializacja, którą trzeba załatać dziś.",
+    "top_insights": [
+      "Rejestr MCP pojawił się jednocześnie w ogłoszeniu laboratorium, w trendach GitHuba i w dyskusji na Mastodonie — to nie launch, to już adopcja.",
+      "JEP 533 przeszedł do Proposed to Target, więc value classes przestają być tematem konferencyjnym i zaczynają być tematem przeglądu kodu.",
+      "Spadek ceny trybu wsadowego o 60% zmienia opłacalność przetwarzania offline bardziej niż którykolwiek nowy model w tym wydaniu."
+    ],
+    "items": [
+      {
+        "title": "Introducing the MCP Tool Registry: publish, discover & pin agent tools",
+        "url": "https://claude.com/blog/mcp-tool-registry",
+        "source": "Claude Blog",
+        "category": "AI/LLM",
+        "type": "LAUNCH",
+        "score": 10,
+        "engagement_score": 10000,
+        "summary": "Rejestr serwerów MCP z wersjonowanymi manifestami i podpisanymi digestami — narzędzie agenta można przypiąć do konkretnej wersji, tak jak zależność Mavena.",
+        "why_it_matters": "Przypnij serwery MCP ze swojego stacku agentowego do digestów z rejestru, zanim następna aktualizacja narzędzia po cichu zmieni kontrakt.",
+        "topic_key": "mcp-tool-registry"
+      },
+      {
+        "title": "JEP 533 Value Classes and Objects",
+        "url": "https://openjdk.org/jeps/533",
+        "source": "OpenJDK JEP",
+        "category": "Java/JVM",
+        "type": "FEATURE",
+        "score": 9,
+        "engagement_score": 200,
+        "summary": "JEP-533 Proposed to Target: value classes trafiają do JDK 27 jako preview, z płaskim układem pamięci dla klas bez tożsamości.",
+        "why_it_matters": "Przejrzyj rekordy używane jako klucze map — skorzystają z płaskiego układu pierwsze i pierwsze złapią zmianę semantyki równości.",
+        "topic_key": "jep-533-value-classes"
+      },
+      {
+        "title": "quarkusio/quarkus 3.30.0",
+        "url": "https://github.com/quarkusio/quarkus/releases/tag/3.30.0",
+        "source": "GitHub Releases",
+        "category": "Releases",
+        "type": "RELEASE",
+        "score": 9,
+        "engagement_score": 0,
+        "summary": "Quarkus 3.30.0 skraca start obrazu natywnego o 18% i domyślnie włącza wirtualne wątki w rozszerzeniu REST.",
+        "why_it_matters": "Jeśli trzymasz wirtualne wątki za flagą, to wydanie flagę zdejmuje — sprawdź pinning, zanim zrobi to produkcja.",
+        "topic_key": "quarkus-3-30"
+      },
+      {
+        "title": "OpenAI cuts batch inference pricing for o5-mini by 60%",
+        "url": "https://news.ycombinator.com/item?id=46279811",
+        "source": "Hacker News",
+        "category": "AI/LLM",
+        "type": "PROMOTION",
+        "score": 9,
+        "engagement_score": 1402,
+        "summary": "Obniżka 60% dotyczy wyłącznie trybu wsadowego z 24-godzinnym okienkiem; ceny strumieniowe bez zmian.",
+        "why_it_matters": "Przenieś triaging i podsumowania offline na tryb wsadowy — to jedyna zmiana w tym wydaniu, która obniża rachunek od razu.",
+        "topic_key": "o5-mini-batch-pricing"
+      },
+      {
+        "title": "kubernetes/kubernetes v1.35.0",
+        "url": "https://github.com/kubernetes/kubernetes/releases/tag/v1.35.0",
+        "source": "GitHub Releases",
+        "category": "Releases",
+        "type": "RELEASE",
+        "score": 9,
+        "engagement_score": 0,
+        "summary": "Kubernetes 1.35 stabilizuje kontenery pomocnicze i domyślnie włącza kompresję obrazów w kubelecie.",
+        "why_it_matters": "Kontenery pomocnicze wychodzą z bety — możesz wreszcie usunąć własne obejścia sidecarów z manifestów.",
+        "topic_key": "kubernetes-1-35"
+      },
+      {
+        "title": "modelcontextprotocol/registry",
+        "url": "https://github.com/modelcontextprotocol/registry",
+        "source": "GitHub",
+        "category": "AI/LLM",
+        "type": "TREND",
+        "score": 8,
+        "engagement_score": 14230,
+        "summary": "14,2 tys. gwiazdek w tygodniu premiery; repozytorium referencyjnej implementacji rejestru wraz ze schematem manifestu i CLI do publikacji.",
+        "why_it_matters": "Schemat manifestu jest w repozytorium, więc własny serwer MCP opublikujesz bez czekania na dokumentację.",
+        "topic_key": "mcp-tool-registry"
+      },
+      {
+        "title": "Pgvectorscale Cloud",
+        "url": "https://www.producthunt.com/posts/pgvectorscale-cloud",
+        "source": "Product Hunt",
+        "category": "AI/LLM",
+        "type": "LAUNCH",
+        "score": 8,
+        "engagement_score": 647,
+        "summary": "Zarządzany pgvector z indeksem DiskANN i darmowym tierem do 2 mln wektorów; zgodny z istniejącym schematem pgvector.",
+        "why_it_matters": "Darmowy tier pokrywa typowy prototyp RAG, więc własny Postgres z pgvectorem przestaje być najtańszą opcją na start.",
+        "topic_key": "pgvectorscale-cloud"
+      },
+      {
+        "title": "pytorch/pytorch v3.0.0",
+        "url": "https://github.com/pytorch/pytorch/releases/tag/v3.0.0",
+        "source": "GitHub Releases",
+        "category": "Releases",
+        "type": "RELEASE",
+        "score": 8,
+        "engagement_score": 0,
+        "summary": "PyTorch 3.0 domyślnie kompiluje graf i usuwa tryb eager z API treningowego.",
+        "why_it_matters": "Jeśli trzymasz własne pętle treningowe, to wydanie wymusi migrację — zaplanuj ją teraz, nie przy następnym CVE.",
+        "topic_key": "pytorch-3-0"
+      },
+      {
+        "title": "duckdb/duckdb v1.5.0",
+        "url": "https://github.com/duckdb/duckdb/releases/tag/v1.5.0",
+        "source": "GitHub Releases",
+        "category": "Releases",
+        "type": "RELEASE",
+        "score": 8,
+        "engagement_score": 0,
+        "summary": "DuckDB 1.5 czyta tabele Iceberg bez katalogu zewnętrznego i skraca skan parquetu o 22%.",
+        "why_it_matters": "Analityka nad plikami parquet przestaje wymagać osobnej infrastruktury — rozważ to zamiast kolejnego klastra.",
+        "topic_key": "duckdb-1-5"
+      },
+      {
+        "title": "mistralai/Ministral-9B-Instruct-2610",
+        "url": "https://huggingface.co/mistralai/Ministral-9B-Instruct-2610",
+        "source": "Hugging Face",
+        "category": "AI/LLM",
+        "type": "RELEASE",
+        "score": 8,
+        "engagement_score": 1960,
+        "summary": "Model 9B z oknem 128k i licencją Apache 2.0; 184 tys. pobrań w pierwszym tygodniu.",
+        "why_it_matters": "Mieści się na jednym GPU 24 GB, więc jest realnym kandydatem na lokalny fallback w Twoim routingu LLM.",
+        "topic_key": "ministral-9b"
+      },
+      {
+        "title": "EU AI Act enforcement starts for general-purpose models",
+        "url": "https://www.theregister.com/2026/10/14/eu_ai_act_gpai_enforcement/",
+        "source": "RSS/The Register",
+        "category": "Other",
+        "type": "OPINION",
+        "score": 8,
+        "engagement_score": 0,
+        "summary": "Od 2 listopada obowiązki dokumentacyjne dla modeli ogólnego przeznaczenia stają się egzekwowalne.",
+        "why_it_matters": "Jeśli hostujesz model dla klientów w UE, dokumentacja treningu przestaje być opcjonalna.",
+        "topic_key": "eu-ai-act-enforcement"
+      },
+      {
+        "title": "Przypiąłem dziś wszystkie serwery MCP z naszego stacku do digestów z rejestru. Odtwarzalne buildy narzędzi, wreszcie.",
+        "url": "https://mastodon.social/@jvmops/113948201746",
+        "source": "Mastodon",
+        "category": "AI/LLM",
+        "type": "DISCUSSION",
+        "score": 7,
+        "engagement_score": 318,
+        "summary": "Relacja z wdrożenia: przypięcie dziewięciu serwerów MCP do digestów zajęło pół dnia i wyłapało dwie niezgodności wersji narzędzi.",
+        "why_it_matters": "Pokazuje realny koszt migracji — pół dnia, nie sprint — więc nie ma powodu odkładać jej na później.",
+        "topic_key": "mcp-tool-registry"
+      },
+      {
+        "title": "Project Valhalla: value classes proposed to target for JDK 27",
+        "url": "https://news.ycombinator.com/item?id=46281204",
+        "source": "Hacker News",
+        "category": "Java/JVM",
+        "type": "DISCUSSION",
+        "score": 7,
+        "engagement_score": 968,
+        "summary": "968 punktów dyskusji skupionej na jednym pytaniu: co płaski układ obiektu robi z bibliotekami, które zakładają stabilną tożsamość.",
+        "why_it_matters": "Wątek zbiera w jednym miejscu biblioteki, które pękną na braku tożsamości — szybszy audyt niż czytanie JEP-a.",
+        "topic_key": "jep-533-value-classes"
+      },
+      {
+        "title": "GHSA-7xqp-9vwm-2c4h Deserialization RCE in jackson-databind",
+        "url": "https://github.com/advisories/GHSA-7xqp-9vwm-2c4h",
+        "source": "Security Advisories",
+        "category": "Security/Privacy",
+        "type": "INCIDENT",
+        "score": 7,
+        "engagement_score": 500,
+        "summary": "GHSA-7xqp-9vwm-2c4h HIGH: polimorficzna deserializacja w jackson-databind <2.17.3 pozwala na RCE przy włączonym default typing.",
+        "why_it_matters": "Sprawdź, czy któryś moduł nie ma włączonego default typing, i podbij jackson-databind do 2.17.3 w tym tygodniu.",
+        "topic_key": "jackson-databind-rce"
+      },
+      {
+        "title": "Virtual Threads in Production: Lessons from 18 Months",
+        "url": "https://www.youtube.com/watch?v=Kx9nTqL3bVc",
+        "source": "YouTube/Devoxx",
+        "category": "Java/JVM",
+        "type": "RESOURCE",
+        "score": 7,
+        "engagement_score": 45200,
+        "summary": "45 tys. wyświetleń w dwa tygodnie; nagranie pokazuje diagnostykę pinningu przez JFR, krok po kroku na działającej usłudze.",
+        "why_it_matters": "Fragment o JFR daje procedurę diagnostyczną, której nie znajdziesz w dokumentacji.",
+        "topic_key": "virtual-threads-production"
+      },
+      {
+        "title": "WebAssembly on the server",
+        "url": "https://www.thoughtworks.com/radar/platforms/wasm-on-the-server",
+        "source": "Tech Radar",
+        "category": "Cloud/DevOps",
+        "type": "TREND",
+        "score": 6,
+        "engagement_score": 500,
+        "summary": "Trial: WebAssembly na serwerze awansuje z Assess, z uzasadnieniem opartym na izolacji pluginów, nie na wydajności.",
+        "why_it_matters": "Jeśli planujesz system pluginów, WASM jest teraz wyborem domyślnym zamiast ryzykownego.",
+        "topic_key": "radar-vol-34"
+      },
+      {
+        "title": "Draft-Tree Speculative Decoding: 3.1x Throughput on 70B Models",
+        "url": "https://arxiv.org/abs/2610.04812",
+        "source": "arXiv/cs.LG",
+        "category": "Research",
+        "type": "BREAKTHROUGH",
+        "score": 6,
+        "engagement_score": 0,
+        "summary": "3,1x przepustowości na modelach 70B przy zachowanej jakości; kod i benchmarki w repozytorium autorów.",
+        "why_it_matters": "Jeśli samodzielnie hostujesz model 70B, ta technika jest tańsza niż dołożenie GPU.",
+        "topic_key": "draft-tree-speculative-decoding"
+      },
+      {
+        "title": "Virtual threads in production: 18 months of pinning bugs",
+        "url": "https://www.reddit.com/r/java/comments/1pq3z8k/virtual_threads_in_production/",
+        "source": "Reddit/r/java",
+        "category": "Java/JVM",
+        "type": "OPINION",
+        "score": 6,
+        "engagement_score": 844,
+        "summary": "Osiemnaście miesięcy produkcji i trzy klasy pinningu: synchronized w sterownikach JDBC, ThreadLocal w bibliotekach i wywołania natywne.",
+        "why_it_matters": "Trzy wzorce z tego posta to gotowa lista kontrolna do audytu własnych pul wirtualnych wątków.",
+        "topic_key": "virtual-threads-production"
+      },
+      {
+        "title": "OpenTelemetry Profiling",
+        "url": "https://github.com/cncf/landscape/pull/8812",
+        "source": "CNCF Landscape",
+        "category": "Cloud/DevOps",
+        "type": "RELEASE",
+        "score": 6,
+        "engagement_score": 200,
+        "summary": "Sygnał profilowania w OpenTelemetry wchodzi do incubating; format pprof staje się częścią specyfikacji OTLP.",
+        "why_it_matters": "Profilowanie w tym samym potoku co ślady oznacza jeden kolektor mniej w Twojej platformie observability.",
+        "topic_key": "otel-profiling-incubating"
+      },
+      {
+        "title": "Benchmarked 19 MCP servers for tool-call latency. The pinned-digest ones were consistently faster",
+        "url": "https://x.com/jvmarchitect/status/1847562930184756",
+        "source": "Twitter/X",
+        "category": "AI/LLM",
+        "type": "DISCUSSION",
+        "score": 6,
+        "engagement_score": 3140,
+        "summary": "Pomiar 19 serwerów MCP: przypięte digesty skracają medianę wywołania narzędzia o 40 ms dzięki pominięciu rozpoznawania wersji.",
+        "why_it_matters": "Dodatkowy argument za przypinaniem: nie tylko odtwarzalność, ale i krótsze wywołania narzędzi.",
+        "topic_key": "mcp-latency-benchmark"
+      }
+    ],
+    "signals": [
+      {
+        "url": "https://claude.com/blog/mcp-tool-registry",
+        "rank": "CRITICAL",
+        "signalScore": 161,
+        "sourceDomains": [
+          "CODE",
+          "LABS",
+          "SOCIAL"
+        ],
+        "recurrence": {
+          "editionStreak": 3,
+          "firstSeenAt": "2026-10-05"
+        },
+        "velocity": null,
+        "breakdown": {
+          "source_key": "Claude",
+          "base_weight": 0.95,
+          "effective_weight": 0.95,
+          "net_source_votes": 0,
+          "engagement_bonus": 10,
+          "category_multiplier": 1.06,
+          "net_category_votes": 3,
+          "cross_source_bonus": 50
+        }
+      },
+      {
+        "url": "https://github.com/modelcontextprotocol/registry",
+        "rank": "CRITICAL",
+        "signalScore": 155,
+        "sourceDomains": [
+          "CODE",
+          "LABS",
+          "SOCIAL"
+        ],
+        "recurrence": {
+          "editionStreak": 1,
+          "firstSeenAt": null
+        },
+        "velocity": null,
+        "breakdown": {
+          "source_key": "GitHub",
+          "base_weight": 0.85,
+          "effective_weight": 0.85,
+          "net_source_votes": 0,
+          "engagement_bonus": 14,
+          "category_multiplier": 1.06,
+          "net_category_votes": 3,
+          "cross_source_bonus": 50
+        }
+      },
+      {
+        "url": "https://mastodon.social/@jvmops/113948201746",
+        "rank": "CRITICAL",
+        "signalScore": 98,
+        "sourceDomains": [
+          "CODE",
+          "LABS",
+          "SOCIAL"
+        ],
+        "recurrence": null,
+        "velocity": null,
+        "breakdown": {
+          "source_key": "Mastodon",
+          "base_weight": 0.45,
+          "effective_weight": 0.45,
+          "net_source_votes": 0,
+          "engagement_bonus": 0,
+          "category_multiplier": 1.06,
+          "net_category_votes": 3,
+          "cross_source_bonus": 50
+        }
+      },
+      {
+        "url": "https://www.youtube.com/watch?v=Kx9nTqL3bVc",
+        "rank": "STRONG",
+        "signalScore": 100,
+        "sourceDomains": [
+          "BUSINESS",
+          "SOCIAL"
+        ],
+        "recurrence": null,
+        "velocity": null,
+        "breakdown": {
+          "source_key": "YouTube",
+          "base_weight": 0.55,
+          "effective_weight": 0.55,
+          "net_source_votes": 0,
+          "engagement_bonus": 45,
+          "category_multiplier": 1.0,
+          "net_category_votes": 0,
+          "cross_source_bonus": 0
+        }
+      },
+      {
+        "url": "https://github.com/quarkusio/quarkus/releases/tag/3.30.0",
+        "rank": "MODERATE",
+        "signalScore": 99,
+        "sourceDomains": [
+          "CODE"
+        ],
+        "recurrence": null,
+        "velocity": null,
+        "breakdown": {
+          "source_key": "GitHub Releases",
+          "base_weight": 0.95,
+          "effective_weight": 0.99,
+          "net_source_votes": 4,
+          "engagement_bonus": 0,
+          "category_multiplier": 1.0,
+          "net_category_votes": 0,
+          "cross_source_bonus": 0
+        }
+      },
+      {
+        "url": "https://github.com/kubernetes/kubernetes/releases/tag/v1.35.0",
+        "rank": "MODERATE",
+        "signalScore": 99,
+        "sourceDomains": [
+          "CODE"
+        ],
+        "recurrence": null,
+        "velocity": null,
+        "breakdown": {
+          "source_key": "GitHub Releases",
+          "base_weight": 0.95,
+          "effective_weight": 0.99,
+          "net_source_votes": 4,
+          "engagement_bonus": 0,
+          "category_multiplier": 1.0,
+          "net_category_votes": 0,
+          "cross_source_bonus": 0
+        }
+      },
+      {
+        "url": "https://github.com/pytorch/pytorch/releases/tag/v3.0.0",
+        "rank": "MODERATE",
+        "signalScore": 99,
+        "sourceDomains": [
+          "CODE"
+        ],
+        "recurrence": null,
+        "velocity": null,
+        "breakdown": {
+          "source_key": "GitHub Releases",
+          "base_weight": 0.95,
+          "effective_weight": 0.99,
+          "net_source_votes": 4,
+          "engagement_bonus": 0,
+          "category_multiplier": 1.0,
+          "net_category_votes": 0,
+          "cross_source_bonus": 0
+        }
+      },
+      {
+        "url": "https://github.com/duckdb/duckdb/releases/tag/v1.5.0",
+        "rank": "MODERATE",
+        "signalScore": 99,
+        "sourceDomains": [
+          "CODE"
+        ],
+        "recurrence": null,
+        "velocity": null,
+        "breakdown": {
+          "source_key": "GitHub Releases",
+          "base_weight": 0.95,
+          "effective_weight": 0.99,
+          "net_source_votes": 4,
+          "engagement_bonus": 0,
+          "category_multiplier": 1.0,
+          "net_category_votes": 0,
+          "cross_source_bonus": 0
+        }
+      },
+      {
+        "url": "https://news.ycombinator.com/item?id=46279811",
+        "rank": "MODERATE",
+        "signalScore": 86,
+        "sourceDomains": [
+          "BUSINESS"
+        ],
+        "recurrence": null,
+        "velocity": null,
+        "breakdown": {
+          "source_key": "Hacker News",
+          "base_weight": 0.8,
+          "effective_weight": 0.8,
+          "net_source_votes": 0,
+          "engagement_bonus": 1,
+          "category_multiplier": 1.06,
+          "net_category_votes": 3,
+          "cross_source_bonus": 0
+        }
+      },
+      {
+        "url": "https://www.producthunt.com/posts/pgvectorscale-cloud",
+        "rank": "MODERATE",
+        "signalScore": 80,
+        "sourceDomains": [
+          "BUSINESS"
+        ],
+        "recurrence": null,
+        "velocity": null,
+        "breakdown": {
+          "source_key": "Product Hunt",
+          "base_weight": 0.75,
+          "effective_weight": 0.75,
+          "net_source_votes": 0,
+          "engagement_bonus": 0,
+          "category_multiplier": 1.06,
+          "net_category_votes": 3,
+          "cross_source_bonus": 0
+        }
+      },
+      {
+        "url": "https://news.ycombinator.com/item?id=46281204",
+        "rank": "MODERATE",
+        "signalScore": 80,
+        "sourceDomains": [
+          "BUSINESS",
+          "CODE"
+        ],
+        "recurrence": null,
+        "velocity": null,
+        "breakdown": {
+          "source_key": "Hacker News",
+          "base_weight": 0.8,
+          "effective_weight": 0.8,
+          "net_source_votes": 0,
+          "engagement_bonus": 0,
+          "category_multiplier": 1.0,
+          "net_category_votes": 0,
+          "cross_source_bonus": 0
+        }
+      },
+      {
+        "url": "https://www.thoughtworks.com/radar/platforms/wasm-on-the-server",
+        "rank": "MODERATE",
+        "signalScore": 80,
+        "sourceDomains": [
+          "BUSINESS"
+        ],
+        "recurrence": null,
+        "velocity": {
+          "domain_growth": 2,
+          "score_growth": 31,
+          "critical_candidate": true
+        },
+        "breakdown": {
+          "source_key": "Tech Radar",
+          "base_weight": 0.8,
+          "effective_weight": 0.8,
+          "net_source_votes": 0,
+          "engagement_bonus": 0,
+          "category_multiplier": 1.0,
+          "net_category_votes": 0,
+          "cross_source_bonus": 0
+        }
+      },
+      {
+        "url": "https://openjdk.org/jeps/533",
+        "rank": "MODERATE",
+        "signalScore": 75,
+        "sourceDomains": [
+          "BUSINESS",
+          "CODE"
+        ],
+        "recurrence": null,
+        "velocity": null,
+        "breakdown": {
+          "source_key": "OpenJDK JEP",
+          "base_weight": 0.75,
+          "effective_weight": 0.75,
+          "net_source_votes": 0,
+          "engagement_bonus": 0,
+          "category_multiplier": 1.0,
+          "net_category_votes": 0,
+          "cross_source_bonus": 0
+        }
+      },
+      {
+        "url": "https://huggingface.co/mistralai/Ministral-9B-Instruct-2610",
+        "rank": "MODERATE",
+        "signalScore": 75,
+        "sourceDomains": [
+          "SCIENCE"
+        ],
+        "recurrence": null,
+        "velocity": null,
+        "breakdown": {
+          "source_key": "Hugging Face",
+          "base_weight": 0.7,
+          "effective_weight": 0.7,
+          "net_source_votes": 0,
+          "engagement_bonus": 1,
+          "category_multiplier": 1.06,
+          "net_category_votes": 3,
+          "cross_source_bonus": 0
+        }
+      },
+      {
+        "url": "https://github.com/cncf/landscape/pull/8812",
+        "rank": "MODERATE",
+        "signalScore": 75,
+        "sourceDomains": [
+          "CODE"
+        ],
+        "recurrence": null,
+        "velocity": null,
+        "breakdown": {
+          "source_key": "CNCF",
+          "base_weight": 0.75,
+          "effective_weight": 0.75,
+          "net_source_votes": 0,
+          "engagement_bonus": 0,
+          "category_multiplier": 1.0,
+          "net_category_votes": 0,
+          "cross_source_bonus": 0
+        }
+      },
+      {
+        "url": "https://arxiv.org/abs/2610.04812",
+        "rank": "MODERATE",
+        "signalScore": 70,
+        "sourceDomains": [
+          "SCIENCE"
+        ],
+        "recurrence": null,
+        "velocity": {
+          "domain_growth": 0,
+          "score_growth": 4,
+          "critical_candidate": false
+        },
+        "breakdown": {
+          "source_key": "arXiv",
+          "base_weight": 0.7,
+          "effective_weight": 0.7,
+          "net_source_votes": 0,
+          "engagement_bonus": 0,
+          "category_multiplier": 1.0,
+          "net_category_votes": 0,
+          "cross_source_bonus": 0
+        }
+      },
+      {
+        "url": "https://x.com/jvmarchitect/status/1847562930184756",
+        "rank": "WEAK",
+        "signalScore": 46,
+        "sourceDomains": [
+          "SOCIAL"
+        ],
+        "recurrence": null,
+        "velocity": null,
+        "breakdown": {
+          "source_key": "Twitter/X",
+          "base_weight": 0.4,
+          "effective_weight": 0.4,
+          "net_source_votes": 0,
+          "engagement_bonus": 3,
+          "category_multiplier": 1.06,
+          "net_category_votes": 3,
+          "cross_source_bonus": 0
+        }
+      },
+      {
+        "url": "https://www.theregister.com/2026/10/14/eu_ai_act_gpai_enforcement/",
+        "rank": "WEAK",
+        "signalScore": 45,
+        "sourceDomains": [
+          "SOCIAL"
+        ],
+        "recurrence": null,
+        "velocity": null,
+        "breakdown": {
+          "source_key": "RSS",
+          "base_weight": 0.45,
+          "effective_weight": 0.45,
+          "net_source_votes": 0,
+          "engagement_bonus": 0,
+          "category_multiplier": 1.0,
+          "net_category_votes": 0,
+          "cross_source_bonus": 0
+        }
+      },
+      {
+        "url": "https://www.reddit.com/r/java/comments/1pq3z8k/virtual_threads_in_production/",
+        "rank": "WEAK",
+        "signalScore": 45,
+        "sourceDomains": [
+          "BUSINESS",
+          "SOCIAL"
+        ],
+        "recurrence": null,
+        "velocity": null,
+        "breakdown": {
+          "source_key": "Reddit",
+          "base_weight": 0.6,
+          "effective_weight": 0.45,
+          "net_source_votes": -3,
+          "engagement_bonus": 0,
+          "category_multiplier": 1.0,
+          "net_category_votes": 0,
+          "cross_source_bonus": 0
+        }
+      },
+      {
+        "url": "https://github.com/advisories/GHSA-7xqp-9vwm-2c4h",
+        "rank": "WEAK",
+        "signalScore": 18,
+        "sourceDomains": [
+          "SECURITY"
+        ],
+        "recurrence": null,
+        "velocity": null,
+        "breakdown": {
+          "source_key": "Security Advisories",
+          "base_weight": 0.3,
+          "effective_weight": 0.2,
+          "net_source_votes": -2,
+          "engagement_bonus": 0,
+          "category_multiplier": 0.92,
+          "net_category_votes": -4,
+          "cross_source_bonus": 0
+        }
+      }
+    ],
+    "weekly_recap": {
+      "entries": [
+        {
+          "title": "Introducing the MCP Tool Registry: publish, discover & pin agent tools",
+          "url": "https://claude.com/blog/mcp-tool-registry",
+          "change": "CONFIRMED",
+          "previousRank": "CRITICAL",
+          "currentRank": "CRITICAL"
+        },
+        {
+          "title": "WebAssembly on the server",
+          "url": "https://www.thoughtworks.com/radar/platforms/wasm-on-the-server",
+          "change": "ESCALATED",
+          "previousRank": "WEAK",
+          "currentRank": "MODERATE"
+        },
+        {
+          "title": "GHSA-7xqp-9vwm-2c4h Deserialization RCE in jackson-databind",
+          "url": "https://github.com/advisories/GHSA-7xqp-9vwm-2c4h",
+          "change": "FADED",
+          "previousRank": "CRITICAL",
+          "currentRank": "WEAK"
+        },
+        {
+          "title": "Benchmarked 19 MCP servers for tool-call latency. The pinned-digest ones were consistently faster",
+          "url": "https://x.com/jvmarchitect/status/1847562930184756",
+          "change": "FADED",
+          "previousRank": "CRITICAL",
+          "currentRank": "WEAK"
+        }
+      ]
+    },
+    "radar_accuracy": {
+      "flagged": 7,
+      "confirmed": 4
+    },
+    "reader_profile": {
+      "distilled_at": "2026-10-13T04:02:11Z",
+      "vote_count": 41,
+      "hypotheses": [
+        {
+          "statement": "Czytasz premiery narzędzi agentowych, pomijasz czyste badania",
+          "evidence": "7 👍 na AI/LLM i MCP, 4 👎 na arXiv w ostatnich 30 dniach",
+          "observed_at": "2026-10-08"
+        },
+        {
+          "statement": "Wydania JVM oceniasz wyżej niż dyskusje o JVM",
+          "evidence": "5 👍 na GitHub Releases, 3 👎 na Reddit/r/java",
+          "observed_at": "2026-09-24"
+        }
+      ]
+    }
+  },
+  "research": {
+    "collectedAt": "2026-10-15T06:12:04",
+    "raw_counts": {
+
+      "tweets": 214,
+
+      "hacker_news": 118,
+
+      "github": 60,
+
+      "rss": 173,
+
+      "reddit": 86
+
+    },
+    "tweets": [
+      {
+        "id": "1847562930184756",
+        "text": "Benchmarked 19 MCP servers for tool-call latency. The pinned-digest ones were consistently faster — 40ms off the median.",
+        "authorUsername": "jvmarchitect",
+        "authorName": "JVM Architect",
+        "createdAt": "2026-10-14T19:41:00Z",
+        "likeCount": 3140,
+        "retweetCount": 412,
+        "replyCount": 96
+      },
+      {
+        "id": "1847498120394881",
+        "text": "Quarkus 3.30 turning on virtual threads by default in the REST extension is the quiet headline of the week.",
+        "authorUsername": "nativebuilds",
+        "authorName": "Native Builds",
+        "createdAt": "2026-10-14T11:08:00Z",
+        "likeCount": 1870,
+        "retweetCount": 221,
+        "replyCount": 48
+      }
+    ],
+    "hackerNewsPosts": [
+      {
+        "title": "Project Valhalla: value classes proposed to target for JDK 27",
+        "url": "https://news.ycombinator.com/item?id=46281204",
+        "points": 968
+      },
+      {
+        "title": "OpenAI cuts batch inference pricing for o5-mini by 60%",
+        "url": "https://news.ycombinator.com/item?id=46279811",
+        "points": 1402
+      },
+      {
+        "title": "Ollama now ships a native Metal backend for quantized MoE models",
+        "url": "https://news.ycombinator.com/item?id=46277003",
+        "points": 604
+      }
+    ],
+    "githubRepos": [
+      {
+        "name": "modelcontextprotocol/registry",
+        "description": "Reference implementation of the MCP tool registry: manifest schema, signed digests and a publish CLI",
+        "stars": 14230,
+        "url": "https://github.com/modelcontextprotocol/registry"
+      },
+      {
+        "name": "timescale/pgvectorscale",
+        "description": "DiskANN index for pgvector, packaged as a Postgres extension",
+        "stars": 5120,
+        "url": "https://github.com/timescale/pgvectorscale"
+      }
+    ],
+    "rssItems": [
+      {
+        "title": "Project Valhalla: what value classes change for JVM data layout",
+        "url": "https://www.infoq.com/news/2026/10/valhalla-value-classes-jdk27/",
+        "description": "A walkthrough of the flattened layout and the identity-sensitive library patterns it breaks.",
+        "feedName": "InfoQ"
+      },
+      {
+        "title": "Spring Boot 4.1.2 and 4.0.9 available now",
+        "url": "https://spring.io/blog/2026/10/13/spring-boot-4-1-2-available-now",
+        "description": "Maintenance releases with 31 fixes, including two in the GraalVM native hints.",
+        "feedName": "Spring Blog"
+      },
+      {
+        "title": "Tuning Quarkus native image startup below 20ms",
+        "url": "https://www.baeldung.com/quarkus-native-startup-tuning",
+        "description": "Measuring where GraalVM spends startup time and which build flags actually move it.",
+        "feedName": "Baeldung"
+      },
+      {
+        "title": "EU AI Act enforcement starts for general-purpose models",
+        "url": "https://www.theregister.com/2026/10/14/eu_ai_act_gpai_enforcement/",
+        "description": "Documentation duties for GPAI models become enforceable on 2 November.",
+        "feedName": "The Register"
+      }
+    ],
+    "redditPosts": [
+      {
+        "title": "Virtual threads in production: 18 months of pinning bugs",
+        "url": "https://www.reddit.com/r/java/comments/1pq3z8k/virtual_threads_in_production/",
+        "score": 844,
+        "subreddit": "java"
+      },
+      {
+        "title": "Anyone running pgvector at 50M embeddings? Index build times are killing us",
+        "url": "https://www.reddit.com/r/PostgreSQL/comments/1pq0f12/pgvector_at_50m/",
+        "score": 391,
+        "subreddit": "PostgreSQL"
+      }
+    ],
+    "papers": [
+      {
+        "arxivId": "2610.04812",
+        "title": "Draft-Tree Speculative Decoding: 3.1x Throughput on 70B Models",
+        "abstractText": "We generalise speculative decoding from a linear draft to a tree of candidate continuations, verified in a single forward pass.",
+        "authors": [
+          "L. Petrova",
+          "M. Adeyemi",
+          "T. Brandt"
+        ],
+        "url": "https://arxiv.org/abs/2610.04812",
+        "primaryCategory": "cs.LG",
+        "publishedAt": "2026-10-13T09:00:00"
+      }
+    ],
+    "releases": [
+      {
+        "repoFullName": "quarkusio/quarkus",
+        "version": "3.30.0",
+        "releaseNotesExcerpt": "Native image startup down 18%; virtual threads enabled by default in the REST extension.",
+        "url": "https://github.com/quarkusio/quarkus/releases/tag/3.30.0",
+        "releasedAt": "2026-10-14T08:22:00"
+      },
+      {
+        "repoFullName": "pgvector/pgvector",
+        "version": "0.9.0",
+        "releaseNotesExcerpt": "Halfvec indexes rebuild incrementally; iterative index scans are no longer experimental.",
+        "url": "https://github.com/pgvector/pgvector/releases/tag/v0.9.0",
+        "releasedAt": "2026-10-12T16:40:00"
+      },
+      {
+        "repoFullName": "kubernetes/kubernetes",
+        "version": "v1.35.0",
+        "releaseNotesExcerpt": "Sidecar containers graduate to stable; kubelet compresses images by default.",
+        "url": "https://github.com/kubernetes/kubernetes/releases/tag/v1.35.0",
+        "releasedAt": "2026-10-14T19:05:00"
+      },
+      {
+        "repoFullName": "pytorch/pytorch",
+        "version": "v3.0.0",
+        "releaseNotesExcerpt": "Graph compilation on by default; eager mode removed from the training API.",
+        "url": "https://github.com/pytorch/pytorch/releases/tag/v3.0.0",
+        "releasedAt": "2026-10-13T22:30:00"
+      },
+      {
+        "repoFullName": "duckdb/duckdb",
+        "version": "v1.5.0",
+        "releaseNotesExcerpt": "Reads Iceberg tables without an external catalog; parquet scans 22% faster.",
+        "url": "https://github.com/duckdb/duckdb/releases/tag/v1.5.0",
+        "releasedAt": "2026-10-13T14:12:00"
+      }
+    ],
+    "huggingFaceModels": [
+      {
+        "id": "mistralai/Ministral-9B-Instruct-2610",
+        "author": "mistralai",
+        "downloads": 184200,
+        "likes": 1960,
+        "lastModified": "2026-10-13T21:14:00",
+        "pipelineTag": "text-generation",
+        "url": "https://huggingface.co/mistralai/Ministral-9B-Instruct-2610"
+      }
+    ],
+    "productHuntPosts": [
+      {
+        "name": "Pgvectorscale Cloud",
+        "tagline": "Managed pgvector with a DiskANN index and a free tier up to 2M vectors",
+        "url": "https://www.producthunt.com/posts/pgvectorscale-cloud",
+        "votesCount": 647,
+        "topics": [
+          "Artificial Intelligence",
+          "Developer Tools",
+          "Databases"
+        ],
+        "createdAt": "2026-10-14T07:01:00"
+      }
+    ],
+    "securityAdvisories": [
+      {
+        "ghsaId": "GHSA-7xqp-9vwm-2c4h",
+        "summary": "Deserialization RCE in jackson-databind",
+        "severity": "HIGH",
+        "publishedAt": "2026-10-14T13:05:00",
+        "affectedEcosystems": [
+          "maven"
+        ],
+        "url": "https://github.com/advisories/GHSA-7xqp-9vwm-2c4h"
+      }
+    ],
+    "jepUpdates": [
+      {
+        "jepId": "JEP 533",
+        "title": "Value Classes and Objects",
+        "status": "Proposed to Target",
+        "updatedAt": "2026-10-13T17:30:00",
+        "url": "https://openjdk.org/jeps/533"
+      }
+    ],
+    "cncfProjectUpdates": [
+      {
+        "projectName": "OpenTelemetry Profiling",
+        "category": "Observability and Analysis",
+        "status": "incubating",
+        "description": "pprof-based profiling signal folded into the OTLP specification",
+        "url": "https://github.com/cncf/landscape/pull/8812",
+        "updatedAt": "2026-10-13T11:52:00"
+      }
+    ],
+    "radarEntries": [
+      {
+        "name": "WebAssembly on the server",
+        "ring": "Trial",
+        "quadrant": "Platforms",
+        "description": "Promoted from Assess on the strength of plugin isolation rather than raw performance",
+        "url": "https://www.thoughtworks.com/radar/platforms/wasm-on-the-server"
+      }
+    ],
+    "conferenceTalks": [
+      {
+        "title": "Virtual Threads in Production: Lessons from 18 Months",
+        "channelName": "Devoxx",
+        "conferenceName": "Devoxx",
+        "url": "https://www.youtube.com/watch?v=Kx9nTqL3bVc",
+        "publishedAt": "2026-10-02T15:00:00",
+        "viewCount": 45200
+      }
+    ],
+    "labAnnouncements": [
+      {
+        "title": "Introducing the MCP Tool Registry: publish, discover & pin agent tools",
+        "url": "https://claude.com/blog/mcp-tool-registry",
+        "summary": "Versioned manifests and signed digests for MCP servers.",
+        "source": "Claude Blog",
+        "publishedAt": "2026-10-14T16:00:00"
+      },
+      {
+        "title": "Batch inference pricing for o5-mini drops 60%",
+        "url": "https://developers.openai.com/blog/o5-mini-batch-pricing",
+        "summary": "Applies to the 24-hour batch window only.",
+        "source": "OpenAI Dev Blog",
+        "publishedAt": "2026-10-14T18:20:00"
+      }
+    ],
+    "socialPosts": [
+      {
+        "network": "Mastodon",
+        "author": "@jvmops@mastodon.social",
+        "text": "Przypiąłem dziś wszystkie serwery MCP z naszego stacku do digestów z rejestru. Odtwarzalne buildy narzędzi, wreszcie.",
+        "url": "https://mastodon.social/@jvmops/113948201746",
+        "likeCount": 318
+      },
+      {
+        "network": "Bluesky",
+        "author": "@platformeng.bsky.social",
+        "text": "Ollama on Metal with quantized MoE is the first local setup that has felt fast enough to replace a hosted call.",
+        "url": "https://bsky.app/profile/platformeng.bsky.social/post/3m2kq8x",
+        "likeCount": 227
+      }
+    ],
+    "sourceFetchReports": [
+      {
+        "sourceName": "Twitter/X influencer",
+        "status": "SUCCESS",
+        "itemCount": 1,
+        "durationMillis": 1842,
+        "errorMessage": null
+      },
+      {
+        "sourceName": "Twitter/X topic",
+        "status": "SUCCESS",
+        "itemCount": 1,
+        "durationMillis": 1611,
+        "errorMessage": null
+      },
+      {
+        "sourceName": "Twitter/X Anthropic",
+        "status": "SUCCESS",
+        "itemCount": 0,
+        "durationMillis": 1204,
+        "errorMessage": null
+      },
+      {
+        "sourceName": "Hacker News",
+        "status": "SUCCESS",
+        "itemCount": 3,
+        "durationMillis": 912,
+        "errorMessage": null
+      },
+      {
+        "sourceName": "GitHub",
+        "status": "SUCCESS",
+        "itemCount": 2,
+        "durationMillis": 1388,
+        "errorMessage": null
+      },
+      {
+        "sourceName": "RSS",
+        "status": "SUCCESS",
+        "itemCount": 4,
+        "durationMillis": 2764,
+        "errorMessage": null
+      },
+      {
+        "sourceName": "Reddit",
+        "status": "SUCCESS",
+        "itemCount": 2,
+        "durationMillis": 1507,
+        "errorMessage": null
+      },
+      {
+        "sourceName": "arXiv",
+        "status": "SUCCESS",
+        "itemCount": 1,
+        "durationMillis": 2210,
+        "errorMessage": null
+      },
+      {
+        "sourceName": "GitHub Releases",
+        "status": "SUCCESS",
+        "itemCount": 5,
+        "durationMillis": 1703,
+        "errorMessage": null
+      },
+      {
+        "sourceName": "Hugging Face",
+        "status": "SUCCESS",
+        "itemCount": 1,
+        "durationMillis": 988,
+        "errorMessage": null
+      },
+      {
+        "sourceName": "Product Hunt",
+        "status": "SUCCESS",
+        "itemCount": 1,
+        "durationMillis": 1455,
+        "errorMessage": null
+      },
+      {
+        "sourceName": "Security Advisories",
+        "status": "SUCCESS",
+        "itemCount": 1,
+        "durationMillis": 1132,
+        "errorMessage": null
+      },
+      {
+        "sourceName": "OpenJDK JEP",
+        "status": "SUCCESS",
+        "itemCount": 1,
+        "durationMillis": 2041,
+        "errorMessage": null
+      },
+      {
+        "sourceName": "CNCF Landscape",
+        "status": "SUCCESS",
+        "itemCount": 1,
+        "durationMillis": 1876,
+        "errorMessage": null
+      },
+      {
+        "sourceName": "Tech Radar",
+        "status": "SUCCESS",
+        "itemCount": 1,
+        "durationMillis": 1344,
+        "errorMessage": null
+      },
+      {
+        "sourceName": "Conference Talks",
+        "status": "FAILED",
+        "itemCount": 0,
+        "durationMillis": 8003,
+        "errorMessage": "java.net.http.HttpTimeoutException: request timed out"
+      },
+      {
+        "sourceName": "Social",
+        "status": "SUCCESS",
+        "itemCount": 2,
+        "durationMillis": 1299,
+        "errorMessage": null
+      },
+      {
+        "sourceName": "Lab Announcements",
+        "status": "SUCCESS",
+        "itemCount": 2,
+        "durationMillis": 4512,
+        "errorMessage": null
+      }
+    ]
+  }
+}

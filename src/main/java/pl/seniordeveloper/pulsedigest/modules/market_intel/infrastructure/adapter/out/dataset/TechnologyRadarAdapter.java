@@ -12,8 +12,6 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RadarEnt
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.TechnologyRadarProperties;
 
 import java.net.URI;
-import java.time.ZoneOffset;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -75,7 +73,7 @@ public class TechnologyRadarAdapter {
                 if (name.isBlank()) {
                     continue;
                 }
-                result.add(new RadarEntry(name, ring, quadrant, description, url, LocalDateTime.now(ZoneOffset.UTC)));
+                result.add(new RadarEntry(name, ring, quadrant, description, url));
             }
             return result;
         } catch (Exception e) {

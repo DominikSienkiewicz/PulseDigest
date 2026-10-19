@@ -15,6 +15,7 @@ import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.LabAnnounceme
 import java.lang.reflect.Field;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
@@ -25,6 +26,11 @@ import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+/*
+ * Every fixture date below is built in UTC, like the adapter. The adapter discards anything dated
+ * after today-in-UTC as future-dated, so a fixture stamped with the default zone is silently dropped
+ * — and the suite goes red — for the hours each night between local midnight and UTC midnight.
+ */
 class LabAnnouncementsAdapterIT {
 
     private WireMockServer wireMock;
@@ -61,8 +67,8 @@ class LabAnnouncementsAdapterIT {
 
     @Test
     void sanityStrategyParsesInlineCmsDataWithinWindow() throws Exception {
-        String recentIso = LocalDateTime.now().minusHours(3) + "Z";
-        String staleIso = LocalDateTime.now().minusDays(30) + "Z";
+        String recentIso = LocalDateTime.now(ZoneOffset.UTC).minusHours(3) + "Z";
+        String staleIso = LocalDateTime.now(ZoneOffset.UTC).minusDays(30) + "Z";
         String listing = ("<html><body><script>window.__d = \""
                 + "\\\"publishedOn\\\":\\\"%s\\\",\\\"slug\\\":{\\\"current\\\":\\\"fresh-post\\\"},"
                 + "\\\"summary\\\":\\\"Fresh summary\\\",\\\"title\\\":\\\"Fresh title\\\""
@@ -71,8 +77,7 @@ class LabAnnouncementsAdapterIT {
                 + "\";</script></body></html>").formatted(recentIso, staleIso);
         wireMock.stubFor(get(urlPathEqualTo("/news")).willReturn(html(listing)));
 
-        LabAnnouncementsAdapter adapter = adapterWith(
-                new Source("Anthropic News", Strategy.SANITY, baseUrl + "/news", null));
+        LabAnnouncementsAdapter adapter = adapterWith(new Source("Anthropic News", Strategy.SANITY, baseUrl + "/news", null));
         List<LabAnnouncement> result = adapter.fetchAnnouncements();
 
         assertThat(result).hasSize(1);
@@ -84,7 +89,7 @@ class LabAnnouncementsAdapterIT {
 
     @Test
     void jsonLdStrategyFetchesListingThenPerPostDate() throws Exception {
-        String recentIso = LocalDate.now() + "T09:00:00+00:00";
+        String recentIso = LocalDate.now(ZoneOffset.UTC) + "T09:00:00+00:00";
         String listing = "<html><body>"
                 + "<a href=\"/blog/recent-post\">Recent</a>"
                 + "<a href=\"/blog/old-post\">Old</a>"
@@ -114,7 +119,7 @@ class LabAnnouncementsAdapterIT {
 
     @Test
     void openAiDevStrategyParsesCardsInlineWithYearlessDate() throws Exception {
-        String recentShortDate = LocalDate.now().format(DateTimeFormatter.ofPattern("MMM d", Locale.ENGLISH));
+        String recentShortDate = LocalDate.now(ZoneOffset.UTC).format(DateTimeFormatter.ofPattern("MMM d", Locale.ENGLISH));
         String listing = ("<html><body>"
                 + "<a href=\"/blog/fresh-openai-post\">"
                 + "<div class=\"text-sm text-secondary\">%s</div>"
@@ -143,8 +148,7 @@ class LabAnnouncementsAdapterIT {
         wireMock.stubFor(get(urlPathEqualTo("/news")).willReturn(aResponse().withStatus(503)));
         wireMock.stubFor(get(urlPathEqualTo("/blog")).willReturn(aResponse().withStatus(503)));
 
-        LabAnnouncementsAdapter adapter = adapterWith(
-                new Source("Anthropic News", Strategy.SANITY, baseUrl + "/news", null),
+        LabAnnouncementsAdapter adapter = adapterWith(new Source("Anthropic News", Strategy.SANITY, baseUrl + "/news", null),
                 new Source("OpenAI Dev Blog", Strategy.OPENAI_DEV, baseUrl + "/blog", null));
 
         assertThatThrownBy(adapter::fetchAnnouncements)
@@ -154,7 +158,7 @@ class LabAnnouncementsAdapterIT {
 
     @Test
     void singleSourceFailureStillReturnsResultsFromHealthySource() throws Exception {
-        String recentShortDate = LocalDate.now().format(DateTimeFormatter.ofPattern("MMM d", Locale.ENGLISH));
+        String recentShortDate = LocalDate.now(ZoneOffset.UTC).format(DateTimeFormatter.ofPattern("MMM d", Locale.ENGLISH));
         String listing = ("<html><body><a href=\"/blog/ok-post\">"
                 + "<div class=\"text-sm text-secondary\">%s</div>"
                 + "<div class=\"text-xl\"><div class=\"line-clamp-2\">OK post</div></div>"
@@ -162,8 +166,7 @@ class LabAnnouncementsAdapterIT {
         wireMock.stubFor(get(urlPathEqualTo("/news")).willReturn(aResponse().withStatus(503)));
         wireMock.stubFor(get(urlPathEqualTo("/blog")).willReturn(html(listing)));
 
-        LabAnnouncementsAdapter adapter = adapterWith(
-                new Source("Anthropic News", Strategy.SANITY, baseUrl + "/news", null),
+        LabAnnouncementsAdapter adapter = adapterWith(new Source("Anthropic News", Strategy.SANITY, baseUrl + "/news", null),
                 new Source("OpenAI Dev Blog", Strategy.OPENAI_DEV, baseUrl + "/blog", null));
         List<LabAnnouncement> result = adapter.fetchAnnouncements();
 

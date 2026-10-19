@@ -1,8 +1,14 @@
 package pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapter.out.email;
 
+import pl.seniordeveloper.pulsedigest.modules.market_intel.application.policy.SectionsPolicy;
+
 import org.junit.jupiter.api.Test;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.application.policy.ScoringPolicy;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ThinWeekProperties;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.SignalScoringService;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ScoreBreakdown;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.DigestItem;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportData;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Signal;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceDomain;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.FeedbackProperties;
@@ -53,6 +59,8 @@ import static org.assertj.core.api.Assertions.fail;
 class ReportEmailGoldenFileTest {
 
     private static final Path GOLDEN_FILE = Path.of("docs", "sample-digest.html");
+    private static final Path THIN_GOLDEN_FILE = Path.of("docs", "sample-digest-thin.html");
+    private static final Path TEXT_GOLDEN_FILE = Path.of("docs", "sample-digest.txt");
     private static final String UPDATE_FLAG = "pulsedigest.golden.update";
     private static final DateTimeFormatter DISPLAY_DATE =
             DateTimeFormatter.ofPattern("dd.MM.yyyy", Locale.of("pl", "PL"));
@@ -71,14 +79,99 @@ class ReportEmailGoldenFileTest {
         assertThat(rendered).isEqualTo(read());
     }
 
+    /**
+     * N03. The same fixture with everything above the Must-know bar removed must render the
+     * three-line note, not a document of leftovers — and the second golden file is what keeps that
+     * shape from rotting, since it is a shape the normal fixture can never exercise.
+     *
+     * <p>The thin edition is derived rather than committed as a second fixture: it must be the same
+     * edition minus its strong stories, or the comparison would be measuring two unrelated inputs.
+     */
+    @Test
+    void anEditionWithNothingAboveTheBarRendersTheThinWeekNote() {
+        ReportData thin = fixture.report().withSignals(List.of());
+        List<DigestItem> weakOnly = thin.items().stream()
+                .filter(item -> item.score() < DigestLayout.MUST_KNOW_THRESHOLD)
+                .toList();
+        String rendered = atEditionDate(builder()
+                .buildHtml(new ReportData(thin.emailPreview(), thin.editorial(), thin.topInsights(), weakOnly),
+                        fixture.research()));
+
+        if (System.getProperty(UPDATE_FLAG) != null) {
+            write(rendered, THIN_GOLDEN_FILE);
+            fail("Re-recorded %s. Review the diff, then re-run without -Pupdate-golden to confirm it.",
+                    THIN_GOLDEN_FILE);
+        }
+        assertThat(rendered)
+                .as("a thin edition must not render tables, watchlist or recap")
+                .isEqualTo(read(THIN_GOLDEN_FILE))
+                .contains("Cicho w tym tygodniu")
+                .doesNotContain("Krytyczne trendy");
+    }
+
+    /**
+     * N14. The text part is under the golden file for the same reason the HTML is, and with one extra
+     * reason on top: two renderers of one edition drift, and the drift is invisible until a reader
+     * whose client prefers text gets a different digest from the one that was reviewed.
+     */
+    @Test
+    void rendersTheFixtureEditionAsTextExactlyAsRecorded() {
+        String rendered = atEditionDate(textBuilder().buildText(fixture.report(), fixture.research()));
+
+        if (System.getProperty(UPDATE_FLAG) != null) {
+            write(rendered, TEXT_GOLDEN_FILE);
+            fail("Re-recorded %s. Review the diff, then re-run without -Pupdate-golden to confirm it.",
+                    TEXT_GOLDEN_FILE);
+        }
+        assertThat(rendered).isEqualTo(read(TEXT_GOLDEN_FILE));
+    }
+
+    @Test
+    void theTextPartCarriesEveryStoryTheHtmlDoes() {
+        // The failure this guards is a section added to one renderer and forgotten in the other. URLs
+        // compare cleanly where titles would drown in markup differences.
+        String text = textBuilder().buildText(fixture.report(), fixture.research());
+        String html = builder().buildHtml(fixture.report(), fixture.research());
+
+        List<String> missing = fixture.report().items().stream()
+                .map(DigestItem::url)
+                .filter(html::contains)
+                .filter(url -> !text.contains(url))
+                .toList();
+
+        assertThat(missing).as("stories rendered in HTML but absent from the text part").isEmpty();
+    }
+
+    @Test
+    void theTextPartWrapsToATerminalWidth() {
+        // The point of a text part is that it reads in a terminal. URLs are exempt: breaking one
+        // makes it unclickable, which is a worse defect than a long line.
+        String text = textBuilder().buildText(fixture.report(), fixture.research());
+
+        assertThat(text.lines().filter(line -> line.length() > 78).toList())
+                .allSatisfy(line -> assertThat(line).contains("http"));
+    }
+
+    @Test
+    void theThinWeekSubjectSaysSoInsteadOfPromisingADigest() {
+        ReportData thin = new ReportData(fixture.report().emailPreview(), fixture.report().editorial(),
+                fixture.report().topInsights(), List.of());
+
+        assertThat(builder().buildSubject(thin)).contains("cicho w tym tygodniu");
+    }
+
     @Test
     void fixtureSignalsAreValuesTheRealScorerCanProduce() {
         // A fixture whose numbers no production run could generate is worse than none: it freezes a
         // shape the pipeline never emits, and the golden file then guards fiction.
-        List<Signal> derived = new SignalScoringService()
+        List<Signal> derived = new SignalScoringService(ScoringPolicy.defaults())
                 .score(fixture.report().items(), fixture.netVotesBySource(), fixture.netVotesByCategory());
 
         assertThat(describe(derived)).isEqualTo(describe(fixture.report().signals()));
+    }
+
+    private PlainTextDigestBuilder textBuilder() {
+        return new PlainTextDigestBuilder(new ThinWeekProperties(true, 3));
     }
 
     private ReportEmailBuilder builder() {
@@ -86,7 +179,8 @@ class ReportEmailGoldenFileTest {
         // date, so a signed link would change every day. FeedbackLinkBuilderTest owns the signed form.
         return new ReportEmailBuilder(
                 new FeedbackProperties(true, 30, fixture.feedbackReceiverUrl(), ""),
-                new WatchlistProperties(true, fixture.watchlistTechnologies()));
+                new WatchlistProperties(true, fixture.watchlistTechnologies()), new ThinWeekProperties(true, 3),
+                new SectionsPolicy(java.util.Set.of()));
     }
 
     /**
@@ -106,13 +200,13 @@ class ReportEmailGoldenFileTest {
         assertThat(html)
                 .as("rendered mail must carry today's display date %s", renderedDisplay)
                 .contains(renderedDisplay);
-        assertThat(html)
-                .as("every feedback link must carry today's ISO edition stamp %s", today)
-                .contains("edition=" + today);
 
-        return html
-                .replace(renderedDisplay, recordedDisplay)
-                .replace("edition=" + today, "edition=" + fixture.editionDate());
+        String dated = html.replace(renderedDisplay, recordedDisplay);
+        if (!html.contains("edition=" + today)) {
+            // The text part carries no feedback links, so it has no edition stamp to rewrite.
+            return dated;
+        }
+        return dated.replace("edition=" + today, "edition=" + fixture.editionDate());
     }
 
     /**
@@ -136,23 +230,31 @@ class ReportEmailGoldenFileTest {
     }
 
     private static String read() {
+        return read(GOLDEN_FILE);
+    }
+
+    private static String read(Path file) {
         try {
-            return Files.readString(goldenFile(), StandardCharsets.UTF_8);
+            return Files.readString(goldenFile(file), StandardCharsets.UTF_8);
         } catch (IOException e) {
             throw new UncheckedIOException("Missing golden file — re-record it with -Pupdate-golden", e);
         }
     }
 
     private static void write(String html) {
+        write(html, GOLDEN_FILE);
+    }
+
+    private static void write(String html, Path file) {
         try {
-            Files.writeString(goldenFile(), html, StandardCharsets.UTF_8);
+            Files.writeString(goldenFile(file), html, StandardCharsets.UTF_8);
         } catch (IOException e) {
             throw new UncheckedIOException("Could not re-record the golden file", e);
         }
     }
 
     /** Resolved against the repository root so the test does not depend on the runner's working directory. */
-    private static Path goldenFile() {
+    private static Path goldenFile(Path file) {
         Path candidate = Path.of("").toAbsolutePath();
         while (candidate != null && !Files.exists(candidate.resolve("settings.gradle.kts"))) {
             candidate = candidate.getParent();
@@ -160,6 +262,6 @@ class ReportEmailGoldenFileTest {
         if (candidate == null) {
             throw new IllegalStateException("Could not locate the repository root from the working directory");
         }
-        return candidate.resolve(GOLDEN_FILE);
+        return candidate.resolve(file);
     }
 }

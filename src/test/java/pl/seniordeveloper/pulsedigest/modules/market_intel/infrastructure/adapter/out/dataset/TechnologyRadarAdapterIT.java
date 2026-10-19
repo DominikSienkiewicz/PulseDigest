@@ -38,8 +38,7 @@ class TechnologyRadarAdapterIT {
         TechnologyRadarProperties props =
                 new TechnologyRadarProperties(
                         "http://localhost:" + wireMock.port(),
-                        "/",
-                        6);
+                        "/");
         adapter = new TechnologyRadarAdapter(props, new ObjectMapper());
 
         RestClient testClient = RestClient.builder()

@@ -1,7 +1,11 @@
 package pl.seniordeveloper.pulsedigest.modules.market_intel.application;
 
+import pl.seniordeveloper.pulsedigest.testing.TestModels;
+
 import org.junit.jupiter.api.Test;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.PastEdition;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceFetchReport;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceIntake;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.DigestItem;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Signal;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceDomain;
@@ -23,12 +27,12 @@ class SourceYieldServiceTest {
     private static Signal topic(String source, SignalRank rank) {
         DigestItem item = new DigestItem("Title", "https://example.com/" + source + rank, source,
                 "AI/LLM", "RELEASE", 8, 10, "Summary", null, "t-" + source + rank);
-        return new Signal(item, rank, 100, List.of(SourceDomain.CODE));
+        return TestModels.signal(item, rank, 100, List.of(SourceDomain.CODE));
     }
 
     @Test
     void yieldIsTheShareOfASourcesItemsThatEarnedAHighRank() {
-        PastEdition edition = new PastEdition(RUN, List.of(
+        PastEdition edition = TestModels.pastEdition(RUN, List.of(
                 topic("Reddit", SignalRank.WEAK),
                 topic("Reddit", SignalRank.MODERATE),
                 topic("GitHub Releases", SignalRank.CRITICAL),
@@ -50,7 +54,7 @@ class SourceYieldServiceTest {
 
     @Test
     void sourcesAreRankedByYieldSoTheScoreboardReadsTopDown() {
-        PastEdition edition = new PastEdition(RUN, List.of(
+        PastEdition edition = TestModels.pastEdition(RUN, List.of(
                 topic("Reddit", SignalRank.WEAK),
                 topic("Hacker News", SignalRank.CRITICAL)));
 
@@ -61,7 +65,7 @@ class SourceYieldServiceTest {
 
     @Test
     void labelsAreCollapsedToTheirBaseSourceSoArxivCategoriesDoNotFragmentTheLedger() {
-        PastEdition edition = new PastEdition(RUN, List.of(
+        PastEdition edition = TestModels.pastEdition(RUN, List.of(
                 topic("arXiv/cs.AI", SignalRank.CRITICAL),
                 topic("arXiv/cs.LG", SignalRank.WEAK)));
 
@@ -83,9 +87,67 @@ class SourceYieldServiceTest {
     void topicsWithoutASourceAreIgnoredRatherThanBucketedUnderTheEmptyString() {
         DigestItem sourceless = new DigestItem("Title", "https://example.com/x", null,
                 "AI/LLM", "RELEASE", 8, 10, "Summary", null, "t");
-        PastEdition edition = new PastEdition(RUN,
-                List.of(new Signal(sourceless, SignalRank.CRITICAL, 100, List.of(SourceDomain.CODE))));
+        PastEdition edition = TestModels.pastEdition(RUN,
+                List.of(TestModels.signal(sourceless, SignalRank.CRITICAL, 100, List.of(SourceDomain.CODE))));
 
         assertThat(service.scoreboard(List.of(edition))).isEmpty();
+    }
+
+    /**
+     * F7. The yield ledger tallies only sources that appear in an edition's signals, so a source
+     * returning an empty result set has no row at all — it reads exactly like a source nobody
+     * configured. The reports needed to tell those apart were already being stored per edition and
+     * simply never read back.
+     *
+     * <p>Red before the fix: the intake ledger was empty, so a source fetched in three editions and
+     * silent in all three produced no row and no warning.
+     */
+    @org.junit.jupiter.api.Test
+    void aSourceThatKeepsReturningNothingStillGetsALedgerRow() {
+        List<PastEdition> history = List.of(editionFetching("Tech Radar", 0, "Hacker News", 12),
+                editionFetching("Tech Radar", 0, "Hacker News", 9),
+                editionFetching("Tech Radar", 0, "Hacker News", 14));
+
+        List<SourceIntake> ledger = service.intakeLedger(history);
+
+        assertThat(ledger).extracting(SourceIntake::source)
+                .as("a silent source must be present, not absent")
+                .contains("Tech Radar", "Hacker News");
+        assertThat(ledger).filteredOn(i -> i.source().equals("Tech Radar"))
+                .singleElement()
+                .satisfies(i -> {
+                    assertThat(i.editions()).isEqualTo(3);
+                    assertThat(i.silentEditions()).isEqualTo(3);
+                    assertThat(i.itemsFetched()).isZero();
+                    assertThat(i.isSilent()).isTrue();
+                });
+    }
+
+    @org.junit.jupiter.api.Test
+    void aSourceSilentAcrossTheWholeWindowIsReportedOnceItHasEnoughEditionsToJudge() {
+        List<PastEdition> history = List.of(editionFetching("Tech Radar", 0, "Hacker News", 12),
+                editionFetching("Tech Radar", 0, "Hacker News", 9),
+                editionFetching("Tech Radar", 0, "Hacker News", 14));
+
+        assertThat(service.silentSources(history, 3)).extracting(SourceIntake::source)
+                .containsExactly("Tech Radar");
+        assertThat(service.silentSources(history, 4))
+                .as("three editions is not yet evidence when four are required")
+                .isEmpty();
+    }
+
+    @org.junit.jupiter.api.Test
+    void aSourceThatReturnedSomethingEvenOnceIsNotSilent() {
+        List<PastEdition> history = List.of(editionFetching("Tech Radar", 0, "Hacker News", 12),
+                editionFetching("Tech Radar", 7, "Hacker News", 9));
+
+        assertThat(service.silentSources(history, 2)).isEmpty();
+    }
+
+    /** An edition carrying only fetch reports — the published side is irrelevant to intake. */
+    private static PastEdition editionFetching(String firstSource, int firstCount,
+                                               String secondSource, int secondCount) {
+        return new PastEdition(RUN, List.of(), List.of(SourceFetchReport.success(firstSource, firstCount, 10L),
+                SourceFetchReport.success(secondSource, secondCount, 10L)));
     }
 }

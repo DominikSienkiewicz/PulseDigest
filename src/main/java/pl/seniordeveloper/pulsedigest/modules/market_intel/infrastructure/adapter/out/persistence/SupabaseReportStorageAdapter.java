@@ -11,14 +11,16 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.Repor
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.util.Optional;
 
 /**
- * Persystencja raportów w Supabase (Postgres) jako pojedynczy wiersz per jobId
- * z całym {@link PersistedReport} jako kolumna JSONB.
+ * Stores an edition in Supabase (Postgres) as one row per job id, with the whole
+ * {@link PersistedReport} in a single JSONB column (see
+ * <a href="../../../../../../../../../../docs/adr/0003-jsonb-payload-with-domain-records.md">ADR-0003</a>).
  *
- * <p>Bez cache w pamięci — aplikacja jest one-shot batch (start → cykl → exit),
- * więc TTL cache nie ma czasu być reused. Każde {@code getLatest()} = jeden query.
+ * <p>Write-only. The {@code getLatest()} read disappeared on 2026-10-18 along with the query
+ * services nothing called; reading the archive belongs to {@code ReportHistoryPort}, which reaches
+ * inside the payload rather than fetching whole editions. There was never an in-memory cache to
+ * justify either — this is a one-shot batch: start, run, exit.
  */
 @Slf4j
 @RequiredArgsConstructor
@@ -31,12 +33,6 @@ public class SupabaseReportStorageAdapter implements ReportStoragePort {
             ON CONFLICT (job_id) DO UPDATE SET
                 generated_at = EXCLUDED.generated_at,
                 payload      = EXCLUDED.payload
-            """;
-
-    private static final String LATEST_SQL = """
-            SELECT payload FROM reports
-            ORDER BY generated_at DESC
-            LIMIT 1
             """;
 
     private final JdbcClient jdbcClient;
@@ -56,21 +52,6 @@ public class SupabaseReportStorageAdapter implements ReportStoragePort {
             log.info("Report persisted to Supabase | jobId={} | rows={}", report.jobId(), rows);
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("Failed to serialize report payload", e);
-        }
-    }
-
-    @Override
-    public Optional<PersistedReport> getLatest() {
-        return jdbcClient.sql(LATEST_SQL)
-                .query((rs, rowNum) -> deserialize(rs.getString("payload")))
-                .optional();
-    }
-
-    private PersistedReport deserialize(String json) {
-        try {
-            return objectMapper.readValue(json, PersistedReport.class);
-        } catch (JsonProcessingException e) {
-            throw new IllegalStateException("Corrupted report payload in DB", e);
         }
     }
 }

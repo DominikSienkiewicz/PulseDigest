@@ -1,5 +1,7 @@
 package pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapter.out.persistence;
 
+import pl.seniordeveloper.pulsedigest.testing.TestModels;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -107,9 +109,9 @@ class SupabasePublishedUrlsAdapterIT {
 
     private static PersistedReport report(String jobId, Instant generatedAt, String... urls) {
         List<DigestItem> items = Arrays.stream(urls)
-                .map(u -> new DigestItem("title", u, "GitHub", "Java", "RELEASE", 8, 10, "sum", "why"))
+                .map(u -> TestModels.digestItem("title", u, "GitHub", "Java", "RELEASE", 8, 10, "sum", "why"))
                 .toList();
         ReportData data = new ReportData("preview", "editorial", List.of("insight"), items);
-        return new PersistedReport(data, jobId, generatedAt, items.size(), 0, 0);
+        return TestModels.persistedReport(data, jobId, generatedAt, items.size(), 0, 0);
     }
 }

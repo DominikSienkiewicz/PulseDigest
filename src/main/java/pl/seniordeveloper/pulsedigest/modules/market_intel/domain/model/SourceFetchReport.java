@@ -16,6 +16,11 @@ public record SourceFetchReport(
         return new SourceFetchReport(sourceName, SourceFetchStatus.SUCCESS, itemCount, durationMillis, null);
     }
 
+    /** A source the run did not even attempt, because configuration switched it off (N27). */
+    public static SourceFetchReport disabled(String sourceName) {
+        return new SourceFetchReport(sourceName, SourceFetchStatus.DISABLED, 0, 0L, "disabled by configuration");
+    }
+
     public static SourceFetchReport failed(String sourceName, long durationMillis, String errorMessage) {
         return new SourceFetchReport(sourceName, SourceFetchStatus.FAILED, 0, durationMillis, errorMessage);
     }

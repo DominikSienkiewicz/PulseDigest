@@ -2,10 +2,11 @@ package pl.seniordeveloper.pulsedigest.architecture;
 
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
-import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.lang.ArchRule;
 import org.junit.jupiter.api.Test;
+import pl.seniordeveloper.pulsedigest.shared.result.Result;
 
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.methods;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
 final class ArchitectureRulesTest {
@@ -36,18 +37,12 @@ final class ArchitectureRulesTest {
     }
 
     @Test
-    void forbiddenLombokAnnotationsAreNotUsed() {
-        FORBIDDEN_LOMBOK_ANNOTATIONS_ARE_NOT_USED.check(productionClasses());
+    void useCaseHandlersReturnResult() {
+        USE_CASE_HANDLERS_RETURN_RESULT.check(importedClasses());
     }
 
     private JavaClasses importedClasses() {
         return new ClassFileImporter().importPackages("pl.seniordeveloper.pulsedigest");
-    }
-
-    private JavaClasses productionClasses() {
-        return new ClassFileImporter()
-                .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
-                .importPackages("pl.seniordeveloper.pulsedigest");
     }
 
     private static final ArchRule DOMAIN_IS_FREE_OF_SPRING = noClasses()
@@ -87,13 +82,28 @@ final class ArchitectureRulesTest {
             .because("the project uses blocking I/O on virtual threads, not WebFlux");
 
     /**
-     * Mirrors the FORBIDDEN list in CLAUDE.md → prefer records or explicit constructors.
-     * {@code @Slf4j}, {@code @RequiredArgsConstructor}, and {@code @Builder} stay allowed.
+     * The gate for the project's most-cited decision (ADR-0007). Until this rule existed nothing checked
+     * it: the ADR and CLAUDE.md were a promise kept alive by whoever remembered it.
+     *
+     * <p>It guards exactly one method today, {@code GenerateMarketReportService.handle}, and that is on
+     * purpose: the value is prospective, the first use case added with a raw return type fails here
+     * instead of in review. The selector is deliberately narrow. The other {@code *Service} classes in
+     * {@code application/} are collaborators that return domain values, not use cases, so a rule over
+     * every public method there would be wrong rather than merely strict.
+     *
+     * <p>{@code application.query} does not exist at the moment (removed when its only services turned
+     * out to have no callers). That is harmless: a package selector that matches nothing is not an
+     * error, and the rule still selects the command handler. {@code allowEmptyShould} is intentionally
+     * not used, because a rule that selects nothing is a gate that cannot fire. If the handler is ever
+     * renamed or moved out of these packages, this rule fails with "failed to check any classes"
+     * instead of passing vacuously, which forces the selector to be updated along with the code.
      */
-    private static final ArchRule FORBIDDEN_LOMBOK_ANNOTATIONS_ARE_NOT_USED = noClasses()
-            .should().dependOnClassesThat().haveFullyQualifiedName("lombok.Data")
-            .orShould().dependOnClassesThat().haveFullyQualifiedName("lombok.experimental.UtilityClass")
-            .orShould().dependOnClassesThat().haveFullyQualifiedName("lombok.SneakyThrows")
-            .because("CLAUDE.md forbids @Data, @UtilityClass, @SneakyThrows — prefer records or explicit code");
+    private static final ArchRule USE_CASE_HANDLERS_RETURN_RESULT = methods()
+            .that().haveName("handle")
+            .and().areDeclaredInClassesThat().resideInAnyPackage("..application.command..", "..application.query..")
+            .and().areDeclaredInClassesThat().haveSimpleNameEndingWith("Service")
+            .should().haveRawReturnType(Result.class)
+            .because("an expected failure must travel in the signature, where the compiler forces every caller "
+                    + "to handle it, instead of surfacing as an exception or an empty Optional (ADR-0007)");
 
 }

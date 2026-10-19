@@ -1,0 +1,104 @@
+name: PulseDigest watchdog
+
+# N42 — the one failure mode that is otherwise completely silent.
+#
+# digest.yml's failure alert hangs off `if: failure()`, which needs a run to fail. It cannot fire
+# for the run that never started: a disabled schedule, a deleted workflow, a runner outage, an
+# expired credential that makes the job never reach its notification step. Nothing happens, nobody
+# is told, and the product ends without an error anywhere.
+#
+# This asks the only question that matters from outside the pipeline — "is there a recent edition in
+# the database?" — and shouts when the answer is no.
+#
+# WHAT THIS DOES NOT COVER, stated plainly because a watchdog believed to be stronger than it is is
+# worse than none: it is a scheduled workflow in the same repository as the thing it watches, so it
+# shares that repository's fate. GitHub disables `schedule` triggers after 60 days without activity,
+# and that one event silences the digest AND this watchdog together. Closing that gap needs a host
+# outside this repository — the deployed feedback receiver is the cheapest one, which is why it is
+# tied to F6's remaining half. What this does cover is every other cause, which is most of them.
+
+on:
+  # Daily, not twice a week. Editions land Mon/Thu, so a Monday-only check would need Monday's
+  # schedule to work in order to report that Monday's schedule did not — and the whole point is that
+  # the thing being watched and the watcher can fail together. Asking every day means a missed
+  # Monday is still caught on Tuesday.
+  schedule:
+    - cron: '0 10 * * *'
+  workflow_dispatch:
+
+jobs:
+  watchdog:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      # Mon→Thu is 72h, Thu→Mon is 96h. 108h is the longer gap plus half a day of margin, so a late
+      # or retried run is not reported as a missing one.
+      MAX_AGE_HOURS: '108'
+
+    steps:
+      - name: Check for a recent edition
+        id: check
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          PGUSER: ${{ secrets.SUPABASE_DB_USERNAME }}
+          PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SUPABASE_DB_URL:-}" ] || [ -z "${PGUSER:-}" ] || [ -z "${PGPASSWORD:-}" ]; then
+            echo "::error::Supabase credentials are not configured — the watchdog cannot watch anything."
+            exit 1
+          fi
+          command -v psql >/dev/null 2>&1 || { sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client; }
+
+          # The app's own URL is a JDBC one; psql needs the libpq form, which is the same string
+          # without the jdbc: prefix. Credentials travel in PGUSER/PGPASSWORD rather than in the URL
+          # so they never reach a process listing.
+          age=$(psql "${SUPABASE_DB_URL#jdbc:}" -At -c \
+            "SELECT COALESCE(ROUND(EXTRACT(EPOCH FROM (now() - max(generated_at))) / 3600), 999999) FROM reports;")
+
+          echo "age_hours=$age" >> "$GITHUB_OUTPUT"
+          echo "Most recent edition: ${age}h ago (limit ${MAX_AGE_HOURS}h)."
+          {
+            echo "### PulseDigest watchdog"
+            echo ""
+            echo "- Ostatnie wydanie: **${age}h** temu"
+            echo "- Próg: ${MAX_AGE_HOURS}h"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$age" -gt "$MAX_AGE_HOURS" ]; then
+            echo "::error::No edition in the last ${age}h — the digest has stopped running."
+            echo "stale=true" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+          echo "stale=false" >> "$GITHUB_OUTPUT"
+
+      # Separate from the check's own failure so a broken watchdog (bad credentials, unreachable
+      # database) is reported too. A watchdog that can only speak when it is healthy is not one.
+      - name: Notify
+        if: failure()
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          DIGEST_FROM_EMAIL: ${{ secrets.DIGEST_FROM_EMAIL }}
+          DIGEST_TO_EMAIL: ${{ secrets.DIGEST_TO_EMAIL }}
+          AGE_HOURS: ${{ steps.check.outputs.age_hours }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ -z "${RESEND_API_KEY:-}" ] || [ -z "${DIGEST_FROM_EMAIL:-}" ] || [ -z "${DIGEST_TO_EMAIL:-}" ]; then
+            echo "Resend not configured — skipping watchdog email"
+            exit 0
+          fi
+          detail="Ostatnie wydanie: ${AGE_HOURS:-nieznane} godz. temu."
+          payload=$(jq -nc \
+            --arg from "$DIGEST_FROM_EMAIL" \
+            --arg to "$DIGEST_TO_EMAIL" \
+            --arg url "$RUN_URL" \
+            --arg detail "$detail" \
+            '{from:$from, to:[$to],
+              subject:"🚨 PulseDigest: wydanie NIE powstało",
+              html:("<p>Watchdog nie znalazł świeżego wydania w bazie. " + $detail + "</p><p>To jedyna awaria, której alert <code>if: failure()</code> w digest.yml nie pokrywa — bieg mógł się w ogóle nie odbyć.</p><p><a href=\"" + $url + "\">Zobacz logi watchdoga</a></p>")}')
+          curl -sS -X POST https://api.resend.com/emails \
+            -H "Authorization: Bearer $RESEND_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "$payload" \
+            || echo "Watchdog notification email could not be sent"

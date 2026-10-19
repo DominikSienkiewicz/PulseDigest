@@ -1,5 +1,7 @@
 package pl.seniordeveloper.pulsedigest.modules.market_intel.application;
 
+import pl.seniordeveloper.pulsedigest.testing.TestModels;
+
 import org.junit.jupiter.api.Test;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.DigestItem;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.PastEdition;
@@ -30,11 +32,11 @@ class WeeklyRecapServiceTest {
     private static Signal signal(String topicKey, SignalRank rank) {
         DigestItem item = new DigestItem("Story " + topicKey, "https://example.com/" + topicKey, "GitHub",
                 "AI/LLM", "RELEASE", 8, 10, "Summary", null, topicKey);
-        return new Signal(item, rank, 100, List.of(SourceDomain.CODE));
+        return TestModels.signal(item, rank, 100, List.of(SourceDomain.CODE));
     }
 
     private static PastEdition edition(Instant at, String topicKey, SignalRank rank) {
-        return new PastEdition(at, List.of(signal(topicKey, rank)));
+        return TestModels.pastEdition(at, List.of(signal(topicKey, rank)));
     }
 
     @Test
@@ -52,8 +54,9 @@ class WeeklyRecapServiceTest {
                 List.of(signal("mcp", SignalRank.CRITICAL)),
                 List.of(edition(MONDAY_RUN, "mcp", SignalRank.MODERATE)));
 
-        assertThat(recap).get().extracting(WeeklyRecap::entries).asInstanceOf(
-                org.assertj.core.api.InstanceOfAssertFactories.list(RecapEntry.class))
+        assertThat(
+                recap).get().extracting(WeeklyRecap::entries).asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.list(
+                        RecapEntry.class))
                 .singleElement()
                 .satisfies(entry -> {
                     assertThat(entry.change()).isEqualTo(RecapChange.ESCALATED);
@@ -68,8 +71,9 @@ class WeeklyRecapServiceTest {
                 List.of(signal("mcp", SignalRank.CRITICAL)),
                 List.of(edition(MONDAY_RUN, "mcp", SignalRank.CRITICAL)));
 
-        assertThat(recap).get().extracting(WeeklyRecap::entries).asInstanceOf(
-                org.assertj.core.api.InstanceOfAssertFactories.list(RecapEntry.class))
+        assertThat(
+                recap).get().extracting(WeeklyRecap::entries).asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.list(
+                        RecapEntry.class))
                 .singleElement()
                 .satisfies(entry -> assertThat(entry.change()).isEqualTo(RecapChange.CONFIRMED));
     }
@@ -89,8 +93,9 @@ class WeeklyRecapServiceTest {
                 List.of(signal("hype", SignalRank.WEAK)),
                 List.of(edition(MONDAY_RUN, "hype", SignalRank.CRITICAL)));
 
-        assertThat(recap).get().extracting(WeeklyRecap::entries).asInstanceOf(
-                org.assertj.core.api.InstanceOfAssertFactories.list(RecapEntry.class))
+        assertThat(
+                recap).get().extracting(WeeklyRecap::entries).asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.list(
+                        RecapEntry.class))
                 .singleElement()
                 .satisfies(entry -> assertThat(entry.change()).isEqualTo(RecapChange.FADED));
     }
@@ -103,8 +108,9 @@ class WeeklyRecapServiceTest {
                 List.of(edition(TUESDAY_RUN, "mcp", SignalRank.STRONG),
                         edition(MONDAY_RUN, "mcp", SignalRank.MODERATE)));
 
-        assertThat(recap).get().extracting(WeeklyRecap::entries).asInstanceOf(
-                org.assertj.core.api.InstanceOfAssertFactories.list(RecapEntry.class))
+        assertThat(
+                recap).get().extracting(WeeklyRecap::entries).asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.list(
+                        RecapEntry.class))
                 .singleElement()
                 .satisfies(entry -> assertThat(entry.previousRank()).isEqualTo(SignalRank.MODERATE));
     }
@@ -120,8 +126,9 @@ class WeeklyRecapServiceTest {
 
         Optional<WeeklyRecap> recap = service.assemble(THURSDAY, signals, history);
 
-        assertThat(recap).get().extracting(WeeklyRecap::entries).asInstanceOf(
-                org.assertj.core.api.InstanceOfAssertFactories.list(RecapEntry.class)).hasSize(7);
+        assertThat(
+                recap).get().extracting(WeeklyRecap::entries).asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.list(
+                        RecapEntry.class)).hasSize(7);
     }
 
     /**

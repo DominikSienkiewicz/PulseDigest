@@ -27,9 +27,4 @@ public record PersistedReport(
         fetchReports = fetchReports != null ? List.copyOf(fetchReports) : List.of();
     }
 
-    /** Convenience constructor for editions stored without per-source fetch reports. */
-    public PersistedReport(ReportData report, String jobId, Instant generatedAt,
-                           int tweetCount, int hnCount, int githubCount) {
-        this(report, jobId, generatedAt, tweetCount, hnCount, githubCount, List.of());
-    }
 }

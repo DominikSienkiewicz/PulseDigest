@@ -1,6 +1,9 @@
 package pl.seniordeveloper.pulsedigest.modules.market_intel.application;
 
+import pl.seniordeveloper.pulsedigest.testing.TestModels;
+
 import org.junit.jupiter.api.Test;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.application.policy.ScoringPolicy;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.DigestItem;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Signal;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SignalRank;
@@ -14,10 +17,10 @@ import static org.assertj.core.api.Assertions.within;
 
 class SignalScoringServiceTest {
 
-    private final SignalScoringService service = new SignalScoringService();
+    private final SignalScoringService service = new SignalScoringService(ScoringPolicy.defaults());
 
     private static DigestItem item(String source, String category, int engagement) {
-        return new DigestItem(
+        return TestModels.digestItem(
                 "title", "http://example.com/" + Math.abs(source.hashCode()),
                 source, category, "TYPE", 5, engagement, "summary", null);
     }
@@ -29,11 +32,148 @@ class SignalScoringServiceTest {
                 source, category, "TYPE", 5, 0, "summary", null, topicKey);
     }
 
+    /**
+     * F2. The README promises "the same topic surfacing in Science + Code + Business = 🔴 Critical
+     * Trend", {@code how-it-works.md} says a story on 3+ domains "is promoted to 🔴 CRITICAL", and the
+     * predictive radar calls a two-domain story "one independent confirmation short of 🔴". All three
+     * describe corroboration as the thing the badge means. The score threshold cannot deliver that:
+     * three weak sources clear 3 domains while adding up to 80 points.
+     *
+     * <p>Red before the fix: these three score 80, 90 and 120, so only the last was CRITICAL and the
+     * story was split across three different ranks despite being one confirmed story.
+     */
+    @Test
+    void aStoryConfirmedAcrossThreeDomainsIsCriticalEvenWhenItScoresLow() {
+        List<Signal> result = service.score(List.of(topicItem("Security Advisories", "Security", "mcp"),
+                topicItem("Twitter/X", "Community", "mcp"),
+                topicItem("Hugging Face", "Research", "mcp")));
+
+        assertThat(result).allMatch(s -> s.rank() == SignalRank.CRITICAL);
+        assertThat(result).anyMatch(s -> s.signalScore() < 101);
+    }
+
+    /**
+     * The other half of F2, and the one the audit calls out: a single popular source reaching the
+     * score threshold used to earn 🔴, which made the badge a measure of popularity rather than of
+     * confirmation. {@code GitHub Releases} at 0.95 plus an engagement bonus clears 101 on its own.
+     *
+     * <p>Red before the fix: this was CRITICAL on one domain.
+     */
+    @Test
+    void aSinglePopularSourceIsNeverCriticalHoweverHighItScores() {
+        List<Signal> result = service.score(List.of(item("GitHub Releases", "Releases", 10_000)));
+
+        assertThat(result).hasSize(1);
+        assertThat(result.getFirst().signalScore()).isGreaterThan(101);
+        assertThat(result.getFirst().sourceDomains()).hasSize(1);
+        assertThat(result.getFirst().rank()).isEqualTo(SignalRank.STRONG);
+    }
+
+    /**
+     * N30. The one experiment F2 leaves open: does corroboration across *two* independent domains
+     * mean enough to be 🔴, or does it take three? With the threshold compiled in, trying it meant a
+     * recompile, which is how an experiment stops happening.
+     */
+    @Test
+    void loweringTheCrossSourceThresholdMakesTwoDomainsEnoughForCritical() {
+        List<DigestItem> twoDomains = List.of(topicItem("arXiv/cs.AI", "Research", "mcp"),
+                topicItem("GitHub", "Open Source", "mcp"));
+
+        assertThat(service.score(twoDomains))
+                .as("three domains required by default")
+                .noneMatch(s -> s.rank() == SignalRank.CRITICAL);
+
+        SignalScoringService lenient = new SignalScoringService(
+                new ScoringPolicy(2, 50, 50, 1_000, 100, 60, java.util.Map.of(), java.util.Set.of(), 1.0));
+
+        assertThat(lenient.score(twoDomains)).allMatch(s -> s.rank() == SignalRank.CRITICAL);
+    }
+
+    /**
+     * The other half of F2's problem, now testable from configuration: {@code SourceDomain.from}
+     * collapses RSS, Reddit and every unrecognised label into {@code SOCIAL}, so a story on three of
+     * them counts as one domain. Moving one elsewhere makes the same three items corroborate.
+     */
+    @Test
+    void aDomainOverrideCanSplitSourcesThatOtherwiseCollapseIntoSocial() {
+        List<DigestItem> allSocialByDefault = List.of(topicItem("Reddit/r/java", "Community", "mcp"),
+                topicItem("RSS/The Register", "Press", "mcp"),
+                topicItem("Mastodon", "Community", "mcp"));
+
+        assertThat(service.score(allSocialByDefault))
+                .as("all three resolve to SOCIAL, so this is one domain and not corroboration")
+                .noneMatch(s -> s.rank() == SignalRank.CRITICAL);
+
+        SignalScoringService split = new SignalScoringService(new ScoringPolicy(3, 50, 50, 1_000, 100, 60,
+                java.util.Map.of("Reddit", SourceDomain.CODE, "RSS", SourceDomain.BUSINESS),
+                java.util.Set.of(), 1.0));
+
+        assertThat(split.score(allSocialByDefault)).allMatch(s -> s.rank() == SignalRank.CRITICAL);
+    }
+
+    /** An override must not win over a more specific one just because of map ordering. */
+    @Test
+    void theLongestMatchingOverridePrefixWins() {
+        ScoringPolicy policy = new ScoringPolicy(3, 50, 50, 1_000, 100, 60,
+                java.util.Map.of("RSS", SourceDomain.BUSINESS, "RSS/The Register", SourceDomain.SECURITY),
+                java.util.Set.of(), 1.0);
+
+        assertThat(policy.domainOf("RSS/The Register")).isEqualTo(SourceDomain.SECURITY);
+        assertThat(policy.domainOf("RSS/InfoQ")).isEqualTo(SourceDomain.BUSINESS);
+        assertThat(policy.domainOf("Hacker News"))
+                .as("an unmatched label still falls through to the built-in mapping")
+                .isEqualTo(SourceDomain.BUSINESS);
+    }
+
+    /**
+     * N13. An explicit mute lowers the score — the reader said they do not want this.
+     */
+    @Test
+    void anExplicitlyMutedTopicScoresLower() {
+        SignalScoringService muting = muted("crypto");
+
+        int unmuted = service.score(List.of(item("Hacker News", "Crypto", 0))).getFirst().signalScore();
+        int withMute = muting.score(List.of(item("Hacker News", "Crypto", 0))).getFirst().signalScore();
+
+        assertThat(withMute).isLessThan(unmuted);
+        assertThat(muting.score(List.of(item("Hacker News", "Java/JVM", 0))).getFirst().signalScore())
+                .as("an unmuted topic is untouched")
+                .isEqualTo(service.score(List.of(item("Hacker News", "Java/JVM", 0))).getFirst().signalScore());
+    }
+
+    /**
+     * The anti-bubble guard, and the whole reason a mute is a preference rather than a filter: a
+     * muted topic that three independent domains confirm still reaches 🔴. Before F2 this needed a
+     * rule — never scale the cross-source bonus — and it is now structural, because rank comes from
+     * the domain count and not from points. Without this, a muted category could never earn the
+     * votes that would revive it.
+     */
+    @Test
+    void aMutedTopicThatThreeDomainsConfirmStillReachesCritical() {
+        List<Signal> result = muted("crypto").score(List.of(topicItem("arXiv/cs.AI", "Crypto", "stablecoin-settlement"),
+                topicItem("GitHub", "Crypto", "stablecoin-settlement"),
+                topicItem("Hacker News", "Crypto", "stablecoin-settlement")));
+
+        assertThat(result).allMatch(s -> s.rank() == SignalRank.CRITICAL);
+    }
+
+    /** Matched against the topic key too, so a mute works wherever the model put the subject. */
+    @Test
+    void aMuteMatchesTheTopicKeyAndNotOnlyTheCategory() {
+        List<Signal> result = muted("stablecoin").score(List.of(topicItem("Hacker News", "Finance", "stablecoin-settlement")));
+
+        assertThat(result.getFirst().breakdown().wasMuted()).isTrue();
+    }
+
+    private static SignalScoringService muted(String topic) {
+        return new SignalScoringService(new ScoringPolicy(3, 50, 50, 1_000, 100, 60,
+                java.util.Map.of(), java.util.Set.of(topic), 0.5));
+    }
+
     @Test
     void crossSourceBonusGroupsByTopicKeyAcrossDifferentCategories() {
         // One story ("mcp") confirmed by a paper, a repo and a discussion — the thing 🔴 promises.
-        List<Signal> result = service.score(List.of(
-                topicItem("arXiv/cs.AI", "Research", "mcp"),
+        List<Signal> result = service.score(List.of(topicItem("arXiv/cs.AI", "Research", "mcp"),
                 topicItem("GitHub", "Open Source", "mcp"),
                 topicItem("Hacker News", "Community", "mcp")));
 
@@ -108,8 +248,7 @@ class SignalScoringServiceTest {
 
     @Test
     void theBreakdownRecordsTheCrossSourceBonusWhenThreeDomainsConfirmedTheStory() {
-        List<Signal> result = service.score(List.of(
-                topicItem("arXiv/cs.AI", "Research", "mcp"),
+        List<Signal> result = service.score(List.of(topicItem("arXiv/cs.AI", "Research", "mcp"),
                 topicItem("GitHub", "Open Source", "mcp"),
                 topicItem("Hacker News", "Community", "mcp")));
 
@@ -141,8 +280,7 @@ class SignalScoringServiceTest {
         // The escape hatch against the positive feedback loop: a muted category can still break
         // through as a Critical Trend when three independent domains confirm one story. Corroboration
         // is evidence, not taste — so the +50 is added after the multiplier, never scaled by it.
-        List<Signal> muted = service.score(List.of(
-                topicItem("arXiv/cs.AI", "Research", "mcp"),
+        List<Signal> muted = service.score(List.of(topicItem("arXiv/cs.AI", "Research", "mcp"),
                 topicItem("GitHub", "Research", "mcp"),
                 topicItem("Hacker News", "Research", "mcp")), Map.of(), Map.of("research", -100));
 
@@ -227,10 +365,13 @@ class SignalScoringServiceTest {
 
     @Test
     void engagementBonusCappedAt50Points() {
-        // arXiv weight=0.70 → base=70 + min(50, 999_999/1000)=50 = 120 → CRITICAL
+        // arXiv weight=0.70 → base=70 + min(50, 999_999/1000)=50 = 120.
+        // The cap is this test's subject and is unchanged. The rank expectation is not: a single
+        // source on one domain is STRONG at any score since 2026-10-18 (F2), where this previously
+        // read CRITICAL — which is precisely the behaviour the fix removes, not a weakened assertion.
         List<Signal> result = service.score(List.of(item("arXiv/cs.AI", "AI", 999_999)));
         assertThat(result.get(0).signalScore()).isEqualTo(120);
-        assertThat(result.get(0).rank()).isEqualTo(SignalRank.CRITICAL);
+        assertThat(result.get(0).rank()).isEqualTo(SignalRank.STRONG);
     }
 
     @Test
@@ -243,7 +384,7 @@ class SignalScoringServiceTest {
 
     @Test
     void nullEngagementScoreTreatedAsZero() {
-        DigestItem itemWithNull = new DigestItem(
+        DigestItem itemWithNull = TestModels.digestItem(
                 "title", "http://example.com", "Hacker News", "AI", "TYPE", 5, null, "summary", null);
         List<Signal> result = service.score(List.of(itemWithNull));
         assertThat(result.get(0).signalScore()).isEqualTo(80);
@@ -333,7 +474,7 @@ class SignalScoringServiceTest {
 
     @Test
     void itemWithNullCategoryIsScoredWithoutCrossSourceBonus() {
-        DigestItem noCategory = new DigestItem(
+        DigestItem noCategory = TestModels.digestItem(
                 "title", "http://example.com", "arXiv/cs.AI", null, "TYPE", 5, 0, "summary", null);
         List<Signal> result = service.score(List.of(noCategory));
         // arXiv base=70, no cross-source bonus because category is null

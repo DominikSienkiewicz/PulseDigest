@@ -1,5 +1,11 @@
 package pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapter.out.ai;
 
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RawCounts;
+
+import pl.seniordeveloper.pulsedigest.testing.ResearchResults;
+
+import pl.seniordeveloper.pulsedigest.testing.TestModels;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonMappingException;
@@ -20,7 +26,6 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RedditPo
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ResearchPaper;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ResearchResult;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RssItem;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SecurityAdvisory;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SocialPost;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SoftwareRelease;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Tweet;
@@ -117,6 +122,17 @@ class ReportPromptBuilderTest {
             }
 
             @Override
+            public Set<String> upvotedUrls(int lookbackDays) {
+                return Set.of();
+            }
+
+            @Override
+            public java.util.List<pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SavedItem>
+                    savedItems(int lookbackDays) {
+                return java.util.List.of();
+            }
+
+            @Override
             public Map<String, Integer> netVotesBySource(int lookbackDays) {
                 return Map.of();
             }
@@ -165,17 +181,11 @@ class ReportPromptBuilderTest {
     @Test
     void buildUserPromptSerializesSocialPosts() throws Exception {
         LocalDateTime now = LocalDateTime.parse("2026-05-14T10:00:00");
-        ResearchResult research = new ResearchResult(
-                List.of(), List.of(), List.of(), List.of(), List.of(),
-                List.of(), List.of(), List.of(), List.of(), List.of(),
-                List.of(), List.of(), List.of(), List.of(),
-                List.of(),
-                List.of(
-                        new SocialPost("Bluesky", "alice.bsky.social", "Spring Boot 4 perf tip",
-                                "https://bsky.app/profile/alice.bsky.social/post/abc", 42),
-                        new SocialPost("Mastodon", "bob@fosstodon.org", "Quarkus native image win",
-                                "https://fosstodon.org/@bob/123", 30)),
-                now, 0, 0, 0, 0, 0, List.of());
+        ResearchResult research = ResearchResults.builder()
+                .social(List.of(
+                        new SocialPost("Bluesky", "alice.bsky.social", "Spring Boot 4 perf tip", "https://bsky.app/profile/alice.bsky.social/post/abc", 42), new SocialPost("Mastodon", "bob@fosstodon.org", "Quarkus native image win", "https://fosstodon.org/@bob/123", 30)))
+                .collectedAt(now)
+                .build();
 
         List<Map<String, Object>> payload = payload(builder(Set.of()).buildUserPrompt(research));
 
@@ -409,78 +419,51 @@ class ReportPromptBuilderTest {
 
     private static ResearchResult researchWithEverySource() {
         LocalDateTime now = LocalDateTime.parse("2026-05-14T10:00:00");
-        return new ResearchResult(
-                List.of(new Tweet("tweet-1", "Java agents and LLM systems", "dev", "Dev", "now", 42, 4, 2)),
-                List.of(new HackerNewsPost("HN item", "https://news.example/hn", 120)),
-                List.of(new GithubRepo("owner/repo", "Framework for agents", 5_000, "https://github.com/owner/repo")),
-                List.of(new RssItem("RSS item", "https://blog.example/post", "Deep dive", "Java")),
-                List.of(new RedditPost("Reddit item", "https://reddit.example/r/java", 80, "java")),
-                List.of(new ResearchPaper("2401.00001", "Paper", "Research abstract", List.of("Ada", "Grace"),
-                        "https://arxiv.org/abs/2401.00001", "cs.SE", now)),
-                List.of(new SoftwareRelease("spring/project", "v1.0.0", "Release notes",
-                        "https://github.com/spring/project/releases/v1", now)),
-                List.of(new HuggingFaceModel("org/model", "org", 2_000, 30, now, "text-generation",
-                        "https://huggingface.co/org/model")),
-                List.of(new ProductHuntPost("Launch", "A useful launch", "https://producthunt.example/launch",
-                        77, List.of("Developer Tools"), now)),
-                List.of(new SecurityAdvisory("GHSA-1234", "Critical issue", "CRITICAL", now,
-                        List.of("Maven"), "https://github.com/advisories/GHSA-1234")),
-                List.of(new JepUpdate("JEP 999", "Virtual Threads Next", "delivered", now,
-                        "https://openjdk.org/jeps/999")),
-                List.of(new CncfProjectUpdate("Kubernetes", "Orchestration", "graduated", "Update",
-                        "https://landscape.cncf.io/card-mode?selected=kubernetes", now)),
-                List.of(new RadarEntry("Tool", "adopt", "tools", "Radar item", "https://radar.example/tool", now)),
-                List.of(new ConferenceTalk("Talk", "Devoxx", "Devoxx", "https://youtube.example/talk", now, 12_000)),
-                now,
-                1,
-                1,
-                1,
-                1,
-                1
-        );
+        return ResearchResults.builder()
+                .tweets(
+                List.of(new Tweet("tweet-1", "Java agents and LLM systems", "dev", "Dev", "now", 42, 4, 2)))
+                .hackerNews(List.of(new HackerNewsPost("HN item", "https://news.example/hn", 120)))
+                .github(List.of(new GithubRepo("owner/repo", "Framework for agents", 5_000, "https://github.com/owner/repo")))
+                .rss(List.of(new RssItem("RSS item", "https://blog.example/post", "Deep dive", "Java")))
+                .reddit(List.of(new RedditPost("Reddit item", "https://reddit.example/r/java", 80, "java")))
+                .papers(List.of(new ResearchPaper("2401.00001", "Paper", "Research abstract", List.of("Ada", "Grace"), "https://arxiv.org/abs/2401.00001", "cs.SE", now)))
+                .releases(List.of(new SoftwareRelease("spring/project", "v1.0.0", "Release notes", "https://github.com/spring/project/releases/v1", now)))
+                .huggingFace(List.of(new HuggingFaceModel("org/model", "org", 2_000, 30, now, "text-generation", "https://huggingface.co/org/model")))
+                .productHunt(List.of(new ProductHuntPost("Launch", "A useful launch", "https://producthunt.example/launch", 77, List.of("Developer Tools"), now)))
+                .advisories(List.of(TestModels.securityAdvisory("GHSA-1234", "Critical issue", "CRITICAL", now, List.of("Maven"), "https://github.com/advisories/GHSA-1234")))
+                .jep(List.of(new JepUpdate("JEP 999", "Virtual Threads Next", "delivered", now, "https://openjdk.org/jeps/999")))
+                .cncf(List.of(new CncfProjectUpdate("Kubernetes", "Orchestration", "graduated", "Update", "https://landscape.cncf.io/card-mode?selected=kubernetes", now)))
+                .radar(List.of(new RadarEntry("Tool", "adopt", "tools", "Radar item", "https://radar.example/tool")))
+                .talks(List.of(new ConferenceTalk("Talk", "Devoxx", "Devoxx", "https://youtube.example/talk", now, 12_000)))
+                .collectedAt(now)
+                .rawCounts(RawCounts.builder().tweets(1).hackerNews(1).github(1).rss(1).reddit(1).build())
+                .build();
     }
 
     private static ResearchResult researchWithLabAnnouncement() {
         LocalDateTime now = LocalDateTime.parse("2026-05-14T10:00:00");
-        return new ResearchResult(
-                List.of(), List.of(), List.of(), List.of(), List.of(),
-                List.of(), List.of(), List.of(), List.of(), List.of(),
-                List.of(), List.of(), List.of(), List.of(),
-                List.of(new LabAnnouncement("Claude 5 released", "https://www.anthropic.com/news/claude-5",
-                        "New frontier model", "Anthropic News", now)),
-                List.of(),
-                now, 0, 0, 0, 0, 0, List.of());
+        return ResearchResults.builder()
+                .labAnnouncements(List.of(new LabAnnouncement("Claude 5 released", "https://www.anthropic.com/news/claude-5", "New frontier model", "Anthropic News", now)))
+                .collectedAt(now)
+                .build();
     }
 
     private static ResearchResult researchWithNullOptionalFields() {
         LocalDateTime now = LocalDateTime.parse("2026-05-14T10:00:00");
-        return new ResearchResult(
-                List.of(),
-                List.of(),
-                List.of(new GithubRepo("owner/repo", null, 5, "https://github.com/owner/repo")),
-                List.of(new RssItem("RSS item", "https://blog.example/post", null, "Java")),
-                List.of(),
-                List.of(new ResearchPaper("2401.00001", "Paper", "Research abstract", List.of(),
-                        "https://arxiv.org/abs/2401.00001", "cs.AI", now)),
-                List.of(new SoftwareRelease("spring/project", "v1.0.0", null,
-                        "https://github.com/spring/project/releases/v1", now)),
-                List.of(new HuggingFaceModel("org/model", "org", 2_000, 30, now, null,
-                        "https://huggingface.co/org/model")),
-                List.of(new ProductHuntPost("Launch", null, "https://producthunt.example/launch",
-                        77, List.of(), now)),
-                List.of(new SecurityAdvisory("GHSA-1234", null, null, now, List.of(),
-                        "https://github.com/advisories/GHSA-1234")),
-                List.of(new JepUpdate("JEP 999", null, null, now, "https://openjdk.org/jeps/999")),
-                List.of(new CncfProjectUpdate("Kubernetes", null, null, "Update",
-                        "https://landscape.cncf.io/card-mode?selected=kubernetes", now)),
-                List.of(new RadarEntry("Tool", null, "tools", "Radar item", "https://radar.example/tool", now)),
-                List.of(new ConferenceTalk("Talk", "Devoxx", "Devoxx", "https://youtube.example/talk", now, 12)),
-                now,
-                0,
-                0,
-                1,
-                1,
-                0
-        );
+        return ResearchResults.builder()
+                .github(List.of(new GithubRepo("owner/repo", null, 5, "https://github.com/owner/repo")))
+                .rss(List.of(new RssItem("RSS item", "https://blog.example/post", null, "Java")))
+                .papers(List.of(new ResearchPaper("2401.00001", "Paper", "Research abstract", List.of(), "https://arxiv.org/abs/2401.00001", "cs.AI", now)))
+                .releases(List.of(new SoftwareRelease("spring/project", "v1.0.0", null, "https://github.com/spring/project/releases/v1", now)))
+                .huggingFace(List.of(new HuggingFaceModel("org/model", "org", 2_000, 30, now, null, "https://huggingface.co/org/model")))
+                .productHunt(List.of(new ProductHuntPost("Launch", null, "https://producthunt.example/launch", 77, List.of(), now)))
+                .advisories(List.of(TestModels.securityAdvisory("GHSA-1234", null, null, now, List.of(), "https://github.com/advisories/GHSA-1234")))
+                .jep(List.of(new JepUpdate("JEP 999", null, null, now, "https://openjdk.org/jeps/999")))
+                .cncf(List.of(new CncfProjectUpdate("Kubernetes", null, null, "Update", "https://landscape.cncf.io/card-mode?selected=kubernetes", now)))
+                .radar(List.of(new RadarEntry("Tool", null, "tools", "Radar item", "https://radar.example/tool")))
+                .talks(List.of(new ConferenceTalk("Talk", "Devoxx", "Devoxx", "https://youtube.example/talk", now, 12)))
+                .collectedAt(now)
+                .rawCounts(RawCounts.builder().github(1).rss(1).build())
+                .build();
     }
 }

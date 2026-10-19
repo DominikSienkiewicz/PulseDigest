@@ -6,13 +6,13 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * Strip-uje parametry trackingowe (utm_*, fbclid, etc.) z URL-i, żeby:
- * (1) nie zaśmiecać linków w mailu, (2) umożliwić deduplikację po URL,
- * (3) nie propagować naszych UTM-ów do reklamodawców gdy user kliknie.
+ * Strips tracking parameters (utm_*, fbclid and friends) from URLs, for three reasons: the links
+ * in the mail stay readable, deduplication by URL becomes possible at all, and the reader's click
+ * does not carry somebody else's campaign tags onward.
  *
- * <p>Nie strip-ujemy parametrów które mają semantyczne znaczenie w niektórych
- * domenach (np. {@code ref} jako branch na GitHub) — fałszywie pozytywne usunięcie
- * łamie linki, dlatego jesteśmy konserwatywni.
+ * <p>Parameters that carry meaning in some domains are left alone — {@code ref} is a branch on
+ * GitHub, not a referrer — because a false positive breaks the link, which is a worse failure than
+ * a slightly untidy one. The list is therefore deliberately conservative.
  */
 public final class UrlCanonicalizer {
 
@@ -31,8 +31,9 @@ public final class UrlCanonicalizer {
     }
 
     /**
-     * Zwraca URL bez parametrów trackingowych. Dla {@code null}, blank, malformed lub URL bez
-     * query — zwraca dokładnie to co weszło (graceful, nie wybucha).
+     * The URL without its tracking parameters. A null, blank, malformed or query-less input comes
+     * back exactly as it went in rather than throwing: canonicalization runs over every fetched
+     * item, and one unparseable URL must not end a run.
      */
     public static String canonicalize(String url) {
         if (url == null || url.isBlank()) {

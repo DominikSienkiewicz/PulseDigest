@@ -71,10 +71,28 @@ record DigestLayout(
                 .collect(Collectors.toSet());
     }
 
+    /**
+     * Stories the edition is actually carrying, as opposed to indexing: the critical trends plus the
+     * Must-know block. Deals, Top picks and Signals are the tail — material that cleared a lower bar
+     * and exists to be skimmed — so counting them would make every edition look substantial (N03).
+     */
+    int storiesAboveTheBar() {
+        return criticalTrends.size() + mustKnow.size();
+    }
+
     static DigestLayout of(List<DigestItem> items, List<Signal> signals) {
+        return of(items, signals, Set.of());
+    }
+
+    /**
+     * @param stackAffectingUrls item URLs naming a dependency the reader ships (N06). Marking here
+     *                           rather than in each renderer means the four sections read one flag
+     *                           off the story they are already handed.
+     */
+    static DigestLayout of(List<DigestItem> items, List<Signal> signals, Set<String> stackAffectingUrls) {
         Map<String, Signal> signalByUrl = signals.stream()
                 .collect(Collectors.toMap(signal -> signal.item().url(), signal -> signal, (first, second) -> first));
-        List<DigestStory> stories = groupIntoStories(items, signalByUrl);
+        List<DigestStory> stories = groupIntoStories(items, signalByUrl, stackAffectingUrls);
         Set<String> criticalKeys = criticalStoryKeys(signals);
         Set<String> claimed = new HashSet<>();
         List<DigestStory> ranked = byScoreDesc(stories);
@@ -103,12 +121,14 @@ record DigestLayout(
      * reader sees, because it would hide two unrelated "AI/LLM" stories behind one entry. Without a
      * topic key an item is its own story.
      */
-    private static List<DigestStory> groupIntoStories(List<DigestItem> items, Map<String, Signal> signalByUrl) {
+    private static List<DigestStory> groupIntoStories(List<DigestItem> items, Map<String, Signal> signalByUrl,
+                                                      Set<String> stackAffectingUrls) {
         Map<String, List<DigestItem>> grouped = new LinkedHashMap<>();
         for (DigestItem item : items) {
             grouped.computeIfAbsent(storyKey(item), key -> new ArrayList<>()).add(item);
         }
-        return grouped.values().stream().map(members -> toStory(members, signalByUrl)).toList();
+        return grouped.values().stream()
+                .map(members -> toStory(members, signalByUrl, stackAffectingUrls)).toList();
     }
 
     private static String storyKey(DigestItem item) {
@@ -118,13 +138,17 @@ record DigestLayout(
                 : "url:" + item.url();
     }
 
-    private static DigestStory toStory(List<DigestItem> members, Map<String, Signal> signalByUrl) {
+    private static DigestStory toStory(List<DigestItem> members, Map<String, Signal> signalByUrl,
+                                       Set<String> stackAffectingUrls) {
         List<DigestItem> ranked = new ArrayList<>(members);
         // A stable sort means equal-scoring members keep the order the model emitted them in.
         ranked.sort(Comparator.comparingInt(DigestItem::score).reversed()
                 .thenComparing(item -> signalScore(item, signalByUrl), Comparator.reverseOrder()));
         DigestItem lead = ranked.getFirst();
-        return new DigestStory(lead, members, signalByUrl.get(lead.url()));
+        // Any member naming an owned dependency marks the story: the reader cares that the story
+        // touches their build, not which of its sources happened to lead it.
+        boolean affectsStack = members.stream().anyMatch(m -> stackAffectingUrls.contains(m.url()));
+        return new DigestStory(lead, members, signalByUrl.get(lead.url()), affectsStack);
     }
 
     private static int signalScore(DigestItem item, Map<String, Signal> signalByUrl) {

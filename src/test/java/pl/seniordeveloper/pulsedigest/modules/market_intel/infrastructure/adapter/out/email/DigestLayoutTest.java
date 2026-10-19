@@ -1,5 +1,7 @@
 package pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapter.out.email;
 
+import pl.seniordeveloper.pulsedigest.testing.TestModels;
+
 import org.junit.jupiter.api.Test;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.DigestItem;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Signal;
@@ -15,8 +17,7 @@ class DigestLayoutTest {
 
     @Test
     void collapsesItemsSharingATopicKeyIntoOneStoryNamingEverySource() {
-        DigestLayout layout = DigestLayout.of(
-                List.of(item("Registry launched", "https://lab", "Claude Blog", "AI/LLM", "LAUNCH", 9, "mcp"),
+        DigestLayout layout = DigestLayout.of(List.of(item("Registry launched", "https://lab", "Claude Blog", "AI/LLM", "LAUNCH", 9, "mcp"),
                         item("registry repo", "https://gh", "GitHub", "AI/LLM", "TREND", 8, "mcp"),
                         item("registry thread", "https://hn", "Hacker News", "AI/LLM", "DISCUSSION", 7, "mcp")),
                 List.of());
@@ -139,8 +140,7 @@ class DigestLayoutTest {
     void keepsOneLinkPerCorroboratingSourceSoCollapsingLosesNothing() {
         // The reader meets the story once, but must still be able to reach the coverage that
         // confirmed it — otherwise de-duplicating the mail quietly deletes two thirds of its links.
-        DigestLayout layout = DigestLayout.of(
-                List.of(item("Registry launched", "https://lab", "Claude Blog", "AI/LLM", "LAUNCH", 9, "mcp"),
+        DigestLayout layout = DigestLayout.of(List.of(item("Registry launched", "https://lab", "Claude Blog", "AI/LLM", "LAUNCH", 9, "mcp"),
                         item("terse take", "https://hn-low", "Hacker News", "AI/LLM", "DISCUSSION", 6, "mcp"),
                         item("the thread", "https://hn-high", "Hacker News", "AI/LLM", "DISCUSSION", 8, "mcp")),
                 List.of());
@@ -176,6 +176,6 @@ class DigestLayoutTest {
     }
 
     private static Signal critical(DigestItem item) {
-        return new Signal(item, SignalRank.CRITICAL, 151, List.of(SourceDomain.LABS, SourceDomain.CODE));
+        return TestModels.signal(item, SignalRank.CRITICAL, 151, List.of(SourceDomain.LABS, SourceDomain.CODE));
     }
 }

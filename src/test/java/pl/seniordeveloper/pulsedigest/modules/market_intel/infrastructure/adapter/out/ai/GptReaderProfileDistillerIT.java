@@ -12,6 +12,7 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ProfileE
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ProfileHypothesis;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReaderProfile;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.InterestProfileProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.OpenAiProperties;
 
 import java.lang.reflect.Field;
 import java.time.LocalDate;
@@ -38,7 +39,11 @@ class GptReaderProfileDistillerIT {
     void setUp() throws Exception {
         wireMock = new WireMockServer(WireMockConfiguration.wireMockConfig().dynamicPort());
         wireMock.start();
-        distiller = new GptReaderProfileDistiller(new ObjectMapper().registerModule(new JavaTimeModule()),
+        distiller = new GptReaderProfileDistiller(new OpenAiProperties("test-openai-key"),
+                LlmTestSettings.properties(),
+                LlmTestSettings.meter(),
+                LlmTestSettings.ceiling(),
+                new ObjectMapper().registerModule(new JavaTimeModule()),
                 new InterestProfileProperties("Test Persona", List.of("java")));
         Field field = GptReaderProfileDistiller.class.getDeclaredField("openAiClient");
         field.setAccessible(true);

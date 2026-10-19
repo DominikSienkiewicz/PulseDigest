@@ -7,6 +7,7 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.DigestIt
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ScoreBreakdown;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Signal;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SignalRank;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.application.policy.ScoringPolicy;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceDomain;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceWeights;
 
@@ -19,23 +20,26 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * Deterministic signal scorer — assigns SignalRank to each DigestItem based on
- * source credibility weight, engagement, and cross-source correlation.
- * No LLM calls; purely deterministic post-synthesis logic.
+ * Deterministic signal scorer — assigns a {@link SignalRank} to each {@link DigestItem} from source
+ * credibility weight, engagement, and cross-source correlation. No LLM calls.
+ *
+ * <p><b>CRITICAL means corroboration, not magnitude.</b> A story carried by
+ * {@value #CROSS_SOURCE_THRESHOLD} or more distinct source domains is CRITICAL whatever it scores;
+ * nothing else ever is, however popular. Until 2026-10-18 rank was a pure function of score, so a
+ * single popular source could earn 🔴 while a story genuinely confirmed by three weak sources could
+ * not — the opposite of what the README, {@code docs/how-it-works.md} and the predictive radar all
+ * describe (F2). Score still orders items *within* a rank, which is what the cross-source bonus is
+ * for now that it no longer decides the badge.
  */
 @Slf4j
 @Service
 public class SignalScoringService {
 
-    private static final int CROSS_SOURCE_THRESHOLD = 3;
-    private static final int CROSS_SOURCE_BONUS = 50;
-    private static final int MAX_ENGAGEMENT_BONUS = 50;
-    private static final int ENGAGEMENT_DIVISOR = 1_000;
-    // Score of exactly 100 is STRONG; reaching it now needs an engagement or cross-source bonus on top
-    // of a high base weight (no single source weight hits 100 alone), and 101+ is CRITICAL.
-    private static final int CRITICAL_THRESHOLD = 101;
-    private static final int STRONG_THRESHOLD = 100;
-    private static final int MODERATE_THRESHOLD = 60;
+    private final ScoringPolicy policy;
+
+    public SignalScoringService(ScoringPolicy policy) {
+        this.policy = policy != null ? policy : ScoringPolicy.defaults();
+    }
 
     /** Scores all items with no feedback nudging — see {@link #score(List, Map)}. */
     public List<Signal> score(List<DigestItem> items) {
@@ -89,7 +93,7 @@ public class SignalScoringService {
                 .filter(i -> !i.correlationKey().isEmpty())
                 .collect(Collectors.groupingBy(
                         DigestItem::correlationKey,
-                        Collectors.mapping(i -> SourceDomain.from(i.source()), Collectors.toSet())
+                        Collectors.mapping(i -> policy.domainOf(i.source()), Collectors.toSet())
                 ));
     }
 
@@ -111,17 +115,23 @@ public class SignalScoringService {
         double weight = SourceWeights.of(item.source(), netVotes);
         int baseScore = (int) Math.round(weight * 100);
         int engagement = item.engagementScore() != null ? item.engagementScore() : 0;
-        int engagementBonus = Math.min(MAX_ENGAGEMENT_BONUS, engagement / ENGAGEMENT_DIVISOR);
+        int engagementBonus = Math.min(policy.maxEngagementBonus(), engagement / policy.engagementDivisor());
 
         Set<SourceDomain> domains = domainsByTopic.getOrDefault(item.correlationKey(), Set.of());
-        int crossSourceBonus = domains.size() >= CROSS_SOURCE_THRESHOLD ? CROSS_SOURCE_BONUS : 0;
+        boolean crossSourceConfirmed = policy.isCrossSourceConfirmed(domains.size());
+        int crossSourceBonus = crossSourceConfirmed ? policy.crossSourceBonus() : 0;
 
         // Reader taste scales credibility and engagement — never corroboration. A muted category
         // that three independent domains confirm still reaches CRITICAL, which is what keeps the
         // preference loop from becoming a trap the category can never climb out of.
         double preference = CategoryPreference.multiplierFor(item.category(), netVotesByCategory);
-        int signalScore = (int) Math.round((baseScore + engagementBonus) * preference) + crossSourceBonus;
-        SignalRank rank = toRank(signalScore);
+        // An explicit mute (N13) scales the same components taste scales, and for the same reason it
+        // cannot touch corroboration: rank comes from the domain count, so a muted topic three
+        // domains confirm still reaches CRITICAL.
+        double mute = policy.isMuted(item.category(), item.topicKey()) ? policy.muteMultiplier() : 1.0;
+        int signalScore = (int) Math.round((baseScore + engagementBonus) * preference * mute)
+                + crossSourceBonus;
+        SignalRank rank = toRank(signalScore, crossSourceConfirmed);
 
         List<SourceDomain> sortedDomains = domains.stream()
                 .sorted(Comparator.comparing(SourceDomain::name))
@@ -132,19 +142,24 @@ public class SignalScoringService {
         ScoreBreakdown breakdown = new ScoreBreakdown(
                 SourceWeights.keyOf(item.source()), SourceWeights.of(item.source()), weight, netVotes,
                 engagementBonus, preference,
-                CategoryPreference.netVotesFor(item.category(), netVotesByCategory), crossSourceBonus);
+                CategoryPreference.netVotesFor(item.category(), netVotesByCategory), crossSourceBonus, mute);
 
         return new Signal(item, rank, signalScore, sortedDomains, null, null, breakdown);
     }
 
-    private static SignalRank toRank(int score) {
-        if (score >= CRITICAL_THRESHOLD) {
+    /**
+     * Corroboration decides CRITICAL; points decide everything below it. A confirmed story is
+     * CRITICAL even when three weak sources add up to little, and an unconfirmed one is not, however
+     * far past the old 101-point threshold its engagement carries it.
+     */
+    private SignalRank toRank(int score, boolean crossSourceConfirmed) {
+        if (crossSourceConfirmed) {
             return SignalRank.CRITICAL;
         }
-        if (score >= STRONG_THRESHOLD) {
+        if (score >= policy.strongThreshold()) {
             return SignalRank.STRONG;
         }
-        if (score >= MODERATE_THRESHOLD) {
+        if (score >= policy.moderateThreshold()) {
             return SignalRank.MODERATE;
         }
         return SignalRank.WEAK;

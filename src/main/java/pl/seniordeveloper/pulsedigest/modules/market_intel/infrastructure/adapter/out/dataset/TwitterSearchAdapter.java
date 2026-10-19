@@ -71,7 +71,7 @@ public class TwitterSearchAdapter {
     }
 
     /**
-     * Wyszukuje tweety według skonfigurowanych zapytań tematycznych.
+     * Searches tweets for the configured topic queries.
      */
     public List<Tweet> searchTopicTweets() {
         List<Tweet> result = new ArrayList<>();

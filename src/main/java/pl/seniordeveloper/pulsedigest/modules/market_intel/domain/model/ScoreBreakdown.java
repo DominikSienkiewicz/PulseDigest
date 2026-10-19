@@ -21,7 +21,8 @@ public record ScoreBreakdown(
         @JsonProperty("engagement_bonus") int engagementBonus,
         @JsonProperty("category_multiplier") double categoryMultiplier,
         @JsonProperty("net_category_votes") int netCategoryVotes,
-        @JsonProperty("cross_source_bonus") int crossSourceBonus
+        @JsonProperty("cross_source_bonus") int crossSourceBonus,
+        @JsonProperty("mute_multiplier") double muteMultiplier
 ) {
 
     /** The credibility component, on the same 0–100 scale as the final signal score. */
@@ -46,6 +47,12 @@ public record ScoreBreakdown(
     @JsonIgnore
     public boolean wasCrossSourceConfirmed() {
         return crossSourceBonus > 0;
+    }
+
+    /** Whether the reader has muted this topic outright (N13), as opposed to voting it down. */
+    @JsonIgnore
+    public boolean wasMuted() {
+        return muteMultiplier > 0 && muteMultiplier < 1.0;
     }
 
     /** Whether anything the reader clicked contributed to this score. */

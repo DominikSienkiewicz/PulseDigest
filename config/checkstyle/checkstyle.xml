@@ -35,6 +35,18 @@
     <module name="TreeWalker">
         <module name="SuppressWarningsHolder"/>
 
+        <!-- Forbidden Lombok annotations (CLAUDE.md FORBIDDEN list).
+             Checked in SOURCE, not in bytecode: @Data, @UtilityClass and @SneakyThrows are all
+             @Retention(SOURCE), so the compiler erases them and no bytecode analyser — ArchUnit
+             included — can ever observe them. An ArchUnit rule on these names passes whether or
+             not the annotation is used, which is why this gate lives here instead. -->
+        <module name="RegexpSinglelineJava">
+            <property name="format" value="@(?:lombok\.(?:experimental\.)?)?(?:Data|UtilityClass|SneakyThrows)\b"/>
+            <property name="ignoreComments" value="true"/>
+            <property name="message"
+                      value="Forbidden Lombok annotation: @Data, @UtilityClass and @SneakyThrows are banned — prefer a record or an explicit constructor."/>
+        </module>
+
         <!-- Annotations -->
         <module name="AnnotationLocation">
             <property name="allowSamelineSingleParameterlessAnnotation" value="true"/>

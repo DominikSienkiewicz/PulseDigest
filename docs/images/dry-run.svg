@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 217" width="960" height="217" font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="13" role="img" aria-label="Terminal recording: java -jar app.jar --dry-run renders the committed sample edition with no credentials and no network, writes build/digest.html and exits zero">
+<rect width="960" height="217" rx="10" fill="#0f172a"/>
+<circle cx="24" cy="22" r="6" fill="#ef4444"/><circle cx="44" cy="22" r="6" fill="#eab308"/><circle cx="64" cy="22" r="6" fill="#22c55e"/>
+<text x="480" y="27" fill="#64748b" font-size="12" text-anchor="middle">PulseDigest — dry run (no credentials, no network)</text>
+<text x="18" y="60" fill="#22c55e">$</text><text x="34" y="60" fill="#e2e8f0">java -jar app.jar --dry-run --spring.profiles.active=dry-run</text>
+<text x="18" y="81" fill="#38bdf8">INFO</text>
+<text x="66" y="81" fill="#64748b">PulseDigestApplication</text>
+<text x="300" y="81" fill="#e2e8f0">Started PulseDigestApplication in 1.457 seconds</text>
+<text x="18" y="102" fill="#38bdf8">INFO</text>
+<text x="66" y="102" fill="#64748b">DigestRunner</text>
+<text x="300" y="102" fill="#e2e8f0">=== PulseDigest dry run — rendering the committed sample edition ===</text>
+<text x="18" y="123" fill="#38bdf8">INFO</text>
+<text x="66" y="123" fill="#64748b">DryRunService</text>
+<text x="300" y="123" fill="#e2e8f0">Dry run: 20 items, 20 signals, no network, no credentials</text>
+<text x="18" y="144" fill="#38bdf8">INFO</text>
+<text x="66" y="144" fill="#64748b">RenderedEditionFileAdapter</text>
+<text x="300" y="144" fill="#e2e8f0">Rendered edition written to build/digest.html</text>
+<text x="18" y="165" fill="#38bdf8">INFO</text>
+<text x="66" y="165" fill="#64748b">DigestRunner</text>
+<text x="300" y="165" fill="#e2e8f0">=== Dry run complete: nothing was fetched, nothing was sent ===</text>
+<text x="18" y="186" fill="#22c55e">$</text><text x="34" y="186" fill="#64748b">echo $?  →  0</text>
+</svg>

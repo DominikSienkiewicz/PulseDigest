@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
@@ -14,6 +13,10 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ProfileH
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReaderProfile;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.ReaderProfileDistillerPort;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.InterestProfileProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.LlmProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.OpenAiProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.metrics.CostCeiling;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.metrics.LlmUsageMeter;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.http.ExternalRestClients;
 
 import java.time.Instant;
@@ -39,13 +42,12 @@ import java.util.Optional;
 public class GptReaderProfileDistiller implements ReaderProfileDistillerPort {
 
     private static final String OPENAI_BASE_URL = "https://api.openai.com/v1";
-    private static final String MODEL = "gpt-4o-mini";
-    private static final double TEMPERATURE = 0.2;
-    private static final int MAX_TOKENS = 700;
     private static final int MAX_HYPOTHESES = 5;
 
-    @Value("${spring.ai.openai.api-key:}")
-    private String openAiApiKey;
+    private final OpenAiProperties openAi;
+    private final LlmProperties llm;
+    private final LlmUsageMeter usageMeter;
+    private final CostCeiling costCeiling;
     private final ObjectMapper objectMapper;
     private final InterestProfileProperties interestProfile;
     private RestClient openAiClient;
@@ -54,7 +56,7 @@ public class GptReaderProfileDistiller implements ReaderProfileDistillerPort {
     void init() {
         this.openAiClient = ExternalRestClients.builder()
                 .baseUrl(OPENAI_BASE_URL)
-                .defaultHeader("Authorization", "Bearer " + openAiApiKey)
+                .defaultHeader("Authorization", "Bearer " + openAi.apiKey())
                 .defaultHeader("Content-Type", MediaType.APPLICATION_JSON_VALUE)
                 .build();
     }
@@ -62,6 +64,11 @@ public class GptReaderProfileDistiller implements ReaderProfileDistillerPort {
     @Override
     public Optional<ReaderProfile> distil(ProfileEvidence evidence) {
         if (evidence == null || evidence.totalVotes() == 0) {
+            return Optional.empty();
+        }
+        // N40. The previous profile survives a skipped distillation — it is re-distilled on a
+        // schedule, not per run, so a run that skips it is not a run without a reader model.
+        if (!costCeiling.allows("reader-profile")) {
             return Optional.empty();
         }
         try {
@@ -128,9 +135,9 @@ public class GptReaderProfileDistiller implements ReaderProfileDistillerPort {
 
     private String buildRequest(String userPrompt) throws Exception {
         Map<String, Object> request = Map.of(
-                "model", MODEL,
-                "temperature", TEMPERATURE,
-                "max_tokens", MAX_TOKENS,
+                "model", llm.readerProfile().model(),
+                "temperature", llm.readerProfile().temperature(),
+                "max_tokens", llm.readerProfile().maxTokens(),
                 "response_format", Map.of("type", "json_object"),
                 "messages", List.of(
                         Map.of("role", "system",
@@ -151,11 +158,25 @@ public class GptReaderProfileDistiller implements ReaderProfileDistillerPort {
         if (response.choices() == null || response.choices().isEmpty()) {
             throw new IllegalStateException("OpenAI returned empty choices[]");
         }
+        meter(response.usage());
         return response.choices().getFirst().message().content();
     }
 
+    /** Attributes this call's tokens before the content is handed on. */
+    private void meter(Usage usage) {
+        if (usage != null) {
+            usageMeter.record("reader-profile", llm.readerProfile().model(), usage.promptTokens(), usage.completionTokens());
+        }
+    }
+
     @JsonIgnoreProperties(ignoreUnknown = true)
-    private record OpenAiResponse(List<Choice> choices) {
+    private record OpenAiResponse(List<Choice> choices, Usage usage) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private record Usage(
+            @com.fasterxml.jackson.annotation.JsonProperty("prompt_tokens") Long promptTokens,
+            @com.fasterxml.jackson.annotation.JsonProperty("completion_tokens") Long completionTokens) {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

@@ -28,10 +28,10 @@ public record DigestItem(
         @JsonProperty("topic_key") String topicKey
 ) {
 
-    /** Convenience constructor for items with no topic key (legacy editions and tests). */
-    public DigestItem(String title, String url, String source, String category, String type,
-                      int score, Integer engagementScore, String summary, String whyItMatters) {
-        this(title, url, source, category, type, score, engagementScore, summary, whyItMatters, null);
+    /** The same item under a correlation key assigned by semantic clustering (N21). */
+    public DigestItem withTopicKey(String newTopicKey) {
+        return new DigestItem(title, url, source, category, type, score, engagementScore,
+                summary, whyItMatters, newTopicKey);
     }
 
     /**

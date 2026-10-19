@@ -1,5 +1,7 @@
 package pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapter.out.email;
 
+import pl.seniordeveloper.pulsedigest.testing.TestModels;
+
 import org.junit.jupiter.api.Test;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.DigestItem;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ScoreBreakdown;
@@ -14,14 +16,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ScoreExplanationBuilderTest {
 
     private static Signal signal(String source, ScoreBreakdown breakdown) {
-        DigestItem item = new DigestItem("Title", "https://example.com/x", source, "AI/LLM",
+        DigestItem item = TestModels.digestItem("Title", "https://example.com/x", source, "AI/LLM",
                 "RELEASE", 8, 10, "Summary", null);
         return new Signal(item, SignalRank.STRONG, 100, List.of(SourceDomain.CODE), null, null, breakdown);
     }
 
     private static ScoreBreakdown breakdown(int netSourceVotes, int netCategoryVotes,
                                             double multiplier, int crossSourceBonus) {
-        return new ScoreBreakdown("Hacker News", 0.80, 0.80 + netSourceVotes * 0.05, netSourceVotes,
+        return TestModels.scoreBreakdown("Hacker News", 0.80, 0.80 + netSourceVotes * 0.05, netSourceVotes,
                 12, multiplier, netCategoryVotes, crossSourceBonus);
     }
 
@@ -67,8 +69,7 @@ class ScoreExplanationBuilderTest {
 
     @Test
     void footerReportsEverySourceWhoseWeightTheReaderMoved() {
-        String html = ScoreExplanationBuilder.buildVotesInAction(List.of(
-                signal("Hacker News", breakdown(-4, 0, 1.0, 0)),
+        String html = ScoreExplanationBuilder.buildVotesInAction(List.of(signal("Hacker News", breakdown(-4, 0, 1.0, 0)),
                 signal("Hacker News", breakdown(-4, 0, 1.0, 0))));
 
         assertThat(html).contains("Twoje głosy w akcji");
@@ -78,8 +79,7 @@ class ScoreExplanationBuilderTest {
 
     @Test
     void footerReportsEachSourceOnceEvenWhenSeveralItemsCarryIt() {
-        String html = ScoreExplanationBuilder.buildVotesInAction(List.of(
-                signal("Hacker News", breakdown(-4, 0, 1.0, 0)),
+        String html = ScoreExplanationBuilder.buildVotesInAction(List.of(signal("Hacker News", breakdown(-4, 0, 1.0, 0)),
                 signal("Hacker News", breakdown(-4, 0, 1.0, 0))));
 
         assertThat(html.split("Hacker News", -1).length - 1).isEqualTo(1);

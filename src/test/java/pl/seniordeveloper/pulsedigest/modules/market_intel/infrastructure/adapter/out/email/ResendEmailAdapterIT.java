@@ -1,5 +1,11 @@
 package pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapter.out.email;
 
+import pl.seniordeveloper.pulsedigest.modules.market_intel.application.policy.SectionsPolicy;
+
+import pl.seniordeveloper.pulsedigest.testing.ResearchResults;
+
+import pl.seniordeveloper.pulsedigest.testing.TestModels;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
@@ -7,7 +13,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.client.RestClient;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.DigestItem;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ThinWeekProperties;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.QuotaAlert;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.EmailDeliveryReceipt;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportData;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ResearchResult;
@@ -20,8 +27,10 @@ import java.util.List;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.containing;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
+import static com.github.tomakehurst.wiremock.client.WireMock.matchingJsonPath;
 import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -65,6 +74,42 @@ class ResendEmailAdapterIT {
     }
 
     @Test
+    void sendsBothPartsSoTheMessageIsMultipartAlternative() throws Exception {
+        // N14. The builder having a text renderer proves nothing if the payload never carries it —
+        // and a message with no text part is a spam-filter signal regardless of what the HTML says.
+        wireMock.stubFor(post(urlPathEqualTo("/emails"))
+                .willReturn(aResponse().withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("{\"id\":\"email-1\"}")));
+
+        adapter(emailProperties("resend-key", "from@example.com", "to@example.com"))
+                .send(report(), emptyResearch());
+
+        wireMock.verify(postRequestedFor(urlPathEqualTo("/emails"))
+                .withRequestBody(matchingJsonPath("$.html"))
+                .withRequestBody(matchingJsonPath("$.text")));
+    }
+
+    @Test
+    void theAlertCarriesNoTextPart() {
+        // Deliberate, not an oversight: the alert is six lines whose only job is to arrive, and a
+        // second renderer for it would be two things to keep in step for no reader.
+        wireMock.stubFor(post(urlPathEqualTo("/emails"))
+                .willReturn(aResponse().withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("{\"id\":\"email-2\"}")));
+
+        assertThatCode(() -> adapter(emailProperties("resend-key", "from@example.com", "to@example.com"))
+                .sendQuotaAlert(new QuotaAlert(java.util.List.of("OpenAI"), "out of credits")))
+                .doesNotThrowAnyException();
+
+        wireMock.verify(postRequestedFor(urlPathEqualTo("/emails"))
+                .withRequestBody(matchingJsonPath("$.html")));
+        assertThat(wireMock.getAllServeEvents().getFirst().getRequest().getBodyAsString())
+                .doesNotContain("\"text\"");
+    }
+
+    @Test
     void sendFailsFastWhenConfigIsMissingAndWrapsProviderFailure() throws Exception {
         ResendEmailAdapter missingConfig = adapter(emailProperties("", "from@example.com", "to@example.com"));
         assertThatThrownBy(() -> missingConfig.send(report(), emptyResearch()))
@@ -81,13 +126,14 @@ class ResendEmailAdapterIT {
     }
 
     private ResendEmailAdapter adapter(EmailProperties emailProperties) throws Exception {
-        ResendEmailAdapter adapter = new ResendEmailAdapter(
-                new ObjectMapper(),
+        ResendEmailAdapter adapter = new ResendEmailAdapter(new ObjectMapper(),
                 new ReportEmailBuilder(
                         new pl.seniordeveloper.pulsedigest.shared.infrastructure.config.FeedbackProperties(false, 30, "", ""),
                         new pl.seniordeveloper.pulsedigest.shared.infrastructure.config.WatchlistProperties(
-                                false, java.util.List.of())),
-                new AlertEmailBuilder(), emailProperties);
+                                false, java.util.List.of()), new ThinWeekProperties(false, 3),
+                new SectionsPolicy(java.util.Set.of())),
+                new AlertEmailBuilder(), new PlainTextDigestBuilder(new ThinWeekProperties(false, 3)),
+                new RetrospectiveEmailBuilder(), emailProperties);
         Field field = ResendEmailAdapter.class.getDeclaredField("resendClient");
         field.setAccessible(true);
         field.set(adapter, RestClient.builder()
@@ -106,7 +152,7 @@ class ResendEmailAdapterIT {
                 "Preview",
                 "Editorial",
                 List.of("Insight"),
-                List.of(new DigestItem(
+                List.of(TestModels.digestItem(
                         "Item",
                         "https://example.com",
                         "GitHub",
@@ -119,27 +165,8 @@ class ResendEmailAdapterIT {
     }
 
     private static ResearchResult emptyResearch() {
-        return new ResearchResult(
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                LocalDateTime.parse("2026-05-14T10:00:00"),
-                0,
-                0,
-                0,
-                0,
-                0
-        );
+        return ResearchResults.builder()
+                .collectedAt(LocalDateTime.parse("2026-05-14T10:00:00"))
+                .build();
     }
 }

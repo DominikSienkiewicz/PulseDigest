@@ -39,9 +39,9 @@ class BlueskySearchAdapterIT {
         wireMock = new WireMockServer(WireMockConfiguration.wireMockConfig().dynamicPort());
         wireMock.start();
         String baseUrl = "http://localhost:" + wireMock.port();
-        SocialProperties props = new SocialProperties(5, 0,
-                new SocialProperties.Bluesky(baseUrl, List.of("alice.bsky.social")),
-                new SocialProperties.Mastodon(baseUrl, List.of()));
+        SocialProperties props = new SocialProperties(5, 5,
+                new SocialProperties.Bluesky(baseUrl, 0, List.of("alice.bsky.social")),
+                new SocialProperties.Mastodon(baseUrl, 0, List.of()));
         adapter = new BlueskySearchAdapter(new ObjectMapper(), props);
         Field f = BlueskySearchAdapter.class.getDeclaredField("restClient");
         f.setAccessible(true);
@@ -76,9 +76,9 @@ class BlueskySearchAdapterIT {
 
     @Test
     void returnsEmptyWhenNoHandlesConfigured() throws Exception {
-        SocialProperties props = new SocialProperties(5, 0,
-                new SocialProperties.Bluesky("http://localhost:" + wireMock.port(), List.of()),
-                new SocialProperties.Mastodon("http://localhost:" + wireMock.port(), List.of()));
+        SocialProperties props = new SocialProperties(5, 5,
+                new SocialProperties.Bluesky("http://localhost:" + wireMock.port(), 0, List.of()),
+                new SocialProperties.Mastodon("http://localhost:" + wireMock.port(), 0, List.of()));
         BlueskySearchAdapter noHandles = new BlueskySearchAdapter(new ObjectMapper(), props);
 
         assertThat(noHandles.fetchPosts(5)).isEmpty();

@@ -1,0 +1,175 @@
+PULSEDIGEST — 15.10.2026
+========================
+
+Dwie rzeczy dzieją się naraz: ekosystem agentowy dostaje wreszcie rejestr, z
+którego da się przypiąć wersję narzędzia, a JVM przestaje udawać, że układ
+pamięci obiektu to szczegół implementacyjny. Jedno i drugie przenosi decyzję z
+„co da się napisać” na „co da się odtworzyć za pół roku”. Reszta wydania to
+rachunek za tę zmianę: nowe wydania, nowe ceny i jedna deserializacja, którą
+trzeba załatać dziś.
+
+KRYTYCZNE TRENDY — potwierdzenie w 3+ typach źródeł
+---------------------------------------------------
+
+1. Introducing the MCP Tool Registry: publish, discover & pin agent tools
+   10/10 · Claude Blog
+   Rejestr serwerów MCP z wersjonowanymi manifestami i podpisanymi digestami —
+   narzędzie agenta można przypiąć do konkretnej wersji, tak jak zależność
+   Mavena.
+   Przypnij serwery MCP ze swojego stacku agentowego do digestów z rejestru,
+   zanim następna aktualizacja narzędzia po cichu zmieni kontrakt.
+   https://claude.com/blog/mcp-tool-registry
+   Potwierdzone w: Claude Blog + GitHub + Mastodon
+   - GitHub: https://github.com/modelcontextprotocol/registry
+   - Mastodon: https://mastodon.social/@jvmops/113948201746
+
+MUST-KNOW
+---------
+
+1. JEP 533 Value Classes and Objects
+   9/10 · OpenJDK JEP
+   JEP-533 Proposed to Target: value classes trafiają do JDK 27 jako preview,
+   z płaskim układem pamięci dla klas bez tożsamości.
+   Przejrzyj rekordy używane jako klucze map — skorzystają z płaskiego układu
+   pierwsze i pierwsze złapią zmianę semantyki równości.
+   https://openjdk.org/jeps/533
+   Potwierdzone w: Hacker News + OpenJDK JEP
+   - Hacker News: https://news.ycombinator.com/item?id=46281204
+
+2. quarkusio/quarkus 3.30.0
+   9/10 · GitHub Releases
+   Quarkus 3.30.0 skraca start obrazu natywnego o 18% i domyślnie włącza
+   wirtualne wątki w rozszerzeniu REST.
+   Jeśli trzymasz wirtualne wątki za flagą, to wydanie flagę zdejmuje —
+   sprawdź pinning, zanim zrobi to produkcja.
+   https://github.com/quarkusio/quarkus/releases/tag/3.30.0
+
+3. OpenAI cuts batch inference pricing for o5-mini by 60%
+   9/10 · Hacker News
+   Obniżka 60% dotyczy wyłącznie trybu wsadowego z 24-godzinnym okienkiem;
+   ceny strumieniowe bez zmian.
+   Przenieś triaging i podsumowania offline na tryb wsadowy — to jedyna zmiana
+   w tym wydaniu, która obniża rachunek od razu.
+   https://news.ycombinator.com/item?id=46279811
+
+4. kubernetes/kubernetes v1.35.0
+   9/10 · GitHub Releases
+   Kubernetes 1.35 stabilizuje kontenery pomocnicze i domyślnie włącza
+   kompresję obrazów w kubelecie.
+   Kontenery pomocnicze wychodzą z bety — możesz wreszcie usunąć własne
+   obejścia sidecarów z manifestów.
+   https://github.com/kubernetes/kubernetes/releases/tag/v1.35.0
+
+5. Pgvectorscale Cloud
+   8/10 · Product Hunt
+   Zarządzany pgvector z indeksem DiskANN i darmowym tierem do 2 mln wektorów;
+   zgodny z istniejącym schematem pgvector.
+   Darmowy tier pokrywa typowy prototyp RAG, więc własny Postgres z pgvectorem
+   przestaje być najtańszą opcją na start.
+   https://www.producthunt.com/posts/pgvectorscale-cloud
+
+TOP INSIGHTS DNIA
+-----------------
+
+* Rejestr MCP pojawił się jednocześnie w ogłoszeniu laboratorium, w trendach
+  GitHuba i w dyskusji na Mastodonie — to nie launch, to już adopcja.
+* JEP 533 przeszedł do Proposed to Target, więc value classes przestają być
+  tematem konferencyjnym i zaczynają być tematem przeglądu kodu.
+* Spadek ceny trybu wsadowego o 60% zmienia opłacalność przetwarzania offline
+  bardziej niż którykolwiek nowy model w tym wydaniu.
+
+DEALS & TOOLS
+-------------
+
+1. pytorch/pytorch v3.0.0
+   8/10 · GitHub Releases
+   PyTorch 3.0 domyślnie kompiluje graf i usuwa tryb eager z API treningowego.
+   Jeśli trzymasz własne pętle treningowe, to wydanie wymusi migrację —
+   zaplanuj ją teraz, nie przy następnym CVE.
+   https://github.com/pytorch/pytorch/releases/tag/v3.0.0
+
+2. duckdb/duckdb v1.5.0
+   8/10 · GitHub Releases
+   DuckDB 1.5 czyta tabele Iceberg bez katalogu zewnętrznego i skraca skan
+   parquetu o 22%.
+   Analityka nad plikami parquet przestaje wymagać osobnej infrastruktury —
+   rozważ to zamiast kolejnego klastra.
+   https://github.com/duckdb/duckdb/releases/tag/v1.5.0
+
+3. mistralai/Ministral-9B-Instruct-2610
+   8/10 · Hugging Face
+   Model 9B z oknem 128k i licencją Apache 2.0; 184 tys. pobrań w pierwszym
+   tygodniu.
+   Mieści się na jednym GPU 24 GB, więc jest realnym kandydatem na lokalny
+   fallback w Twoim routingu LLM.
+   https://huggingface.co/mistralai/Ministral-9B-Instruct-2610
+
+4. OpenTelemetry Profiling
+   6/10 · CNCF Landscape
+   Sygnał profilowania w OpenTelemetry wchodzi do incubating; format pprof
+   staje się częścią specyfikacji OTLP.
+   Profilowanie w tym samym potoku co ślady oznacza jeden kolektor mniej w
+   Twojej platformie observability.
+   https://github.com/cncf/landscape/pull/8812
+
+TOP PICKS
+---------
+
+1. EU AI Act enforcement starts for general-purpose models
+   8/10 · RSS/The Register
+   Od 2 listopada obowiązki dokumentacyjne dla modeli ogólnego przeznaczenia
+   stają się egzekwowalne.
+   Jeśli hostujesz model dla klientów w UE, dokumentacja treningu przestaje
+   być opcjonalna.
+   https://www.theregister.com/2026/10/14/eu_ai_act_gpai_enforcement/
+
+SIGNALS
+-------
+
+1. GHSA-7xqp-9vwm-2c4h Deserialization RCE in jackson-databind
+   7/10 · Security Advisories
+   GHSA-7xqp-9vwm-2c4h HIGH: polimorficzna deserializacja w jackson-databind
+   <2.17.3 pozwala na RCE przy włączonym default typing.
+   Sprawdź, czy któryś moduł nie ma włączonego default typing, i podbij
+   jackson-databind do 2.17.3 w tym tygodniu.
+   https://github.com/advisories/GHSA-7xqp-9vwm-2c4h
+
+2. Virtual Threads in Production: Lessons from 18 Months
+   7/10 · YouTube/Devoxx
+   45 tys. wyświetleń w dwa tygodnie; nagranie pokazuje diagnostykę pinningu
+   przez JFR, krok po kroku na działającej usłudze.
+   Fragment o JFR daje procedurę diagnostyczną, której nie znajdziesz w
+   dokumentacji.
+   https://www.youtube.com/watch?v=Kx9nTqL3bVc
+   Potwierdzone w: Reddit/r/java + YouTube/Devoxx
+   - Reddit/r/java: https://www.reddit.com/r/java/comments/1pq3z8k/virtual_threads_in_production/
+
+3. WebAssembly on the server
+   6/10 · Tech Radar
+   Trial: WebAssembly na serwerze awansuje z Assess, z uzasadnieniem opartym
+   na izolacji pluginów, nie na wydajności.
+   Jeśli planujesz system pluginów, WASM jest teraz wyborem domyślnym zamiast
+   ryzykownego.
+   https://www.thoughtworks.com/radar/platforms/wasm-on-the-server
+
+4. Draft-Tree Speculative Decoding: 3.1x Throughput on 70B Models
+   6/10 · arXiv/cs.LG
+   3,1x przepustowości na modelach 70B przy zachowanej jakości; kod i
+   benchmarki w repozytorium autorów.
+   Jeśli samodzielnie hostujesz model 70B, ta technika jest tańsza niż
+   dołożenie GPU.
+   https://arxiv.org/abs/2610.04812
+
+5. Benchmarked 19 MCP servers for tool-call latency. The pinned-digest ones
+   were consistently faster
+   6/10 · Twitter/X
+   Pomiar 19 serwerów MCP: przypięte digesty skracają medianę wywołania
+   narzędzia o 40 ms dzięki pominięciu rozpoznawania wersji.
+   Dodatkowy argument za przypinaniem: nie tylko odtwarzalność, ale i krótsze
+   wywołania narzędzi.
+   https://x.com/jvmarchitect/status/1847562930184756
+
+------------------------------------------------------------------------------
+Wybrano 20 z 668 itemów · 16 źródeł · okno pn/czw
+Oceny 👍/👎 i „zapisz” działają w wersji HTML tej wiadomości.
+Wygenerowano przez GPT-4o · PulseDigest

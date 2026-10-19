@@ -12,9 +12,11 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.EmailDel
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.QuotaAlert;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportData;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ResearchResult;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Retrospective;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.EmailDeliveryPort;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.EmailProperties;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -28,6 +30,8 @@ public class ResendEmailAdapter implements EmailDeliveryPort {
     private final ObjectMapper objectMapper;
     private final ReportEmailBuilder emailBuilder;
     private final AlertEmailBuilder alertBuilder;
+    private final PlainTextDigestBuilder plainTextBuilder;
+    private final RetrospectiveEmailBuilder retrospectiveBuilder;
     private final EmailProperties cfg;
     private RestClient resendClient;
 
@@ -47,7 +51,8 @@ public class ResendEmailAdapter implements EmailDeliveryPort {
                     "Email not configured: RESEND_API_KEY, DIGEST_FROM_EMAIL and DIGEST_TO_EMAIL are required");
         }
 
-        return sendHtml(emailBuilder.buildSubject(report), emailBuilder.buildHtml(report, research));
+        return send(emailBuilder.buildSubject(report), emailBuilder.buildHtml(report, research),
+                plainTextBuilder.buildText(report, research));
     }
 
     @Override
@@ -56,17 +61,38 @@ public class ResendEmailAdapter implements EmailDeliveryPort {
             throw new IllegalStateException(
                     "Email not configured: RESEND_API_KEY, DIGEST_FROM_EMAIL and DIGEST_TO_EMAIL are required");
         }
-        return sendHtml(alertBuilder.buildSubject(), alertBuilder.buildHtml(alert));
+        // The alert has no text part: it is six lines of markup whose whole job is to arrive, and a
+        // second renderer for it would be two things to keep in step for no reader.
+        return send(alertBuilder.buildSubject(), alertBuilder.buildHtml(alert), null);
     }
 
-    private EmailDeliveryReceipt sendHtml(String subject, String html) {
+    /**
+     * Sends one message. Passing both {@code html} and {@code text} makes Resend emit
+     * {@code multipart/alternative} (N14): the client picks, and a message with no text part at all
+     * is a spam-filter signal regardless of what the HTML says.
+     */
+    @Override
+    public EmailDeliveryReceipt sendRetrospective(Retrospective retrospective) {
+        if (isBlank(cfg.resendApiKey()) || isBlank(cfg.from()) || isBlank(cfg.to())) {
+            throw new IllegalStateException(
+                    "Email not configured: RESEND_API_KEY, DIGEST_FROM_EMAIL and DIGEST_TO_EMAIL are required");
+        }
+        return send(retrospectiveBuilder.buildSubject(retrospective),
+                retrospectiveBuilder.buildHtml(retrospective), null);
+    }
+
+    private EmailDeliveryReceipt send(String subject, String html, String text) {
         try {
-            String body = objectMapper.writeValueAsString(Map.of(
+            Map<String, Object> payload = new LinkedHashMap<>(Map.of(
                     "from", cfg.from(),
                     "to", List.of(cfg.to()),
                     "subject", subject,
                     "html", html
             ));
+            if (text != null && !text.isBlank()) {
+                payload.put("text", text);
+            }
+            String body = objectMapper.writeValueAsString(payload);
 
             String response = resendClient.post()
                     .uri("/emails")

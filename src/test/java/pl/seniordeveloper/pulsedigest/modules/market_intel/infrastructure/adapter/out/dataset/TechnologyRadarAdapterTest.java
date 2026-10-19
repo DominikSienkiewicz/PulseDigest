@@ -46,8 +46,7 @@ class TechnologyRadarAdapterTest {
                 new TechnologyRadarProperties(
                         "https://raw.githubusercontent.com",
                         "/setchy/thoughtworks-tech-radar-volumes/main/volumes/json/"
-                                + "Thoughtworks%20Technology%20Radar%20Volume%2034%20(Apr%202026).json",
-                        6
+                                + "Thoughtworks%20Technology%20Radar%20Volume%2034%20(Apr%202026).json"
                 );
         adapter = new TechnologyRadarAdapter(props, new ObjectMapper());
     }

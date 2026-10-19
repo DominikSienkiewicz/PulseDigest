@@ -39,9 +39,9 @@ class MastodonSearchAdapterIT {
         wireMock = new WireMockServer(WireMockConfiguration.wireMockConfig().dynamicPort());
         wireMock.start();
         String baseUrl = "http://localhost:" + wireMock.port();
-        SocialProperties props = new SocialProperties(5, 0,
-                new SocialProperties.Bluesky(baseUrl, List.of()),
-                new SocialProperties.Mastodon(baseUrl, List.of("java")));
+        SocialProperties props = new SocialProperties(5, 5,
+                new SocialProperties.Bluesky(baseUrl, 0, List.of()),
+                new SocialProperties.Mastodon(baseUrl, 0, List.of("java")));
         adapter = new MastodonSearchAdapter(new ObjectMapper(), props);
         Field f = MastodonSearchAdapter.class.getDeclaredField("restClient");
         f.setAccessible(true);

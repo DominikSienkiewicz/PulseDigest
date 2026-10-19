@@ -1,0 +1,111 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 560" width="900" height="560"
+     font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+     role="img" aria-labelledby="title desc">
+  <title id="title">PulseDigest architecture</title>
+  <desc id="desc">Three layers — infrastructure adapters, application use cases, and a pure domain —
+    with the port boundary between them. Sixteen inbound adapters fetch concurrently on virtual
+    threads; the pipeline itself runs synchronously; outbound adapters persist the edition and send
+    the mail. The feedback receiver sits outside the repository.</desc>
+
+  <style>
+    .layer      { fill: #f8fafc; stroke: #cbd5e1; stroke-width: 1.5; rx: 10; }
+    .layer-lbl  { fill: #64748b; font-size: 12px; font-weight: 600; letter-spacing: .08em; }
+    .box        { fill: #ffffff; stroke: #94a3b8; stroke-width: 1.5; rx: 7; }
+    .box-domain { fill: #ffffff; stroke: #16a34a; stroke-width: 1.5; rx: 7; }
+    .box-out    { fill: #ffffff; stroke: #7c3aed; stroke-width: 1.5; rx: 7; }
+    .box-ext    { fill: #fef3c7; stroke: #b45309; stroke-width: 1.5; stroke-dasharray: 5 3; rx: 7; }
+    .t          { fill: #1e293b; font-size: 13px; }
+    .t-sm       { fill: #475569; font-size: 11px; }
+    .t-c        { fill: #166534; font-size: 13px; font-weight: 600; }
+    .port       { stroke: #0f172a; stroke-width: 2; stroke-dasharray: 7 4; }
+    .port-lbl   { fill: #0f172a; font-size: 11px; font-weight: 700; letter-spacing: .06em; }
+    .flow       { stroke: #475569; stroke-width: 1.8; fill: none; marker-end: url(#a); }
+    .flow-ext   { stroke: #b45309; stroke-width: 1.8; fill: none; stroke-dasharray: 5 3;
+                  marker-end: url(#ao); }
+    @media (prefers-color-scheme: dark) {
+      .layer { fill: #0f172a; stroke: #334155; }
+      .box, .box-domain, .box-out { fill: #1e293b; }
+      .t { fill: #e2e8f0; } .t-sm { fill: #94a3b8; } .layer-lbl { fill: #94a3b8; }
+      .port { stroke: #e2e8f0; } .port-lbl { fill: #e2e8f0; } .flow { stroke: #94a3b8; }
+      .box-ext { fill: #422006; }
+    }
+  </style>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6"
+            orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#475569"/></marker>
+    <marker id="ao" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6"
+            orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#b45309"/></marker>
+  </defs>
+
+  <!-- inbound adapters -->
+  <rect class="layer" x="20" y="60" width="240" height="250"/>
+  <text class="layer-lbl" x="34" y="84">INFRASTRUCTURE · IN</text>
+  <rect class="box" x="38" y="96" width="204" height="40"/>
+  <text class="t" x="50" y="113">16 dataset adapters</text>
+  <text class="t-sm" x="50" y="129">RSS · X · HN · GitHub · arXiv …</text>
+  <rect class="box" x="38" y="146" width="204" height="56"/>
+  <text class="t" x="50" y="165">CompletableFuture fan-out</text>
+  <text class="t-sm" x="50" y="181">one virtual thread per source,</text>
+  <text class="t-sm" x="50" y="195">per-source timeout and report</text>
+  <rect class="box" x="38" y="212" width="204" height="40"/>
+  <text class="t" x="50" y="229">OpenAI · Supabase · Resend</text>
+  <text class="t-sm" x="50" y="245">hand-rolled clients (ADR-0004)</text>
+  <text class="t-sm" x="38" y="282">Adapters know the domain.</text>
+  <text class="t-sm" x="38" y="298">The domain knows no adapter.</text>
+
+  <!-- port seam -->
+  <line class="port" x1="285" y1="40" x2="285" y2="520"/>
+  <text class="port-lbl" x="268" y="36" text-anchor="middle">PORTS</text>
+
+  <!-- application -->
+  <rect class="layer" x="310" y="60" width="270" height="340"/>
+  <text class="layer-lbl" x="324" y="84">APPLICATION · USE CASES</text>
+  <rect class="box" x="328" y="96" width="234" height="36"/>
+  <text class="t" x="340" y="119">MarketResearchService</text>
+  <rect class="box" x="328" y="142" width="234" height="52"/>
+  <text class="t" x="340" y="161">GenerateMarketReportProcessor</text>
+  <text class="t-sm" x="340" y="178">synchronous, start → run → exit;</text>
+  <text class="t-sm" x="340" y="190">exit code 0 only on DELIVERED</text>
+  <rect class="box" x="328" y="204" width="234" height="36"/>
+  <text class="t" x="340" y="227">SignalScoringService</text>
+  <rect class="box" x="328" y="250" width="234" height="52"/>
+  <text class="t" x="340" y="269">Policies (records)</text>
+  <text class="t-sm" x="340" y="286">Scoring · Eol · Delivery · Sections…</text>
+  <text class="t-sm" x="328" y="330">Returns Result&lt;T, E&gt;, never throws</text>
+  <text class="t-sm" x="328" y="346">for an expected failure (ADR-0007).</text>
+  <text class="t-sm" x="328" y="368">Rank comes from corroboration,</text>
+  <text class="t-sm" x="328" y="384">not from a number the model chose.</text>
+
+  <!-- domain -->
+  <rect class="layer" x="610" y="60" width="260" height="200"/>
+  <text class="layer-lbl" x="624" y="84">DOMAIN · PURE JAVA</text>
+  <rect class="box-domain" x="628" y="96" width="224" height="52"/>
+  <text class="t-c" x="640" y="115">Records and value objects</text>
+  <text class="t-sm" x="640" y="132">ReportData · Signal · RawCounts</text>
+  <rect class="box-domain" x="628" y="158" width="224" height="52"/>
+  <text class="t-c" x="640" y="177">Output ports (interfaces)</text>
+  <text class="t-sm" x="640" y="194">implemented in infrastructure</text>
+  <text class="t-sm" x="628" y="232">No Spring. No Jackson except as</text>
+  <text class="t-sm" x="628" y="248">the stored schema (ADR-0003).</text>
+
+  <!-- outbound -->
+  <rect class="layer" x="310" y="424" width="560" height="112"/>
+  <text class="layer-lbl" x="324" y="448">INFRASTRUCTURE · OUT</text>
+  <rect class="box-out" x="328" y="466" width="160" height="52"/>
+  <text class="t" x="340" y="487">Supabase</text>
+  <text class="t-sm" x="340" y="504">one JSONB column / edition</text>
+  <rect class="box-out" x="500" y="466" width="160" height="52"/>
+  <text class="t" x="512" y="487">Resend</text>
+  <text class="t-sm" x="512" y="504">HTML + text/plain</text>
+  <rect class="box-ext" x="672" y="466" width="180" height="52"/>
+  <text class="t" x="684" y="487">Feedback receiver</text>
+  <text class="t-sm" x="684" y="504">outside this repository</text>
+
+  <!-- flows -->
+  <path class="flow" d="M242,118 H322"/>
+  <path class="flow" d="M562,168 H626"/>
+  <path class="flow" d="M408,302 V462"/>
+  <path class="flow-ext" d="M660,492 H668"/>
+  <path class="flow-ext" d="M762,466 V414 Q762,404 752,404 H296 Q286,404 286,394 V268 H322"/>
+  <text class="t-sm" x="470" y="392" fill="#b45309">votes read on the next run</text>
+</svg>

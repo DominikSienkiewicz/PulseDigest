@@ -3,9 +3,6 @@ spring:
     name: PulseDigest
   main:
     web-application-type: none
-  ai:
-    openai:
-      api-key: "${OPENAI_API_KEY:}"
   datasource:
     url: "${SUPABASE_DB_URL:}"
     username: "${SUPABASE_DB_USERNAME:}"
@@ -19,6 +16,52 @@ spring:
   sql:
     init:
       mode: never
+
+# Klucz OpenAI dla trzech adapterów GPT. Do 2026-10-18 siedział pod `spring.ai.openai.api-key` —
+# namespace po starterze Spring AI, który był zadeklarowany, nigdy nieimportowany i usunięty w F4.
+openai:
+  api-key: "${OPENAI_API_KEY:}"
+
+# Ustawienia modeli per miejsce wywołania. Do 2026-10-18 były to stałe `private static final`
+# w trzech adapterach — jedyne nastawy w projekcie wymagające rekompilacji (F11). Wartości poniżej
+# są dokładnie tymi, które były zahardkodowane, więc zachowanie się nie zmienia.
+llm:
+  synthesis:
+    model: gpt-4o
+    fallback-model: gpt-4o-mini
+    temperature: 0.25
+    max-tokens: 10000
+  pre-scoring:
+    model: gpt-4o-mini
+    temperature: 0.0
+    max-tokens: 4000
+  reader-profile:
+    model: gpt-4o-mini
+    temperature: 0.2
+    max-tokens: 700
+  # N40 — sufit wydatku NA BIEG. Liczony w tokenach, nie w dolarach, i to jest sedno: `pricing`
+  # jest celowo nieobecny (patrz niżej), więc sufit dolarowy byłby martwy dokładnie tam, gdzie go
+  # włączono. Tokeny są mierzone zawsze. `max-usd: 0` wyłącza sufit dolarowy — włącz go dopiero
+  # razem z cennikiem.
+  #
+  # 1_000_000 to liczba Z SUFITU, nie z pomiaru: ma łapać bieg, który się urwał (pętla w prompcie,
+  # skok wolumenu), a nie karać drogi tydzień. Skalibruj ją po pierwszych tygodniach — każdy bieg
+  # loguje własną sumę (`llm-usage`, podsumowanie kroku w Actions), a przy 80% sufitu pojawia się
+  # ostrzeżenie. Wywołania opcjonalne (pre-scoring, profil czytelnika) są wtedy pomijane, synteza
+  # przerywa bieg i wysyła alert.
+  budget:
+    enabled: true
+    max-tokens: 1000000
+    max-usd: 0
+
+  # Cennik jest CELOWO nieobecny — nie "pusty". Ceny się zmieniają, a nieaktualna liczba wpisana
+  # tutaj byłaby pewnym siebie kłamstwem: bez niej bieg raportuje same tokeny, z nią te same metryki
+  # raportują też koszt. Żeby go włączyć, dopisz tu (YAML `pricing: {}` NIE zadziała — pusta mapa
+  # wczytuje się jako pusty string i binding pada; brak klucza daje pustą mapę przez @DefaultValue):
+  #   pricing:
+  #     gpt-4o:
+  #       input-per-million-tokens: 2.50
+  #       output-per-million-tokens: 10.00
 
 twitter:
   bearer-token: "${TWITTER_BEARER_TOKEN:}"
@@ -177,11 +220,180 @@ interest-profile:
     - api
 
 report:
-  min-generation-interval-minutes: 30
   email:
     resend-api-key: "${RESEND_API_KEY:}"
     from: "${DIGEST_FROM_EMAIL:}"
     to: "${DIGEST_TO_EMAIL:}"
+
+  # N30 — liczby, które decydują, ile wart jest sygnał. Do 2026-10-18 były stałymi w kodzie, co
+  # z jedynego eksperymentu, jaki F2 zostawia otwarty (czy potwierdzenie w DWÓCH domenach już
+  # wystarcza, czy trzeba trzech), robiło rekompilację za każdym razem. Wartości poniżej są dokładnie
+  # tymi, które były zahardkodowane, więc nietknięta konfiguracja liczy tak samo jak przedtem.
+  #
+  # domain-overrides przemapowuje prefiks etykiety źródła na inną domenę — to druga połowa problemu
+  # F2: `SourceDomain.from` zwija RSS, Reddita, Twittera, Bluesky, Mastodona i wszystko nierozpoznane
+  # w SOCIAL, więc historia niesiona przez trzy z nich liczy się jako JEDNA domena. Czego konfiguracja
+  # NIE potrafi: wymyślić nowej domeny — rozbicie SOCIAL na SOCIAL i PRESS wymaga nowej stałej enuma.
+  # Przykład: domain-overrides: { "Reddit": CODE, "RSS/The Register": BUSINESS }
+  scoring:
+    cross-source-threshold: 3
+    cross-source-bonus: 50
+    max-engagement-bonus: 50
+    engagement-divisor: 1000
+    strong-threshold: 100
+    moderate-threshold: 60
+    # N13 — tematy, których czytelnik wprost nie chce. Dopasowanie po kategorii ORAZ topic_key, żeby
+    # wyciszenie "crypto" działało niezależnie od tego, w które pole model je wpisał.
+    #
+    # Wyciszenie OBNIŻA wynik i NIE MOŻE zablokować 🔴. Przed F2 trzeba to było pilnować regułą
+    # ("nie mnóż bonusu cross-source"); teraz jest strukturalne, bo ranga wynika z liczby domen, nie
+    # z punktów. Temat wyciszony, który potwierdziły trzy niezależne domeny, nadal przebije się jako
+    # Critical Trend — i to jest różnica między preferencją a bąblem, z którego temat nie ma wyjścia.
+    muted-topics: []
+    mute-multiplier: 0.5
+
+  # N08 — radar końca wsparcia. Daty EOL to najwyżej-konsekwencyjna, najmniej-pilna informacja
+  # w życiu programisty: dokładnie to, do czego służy digest dwa razy w tygodniu, i dokładnie to,
+  # czego feedy nigdy nie przynoszą, bo nic się nie "stało" — data po prostu nadeszła.
+  #
+  # Tabela jest prowadzona ręcznie świadomie: jedno wywołanie HTTP mniej to jedno źródło mniej, które
+  # może paść, a te daty zmieniają się kilka razy w roku. Ceną jest to, że tabela się starzeje —
+  # dlatego `valid-as-of` jest OBOWIĄZKOWE i renderowane w mailu. Tabela, która nie umie pokazać
+  # własnego wieku, to pułapka — w której siedział market-knowledge-2026.txt, usunięty 2026-10-19
+  # (N01): okazało się, że NIC go nie czytało, a trzy komentarze w kodzie opisywały go jako żywy
+  # element promptu.
+  #
+  # Daty poniżej pobrane z endoflife.date 2026-10-19, nie z pamięci.
+  # N19 — sekcje wyłączone bez dotykania kodu. Pusta lista to stan domyślny; wpis tutaj to
+  # eksperyment: audyt nie był w stanie ustalić, które sekcje są w ogóle czytane, a wyłączenie jednej
+  # na kilka wydań jest najtańszym sposobem, żeby się dowiedzieć. Dozwolone klucze są stałymi w
+  # DigestSections — literówka wywala test, a nie wycisza po cichu nic.
+  sections:
+    disabled: []
+
+  # N09 — otwarte Call for Papers, czyli połowa konferencji, na którą czytelnik może zareagować.
+  # Dane z zestawu confs.tech (JSON per temat per rok, pola `cfpEndDate` i `cfpUrl`) zamiast
+  # scrapowania: termin wyciągnięty z prozy i przekłamany jest gorszy niż brak terminu, bo czytelnik
+  # zaplanuje wokół niego. Bez klucza API.
+  call-for-papers:
+    enabled: true
+    base-url: https://raw.githubusercontent.com/tech-conferences/conference-data/main/conferences
+    topics: [java, javascript, devops, python, ai]
+    lookahead-days: 120
+    limit: 5
+
+  # N21 — ta sama historia pod trzema nagłówkami zwijana w jedną pozycję z trzema źródłami.
+  # Domyślnie WŁĄCZONE, ale NIE egzekwujące: nadmierne scalanie jest gorsze niż duplikacja. Duplikat
+  # kosztuje czytelnika jedną linię; błędne scalenie FABRYKUJE potwierdzenie, a od F2 potwierdzenie
+  # jest jedyną drogą do 🔴 — czyli robi krytyczny trend z dwóch niepowiązanych artykułów.
+  # Próg stroi się na zapisanych wydaniach (`--replay`), czytając log `semantic-clustering would-merge`.
+  # Jedno wywołanie embeddingów na wydanie, nie na item: endpoint przyjmuje tablicę.
+  semantic-clustering:
+    enabled: true
+    enforcing: false
+    threshold: 0.86
+    max-cluster-size: 4
+
+  # N23 — druga opinia o całym wydaniu. Domyślnie WŁĄCZONA, ale NIE egzekwująca: werdykt trafia
+  # do logu (`self-critique would-cut url=… reason=…`), a wydanie idzie bez zmian. Dopiero kilka
+  # edycji takiego logu jest podstawą do włączenia `enforcing` — druga opinia modelu potrafi być
+  # pewna siebie i błędna, a wydanie ogołocone przez nieskalibrowanego krytyka jest gorsze niż nudne.
+  self-critique:
+    enabled: true
+    enforcing: false
+
+  # N31–N33 — publiczne archiwum wydań. Budowane w całości ze składowanych wydań przez
+  # `--publish-archive`; workflow decyduje, czy pliki trafiają na Pages. Każde wydanie przechodzi
+  # przez PublicEditionRenderer, który usuwa WSZYSTKIE linki zwrotne (razem z HMAC) oraz wszystko,
+  # czego digest nauczył się o czytelniku. To jedyna nieodwracalna rzecz w tym projekcie.
+  archive:
+    output-path: build/archive
+    site-url: https://dominiksienkiewicz.github.io/PulseDigest/
+
+  # N20 — retrospektywa kwartalna, uruchamiana na żądanie: `--retrospective`. Czyta WYŁĄCZNIE
+  # zapisane wydania, więc ten sam kwartał zawsze daje ten sam wynik — bez tego artefakt, który
+  # powstaje cztery razy w roku, dałoby się poprawiać tylko na produkcji.
+  # maturity-days: zgłoszenie 🔴 młodsze niż tyle dni nie jest oceniane, bo nie miało szansy się
+  # potwierdzić — ten sam błąd, którego unika kalibracja, licząc tylko poprzednie wydania.
+  retrospective:
+    lookback-days: 90
+    maturity-days: 30
+
+  # N27 — źródła wyłączone ręcznie. Pusta lista to stan oczekiwany: wpis tutaj to decyzja, że
+  # źródło nie jest warte fetcha, podjęta na dowodach, które bieg i tak drukuje (WARN
+  # `source-intake SILENT` w logu i linia w stopce maila). Nazwy dokładnie takie, jak w logu.
+  sources:
+    # K7, rozstrzygnięte 2026-10-19: X/Twitter ZOSTAJE w kodzie, ale jest WYŁĄCZONY.
+    #
+    # Źródło ważone 0.40, które trimmer przepełnienia wyrzuca jako pierwsze, a które wymagało
+    # jedynego płatnego poświadczenia w projekcie. Usunięcie kodu byłoby nieodwracalne i zamknęłoby
+    # drogę powrotną, gdy tier się zmieni; trzymanie go włączonym znaczyło płacić za sloty, których
+    # i tak nie dostaje. Wyłączenie rozdziela te dwie rzeczy.
+    #
+    # Konsekwencje, warte świadomości: CAP_TWITTER (20 slotów promptu) zwalnia się dla pozostałych
+    # źródeł automatycznie, bo trim działa na sumie; TWITTER_BEARER_TOKEN przestaje być wymagany
+    # (patrz MarketIntelBootstrap — bieg nadal pada na starcie, jeśli ktoś włączy źródło bez tokenu).
+    # Żeby wrócić: usuń trzy linie poniżej i ustaw sekret.
+    disabled:
+      - "Twitter/X influencer"
+      - "Twitter/X topic"
+      - "Twitter/X Anthropic"
+
+  # F16 — strażnik podwójnej wysyłki na poziomie APLIKACJI. Grupa `concurrency` w Actions chroni
+  # jedną ścieżkę (zaplanowany bieg); ręczne odpalenie JAR-a albo drugi runner omijają ją w całości.
+  # claim-timeout-minutes: po tylu minutach nieukończoną rezerwację może przejąć inny bieg — bieg,
+  # który zginął między rezerwacją a wysyłką, inaczej zamurowałby wydanie. Trzymaj tę wartość
+  # powyżej realnego czasu wysyłki i poniżej odstępu między wydaniami (workflow ma timeout 30 min).
+  delivery:
+    guard-enabled: true
+    claim-timeout-minutes: 60
+
+  # N05 — półka „zapisane na później". Okno celowo wspólne z report.feedback.lookback-days:
+  # dwa różne rozumienia „ostatnio" w jednej pętli rozjechałyby się po cichu.
+  saved:
+    enabled: true
+    max-items: 5
+
+  eol:
+    enabled: true
+    warn-within-months: 6
+    valid-as-of: 2026-10-19
+    entries:
+      - name: "Eclipse Temurin 26 (toolchain tego projektu)"
+        date: 2026-09-22
+      - name: "Oracle JDK 26 (używany w CI)"
+        date: 2026-09-18
+      - name: "Spring Boot 3.5"
+        date: 2026-06-30
+      - name: "Spring Boot 4.0"
+        date: 2026-12-31
+      - name: "Spring Boot 4.1"
+        date: 2027-07-31
+      - name: "Java 25 LTS (Temurin)"
+        date: 2031-09-30
+      - name: "PostgreSQL 16"
+        date: 2028-11-09
+
+  # N07 + N06 — stos czytelnika. JEDNA lista dla obu funkcji: radar releasów pyta o nią Maven
+  # Central, a dopasowanie advisory porównuje po niej nazwy paczek. Dwie listy tych samych
+  # zależności rozjechałyby się, co jest defektem, który F8 zgłaszał o liczbach w dwóch miejscach.
+  #
+  # project-paths MUSI zostać puste w tym repozytorium: te ścieżki wskazują na inne checkouty
+  # czytelnika, których w CI nie ma, więc niepuste domyślne uzależniłoby zaplanowany bieg od
+  # katalogów, których nigdy nie zobaczy. Bez czytelnej ścieżki profil degraduje się do
+  # `coordinates` i mówi w logu, z której listy skorzystał.
+  dependency-profile:
+    enabled: true
+    project-paths: []
+    coordinates: []
+
+  # N03 — uczciwość chudego tygodnia. Poniżej `min-items` historii POWYŻEJ progu Must-know mail staje
+  # się trzema linijkami zamiast dokumentu z resztek. Teza produktu to sygnał nad szumem, a edycja
+  # dopychana do szablonu jej przeczy. Próg to kalibracja, nie stała: każdy bieg loguje zmierzoną
+  # liczbę i czy nota BY się włączyła, więc decyzja zbiera dowody niezależnie od tego, czy działa.
+  thin-week:
+    enabled: true
+    min-items: 3
 
   # Cross-edition dedup: pomija itemy (po kanonicznym URL), które pojawiły się w wydaniu z ostatnich
   # lookback-days dni. Okna lookback celowo zachodzą na poprzedni bieg (żeby nic nie wypadło w gapie
@@ -246,6 +458,37 @@ report:
   research:
     min-likes: 3
     days-back: 5               # 120h pokrywa max gap czw->pn (96h) + margines (parytet z oknami 104h)
+    # F10 — podłoga szerokości wydania. Poniżej tylu źródeł z treścią bieg pada PO pobraniu i PRZED
+    # syntezą: nie płaci za prompt, a czytelnik nie dostaje dwóch pozycji w opakowaniu pełnego
+    # wydania (pusty wynik łapie osobny warunek — ten próg jest dodatkiem, nie zamiennikiem).
+    #
+    # Liczone z ewidencji pobrań, nie z sekcji: źródło WYŁĄCZONE konfiguracją
+    # (report.sources.disabled, np. trzy pobrania X) nie obniża progu, bo wyłączenie to decyzja, a
+    # nie awaria; próg jest ograniczony liczbą faktycznie odpytanych źródeł. Źródło, które
+    # odpowiedziało, ale nie przyniosło nic, nie liczy się jako aktywne.
+    #
+    # Trójka jest z sufitu, nie z pomiaru: to najmniejsza liczba, przy której wydanie wciąż czyta
+    # się jak przegląd, a nie jak jedna wiadomość. Skalibruj ją po kilku wydaniach danymi z
+    # SourceYieldService (tablica wyników w logu biegu). 0 wyłącza próg.
+    min-active-sources: 3
+
+    # N60 — druga podłoga, liczona PO filtrach. Ewidencja pobrań zapisuje, ile pozycji źródło
+    # ściągnęło, a nie ile przeżyło filtry trafności/polubień/okna czasowego — więc bieg, w którym
+    # wszystkie źródła odpowiedziały, a filtry zabrały prawie wszystko, przechodzi próg wyżej.
+    # Ten liczy sekcje, w których cokolwiek zostało (ResearchResult.activeSourceCount()).
+    #
+    # To NIE jest obsługa cichego tygodnia — ta należy do report.thin-week (N03) i rozstrzyga się PO
+    # syntezie, na pozycjach powyżej progu „Must-know": wtedy mail ma trzy linijki, a nie alert.
+    # Tutaj mierzy się inną wielkość i wcześniej: ile sekcji ma w ogóle jakąkolwiek treść. Realne
+    # wydanie wypełnia 16 z 16 sekcji (zmierzone na zapisanej próbce w samples/edition.json), więc
+    # próg 3 znaczy „13 sekcji wróciło puste, choć ich źródła odpowiedziały" — to zepsuty filtr albo
+    # okno lookback, nie spokojny tydzień.
+    #
+    # Próg jest ograniczony liczbą żywych źródeł, i to ograniczenie jest ścisłe: kilka źródeł karmi
+    # jedną sekcję (trzy pobrania X to jedna sekcja „tweetów", wszystkie kanały RSS to jedna „RSS"),
+    # więc sekcji z treścią nigdy nie jest więcej niż źródeł, które odpowiedziały. Bez tego biegi na
+    # małym rosterze padałyby na progu arytmetycznie nieosiągalnym. 0 wyłącza próg.
+    min-contributing-sections: 3
     authority-usernames:
       - karpathy
       - swyx
@@ -384,16 +627,38 @@ report:
 
   # Free-source recovery (C7): Bluesky author-feeds + Mastodon hashtag-timelines (oba public, bez auth)
   # odzyskują sygnał CV-relevant przycięty pod budżet X. Jeden scalony source "Social"; każda sieć
-  # degraduje się gracefully (źródło FAILED tylko gdy OBIE padną). Dostrój handles/hashtags pod siebie.
+  # degraduje się gracefully (źródło FAILED tylko gdy OBIE padną).
+  #
+  # K6, zmierzone na żywo 2026-10-19 — ten blok był do tego dnia skonfigurowany tak, że źródło
+  # "Bluesky + Mastodon, 15 postów" było w rzeczywistości timeline'em firmowego konta Bluesky:
+  #   bsky.app            29 postów/14d, 28 ponad progiem 5, MEDIANA 1403 like'ów
+  #   fosstodon #java…#ai 200 postów,     1 ponad progiem 5  (max 19, typowo 0-3)
+  # Jeden wspólny `min-likes: 5` plus sortowanie po surowej liczbie like'ów = cała pula dla konta
+  # najpopularniejszego w liczbach bezwzględnych, a na Bluesky jest nim samo Bluesky. Dlatego:
+  #   - próg jest PER SIEĆ (like na fosstodonie i like na bsky to nie ta sama wielkość),
+  #   - `max-per-account` ogranicza, ile slotów weźmie jedno konto — bez tego wymiana seeda tylko
+  #     przenosi monopol na następne popularne konto.
   social:
     limit: 15
-    min-likes: 5
+    max-per-account: 3
     bluesky:
       base-url: https://public.api.bsky.app
+      min-likes: 5
+      # Roster zweryfikowany na żywo 2026-10-19 (posty/14d, ile ponad progiem):
       handles:
-        - bsky.app        # seed (oficjalne konto) — dodaj CV-relevant handles (AI/Java dev) z bsky.app
+        - simonwillison.net   # 22/14d, 18 ponad progiem — LLM/AI, dev tooling
+        - kotlinlang.org      # 17/14d, 13 ponad progiem — JVM
+        - quarkus.io          # 20/14d,  1 ponad progiem — Java, niska reakcja, próg przycina
+        - nipafx.dev          # 3/14d,   2 ponad progiem — Java (Nicolai Parlog)
+        - danvega.dev         # 6/14d,   1 ponad progiem — Spring
+      # Sprawdzone i ODRZUCONE jako martwe: bsky.app (seed, patrz wyżej), java-champions (704 dni),
+      # openjdk.org (501), spring.io (139), jetbrains.com (32), hibernate.org (384), vladmihalcea (19).
+      # Większość ekosystemu JVM nie przeniosła się na Bluesky; AI/LLM częściowo tak. To jest powód,
+      # dla którego ta połowa źródła ma sens tylko z rosterem przechylonym w stronę AI.
     mastodon:
       instance-url: https://fosstodon.org
+      # Próg 1, nie 5: patrz pomiar wyżej. Przy 5 ta połowa źródła nie wnosiła nic.
+      min-likes: 1
       hashtags:
         - java
         - quarkus
@@ -490,8 +755,9 @@ report:
 
   technology-radar:
     base-url: https://raw.githubusercontent.com
+    # Radar wychodzi ~dwa razy w roku, więc ten sam tom czyta się miesiącami. `lookback-months`
+    # stało tu do 2026-10-18 i nie czytał go żaden kod — adapter nigdy nie filtrował po dacie (N57).
     data-path: /setchy/thoughtworks-tech-radar-volumes/main/volumes/json/Thoughtworks%20Technology%20Radar%20Volume%2034%20(Apr%202026).json
-    lookback-months: 6
 
   conference-talks:
     base-url: https://www.googleapis.com/youtube/v3/search

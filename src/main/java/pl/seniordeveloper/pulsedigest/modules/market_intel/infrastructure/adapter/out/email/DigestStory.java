@@ -22,7 +22,7 @@ import java.util.List;
  * @param members every item that carried it, lead included, in the order the model emitted them
  * @param signal  the lead's deterministic signal, or {@code null} for an unscored edition
  */
-record DigestStory(DigestItem lead, List<DigestItem> members, Signal signal) {
+record DigestStory(DigestItem lead, List<DigestItem> members, Signal signal, boolean affectsStack) {
 
     DigestStory {
         members = List.copyOf(members);

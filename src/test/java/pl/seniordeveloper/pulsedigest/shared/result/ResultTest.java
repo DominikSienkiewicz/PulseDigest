@@ -11,7 +11,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ResultTest {
 
-    private static final MarketIntelError ERROR = new MarketIntelError.ReportNotAvailable();
+    // Any MarketIntelError variant serves as the sample error here; this test is about Result's
+    // own behaviour, not about the module's failure vocabulary. It referenced ReportNotAvailable
+    // until 2026-10-18, when that variant was removed with the query services nothing called.
+    private static final MarketIntelError ERROR = new MarketIntelError.JobVanished("job-1");
 
     @Test
     void createsSuccessAndFailureFromNullableAndOptional() {
@@ -46,7 +49,7 @@ class ResultTest {
         assertThat(success.orElseThrow(error -> new IllegalStateException(error.message()))).isEqualTo("value");
         assertThat(success.fold(v -> v + "!", MarketIntelError::message)).isEqualTo("value!");
         assertThat(failure.fold(v -> v + "!", MarketIntelError::message))
-                .isEqualTo("No completed market intelligence report is available yet");
+                .isEqualTo("Digest run job-1 left no job in the tracker");
     }
 
     @Test
@@ -76,6 +79,6 @@ class ResultTest {
         assertThatThrownBy(() -> Result.<String, MarketIntelError>failure(ERROR)
                 .orElseThrow(error -> new IllegalArgumentException(error.message())))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("No completed market intelligence report is available yet");
+                .hasMessage("Digest run job-1 left no job in the tracker");
     }
 }

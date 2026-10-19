@@ -26,7 +26,7 @@ final class WatchlistBuilder {
         sb.append("<div style=\"font-size:13px;color:#365314;line-height:1.7\">");
         for (WatchlistHit hit : scan.hits()) {
             sb.append(hit.mentions() == 0
-                            ? "<span style=\"color:#84cc16\">&#9675;</span> "
+                            ? "<span style=\"color:#4d7c0f\">&#9675;</span> "
                             : "<span style=\"color:#4d7c0f;font-weight:700\">&#9679;</span> ")
                     .append(escapeHtml(hit.keyword()))
                     .append(": ")
@@ -39,7 +39,7 @@ final class WatchlistBuilder {
 
     private static String mentionsLabel(int mentions) {
         if (mentions == 0) {
-            return "<span style=\"color:#65a30d\">0 wzmianek</span>";
+            return "<span style=\"color:#3f6212\">0 wzmianek</span>";
         }
         return mentions + (mentions == 1 ? " wzmianka" : " wzmianek");
     }

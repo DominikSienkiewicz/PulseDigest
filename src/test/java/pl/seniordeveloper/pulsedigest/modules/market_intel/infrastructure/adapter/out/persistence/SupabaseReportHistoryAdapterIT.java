@@ -1,5 +1,7 @@
 package pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapter.out.persistence;
 
+import pl.seniordeveloper.pulsedigest.testing.TestModels;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -88,11 +90,11 @@ class SupabaseReportHistoryAdapterIT {
     @Test
     void legacyEditionsWithoutTopicKeyFallBackToCategory() {
         // Editions written before topic_key existed must still be matchable, not silently skipped.
-        DigestItem legacy = new DigestItem("Old story", "https://example.com/old", "GitHub",
+        DigestItem legacy = TestModels.digestItem("Old story", "https://example.com/old", "GitHub",
                 "AI/LLM", "RELEASE", 8, 10, "sum", null);
-        ReportData data = new ReportData("preview", "editorial", List.of("insight"), List.of(legacy),
-                List.of(new Signal(legacy, SignalRank.STRONG, 90, List.of(SourceDomain.CODE))));
-        storage.save(new PersistedReport(data, "legacy", Instant.now().minus(1, ChronoUnit.DAYS), 1, 0, 0));
+        ReportData data = TestModels.reportData("preview", "editorial", List.of("insight"), List.of(legacy),
+                List.of(TestModels.signal(legacy, SignalRank.STRONG, 90, List.of(SourceDomain.CODE))));
+        storage.save(TestModels.persistedReport(data, "legacy", Instant.now().minus(1, ChronoUnit.DAYS), 1, 0, 0));
 
         List<PastEdition> editions = history.recentEditions(21);
 
@@ -103,8 +105,8 @@ class SupabaseReportHistoryAdapterIT {
     private static PersistedReport edition(String jobId, Instant generatedAt, String topicKey, SignalRank rank) {
         DigestItem item = new DigestItem("Title", "https://example.com/" + topicKey, "GitHub",
                 "AI/LLM", "RELEASE", 8, 10, "sum", null, topicKey);
-        ReportData data = new ReportData("preview", "editorial", List.of("insight"), List.of(item),
-                List.of(new Signal(item, rank, 120, List.of(SourceDomain.CODE))));
-        return new PersistedReport(data, jobId, generatedAt, 1, 0, 0);
+        ReportData data = TestModels.reportData("preview", "editorial", List.of("insight"), List.of(item),
+                List.of(TestModels.signal(item, rank, 120, List.of(SourceDomain.CODE))));
+        return TestModels.persistedReport(data, jobId, generatedAt, 1, 0, 0);
     }
 }

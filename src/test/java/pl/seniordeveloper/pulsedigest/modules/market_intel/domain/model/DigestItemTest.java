@@ -1,5 +1,7 @@
 package pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model;
 
+import pl.seniordeveloper.pulsedigest.testing.TestModels;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
@@ -46,7 +48,7 @@ class DigestItemTest {
 
     @Test
     void nineArgConstructorLeavesTopicKeyNull() {
-        DigestItem item = new DigestItem("t", "https://x", "GitHub", "Java", "RELEASE", 8, 50, "s", null);
+        DigestItem item = TestModels.digestItem("t", "https://x", "GitHub", "Java", "RELEASE", 8, 50, "s", null);
 
         assertThat(item.topicKey()).isNull();
     }

@@ -1,5 +1,9 @@
 package pl.seniordeveloper.pulsedigest.modules.market_intel.application;
 
+import pl.seniordeveloper.pulsedigest.modules.market_intel.application.policy.SourceDisablePolicy;
+
+import pl.seniordeveloper.pulsedigest.testing.TestModels;
+
 import org.junit.jupiter.api.Test;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.CncfProjectUpdate;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ConferenceTalk;
@@ -35,7 +39,7 @@ class MarketResearchServiceTest {
         MarketResearchService service = new MarketResearchService(
                 new StubMarketIntelligencePort(false),
                 researchPolicy(),
-                Runnable::run);
+                Runnable::run, new SourceDisablePolicy(java.util.Set.of()));
 
         ResearchResult result = service.fetchAndFilter();
 
@@ -64,7 +68,7 @@ class MarketResearchServiceTest {
         MarketResearchService service = new MarketResearchService(
                 new StubMarketIntelligencePort(true),
                 researchPolicy(),
-                Runnable::run);
+                Runnable::run, new SourceDisablePolicy(java.util.Set.of()));
 
         ResearchResult result = service.fetchAndFilter();
 
@@ -185,7 +189,7 @@ class MarketResearchServiceTest {
 
         @Override
         public List<SecurityAdvisory> fetchSecurityAdvisories() {
-            return List.of(new SecurityAdvisory("GHSA-1", "summary", "HIGH", now, List.of("Maven"),
+            return List.of(TestModels.securityAdvisory("GHSA-1", "summary", "HIGH", now, List.of("Maven"),
                     trackedUrl("ghsa")));
         }
 
@@ -202,7 +206,7 @@ class MarketResearchServiceTest {
 
         @Override
         public List<RadarEntry> fetchTechRadarEntries() {
-            return List.of(new RadarEntry("Tool", "adopt", "tools", "desc", trackedUrl("radar"), now));
+            return List.of(new RadarEntry("Tool", "adopt", "tools", "desc", trackedUrl("radar")));
         }
 
         @Override

@@ -104,7 +104,23 @@ public class SecurityAdvisoryAdapter {
         if (ghsaId.isBlank() || url.isBlank()) {
             return Optional.empty();
         }
-        return Optional.of(new SecurityAdvisory(ghsaId, summary, severity, publishedAt, ecosystems, url));
+        return Optional.of(new SecurityAdvisory(ghsaId, summary, severity, publishedAt, ecosystems, url,
+                extractPackages(node)));
+    }
+
+    /**
+     * The coordinates the advisory names, e.g. {@code org.springframework:spring-web}. Already in the
+     * list response beside the ecosystem this method's sibling reads — it was simply dropped.
+     */
+    private List<String> extractPackages(JsonNode advisory) {
+        List<String> packages = new ArrayList<>();
+        for (JsonNode vuln : advisory.path("vulnerabilities")) {
+            String name = vuln.path("package").path("name").asText("");
+            if (!name.isBlank() && !packages.contains(name)) {
+                packages.add(name);
+            }
+        }
+        return packages;
     }
 
     private List<String> extractEcosystems(JsonNode advisory) {

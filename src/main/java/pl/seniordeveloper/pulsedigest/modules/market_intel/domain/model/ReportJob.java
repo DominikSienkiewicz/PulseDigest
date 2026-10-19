@@ -4,7 +4,7 @@ import java.time.Instant;
 
 /**
  * Snapshot stanu asynchronicznego zadania generowania raportu.
- * Immutable record – nowy obiekt tworzony przy każdej zmianie stanu.
+ * Immutable: every state change produces a new instance rather than mutating this one.
  * <p>
  * Pole report zmienione z String na ReportData – ustrukturyzowany JSON
  * eliminuje problemy z ucinaniem tekstu.
@@ -26,13 +26,6 @@ public record ReportJob(
     }
 
     /**
-     * Fabryka: zadanie odtworzone jako DELIVERED (np. z dysku).
-     */
-    public static ReportJob done(String jobId, ReportData report, Instant completedAt) {
-        return new ReportJob(jobId, ReportJobStatus.DELIVERED, report, null, completedAt, completedAt);
-    }
-
-    /**
      * Kopia z nowym statusem IN_PROGRESS.
      */
     public ReportJob inProgress() {
@@ -47,7 +40,7 @@ public record ReportJob(
     }
 
     /**
-     * Kopia po zapisie raportu w trwałym storage.
+     * Copy of this job once the edition has been written to durable storage.
      */
     public ReportJob persisted() {
         return new ReportJob(jobId, ReportJobStatus.PERSISTED, report, null, createdAt, null);
@@ -75,7 +68,7 @@ public record ReportJob(
     }
 
     /**
-     * Kopia z komunikatem błędu i statusem ERROR.
+     * Copy of this job in {@code ERROR}, carrying the message that explains why.
      */
     public ReportJob error(String errorMessage) {
         return new ReportJob(jobId, ReportJobStatus.ERROR, null, errorMessage, createdAt, Instant.now());

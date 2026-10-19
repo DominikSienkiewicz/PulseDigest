@@ -6,12 +6,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.MarketIntelJobTracker;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.error.MarketIntelError;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.application.policy.RateLimitPolicy;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportJob;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportJobStatus;
 import pl.seniordeveloper.pulsedigest.shared.result.Result;
-
-import java.time.Duration;
-import java.time.Instant;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -20,43 +17,38 @@ public class GenerateMarketReportService {
 
     private final MarketIntelJobTracker jobTracker;
     private final GenerateMarketReportProcessor processor;
-    private final RateLimitPolicy rateLimitPolicy;
 
-    private Instant lastSubmittedAt = null;
+    /**
+     * Tracks the job, runs the pipeline synchronously, and reports what the run actually achieved.
+     *
+     * <p>{@code process} turns every pipeline failure into a terminal job status rather than an
+     * exception, so the job's own status is the outcome — and reading it here is what makes the
+     * {@code Result} ADR-0007 mandates carry real information. Until 2026-10-18 this method
+     * returned {@code Result.success} unconditionally while {@code DigestRunner} separately
+     * re-queried the tracker to find out whether the run had worked; the outcome now travels with
+     * the return value, and there is one source of truth for it instead of two.
+     *
+     * <p>Two guards stood here until 2026-10-17 and neither could act: an in-progress check against
+     * a tracker that is always empty on the only call of the run, and a cooldown against an
+     * in-memory {@code lastSubmittedAt} that is always null in a process which handles one command
+     * and exits. The double-send protection is the workflow's {@code concurrency} group (F16 stays
+     * open: there is still no guard at the application level, and there never was one).
+     */
+    public Result<String, MarketIntelError> handle(GenerateMarketReportCommand command) {
+        jobTracker.track(ReportJob.pending(command.jobId()));
 
-    public synchronized Result<String, MarketIntelError> handle(GenerateMarketReportCommand command) {
-        Result<Void, MarketIntelError> rateLimit = enforceRateLimit();
-        if (rateLimit instanceof Result.Failure(var error)) {
-            return Result.failure(error);
-        }
-
-        ReportJob job = ReportJob.pending(command.jobId());
-        jobTracker.track(job);
-        lastSubmittedAt = Instant.now();
-
-        log.info("Dispatching async report generation for jobId: {}", command.jobId());
+        log.info("Running report generation for jobId: {}", command.jobId());
         processor.process(command.jobId());
 
-        return Result.success(command.jobId());
+        return outcome(command.jobId());
     }
 
-    private Result<Void, MarketIntelError> enforceRateLimit() {
-        boolean anyActive = jobTracker.getAll().stream()
-                .anyMatch(j -> j.status().isActive());
-
-        if (anyActive) {
-            return Result.failure(new MarketIntelError.GenerationInProgress());
-        }
-
-        if (lastSubmittedAt != null && rateLimitPolicy.isEnabled()) {
-            Duration elapsed = Duration.between(lastSubmittedAt, Instant.now());
-            Duration cooldown = rateLimitPolicy.cooldown();
-            if (elapsed.compareTo(cooldown) < 0) {
-                long remainSec = cooldown.minus(elapsed).getSeconds() + 1;
-                return Result.failure(new MarketIntelError.RateLimitExceeded(remainSec));
-            }
-        }
-
-        return Result.success(null);
+    private Result<String, MarketIntelError> outcome(String jobId) {
+        return jobTracker.getJob(jobId)
+                .map(job -> job.status() == ReportJobStatus.DELIVERED
+                        ? Result.<String, MarketIntelError>success(jobId)
+                        : Result.<String, MarketIntelError>failure(
+                                new MarketIntelError.PipelineFailed(jobId, job.status(), job.error())))
+                .orElseGet(() -> Result.failure(new MarketIntelError.JobVanished(jobId)));
     }
 }

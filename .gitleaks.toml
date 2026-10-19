@@ -1,0 +1,41 @@
+# N45 — secret scanning. The repository holds eight credentials in play and a public history, so the
+# control should exist rather than be inferred from good luck: the 2026-10-15 audit found no
+# committed secret, which is evidence about the past and not a guarantee about the next commit.
+#
+# Allowlisting is narrow on purpose. The risk the audit names is false confidence in the other
+# direction: a scanner that cries wolf on every test fixture gets switched off, and a switched-off
+# scanner is worse than none because the badge stays. Each entry names what lives where, rather
+# than excluding whole trees.
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "HMAC test vectors: literal secrets so a signature is reproducible, not credentials."
+paths = [
+  "src/test/java/pl/seniordeveloper/pulsedigest/shared/util/HmacSignerTest\\.java",
+  "src/test/java/pl/seniordeveloper/pulsedigest/modules/market_intel/infrastructure/adapter/out/email/FeedbackLinkBuilderTest\\.java",
+]
+
+[[allowlists]]
+description = "Obviously-fake keys adapter tests pass so a RestClient can be built; required to be non-blank and nothing else."
+regexes = [
+  "test-(openai|bearer|resend|signing)-?(key|token|secret)?",
+]
+
+[[allowlists]]
+description = "The committed sample digest is rendered from a fixture with signing switched off."
+paths = [
+  "docs/sample-digest(-thin)?\\.html",
+]
+
+# Reviewed false positive, matched by the exact string rather than by commit or path so it cannot
+# quietly cover anything else. README.md in commit a752b6b (2026-06-01) lists the NVD query
+# parameter below in a documentation table; the generic high-entropy rule reads it as a key.
+# Checked by hand on 2026-10-18 — the whole git history (80 commits) holds no real credential,
+# which is now a measured statement rather than the audit's inference.
+[[allowlists]]
+description = "NVD query parameter in a docs table, not a key."
+regexes = [
+  "cvssV3Severity=CRITICAL",
+]

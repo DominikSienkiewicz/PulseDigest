@@ -1,5 +1,7 @@
 package pl.seniordeveloper.pulsedigest.modules.market_intel.application;
 
+import pl.seniordeveloper.pulsedigest.testing.TestModels;
+
 import org.junit.jupiter.api.Test;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.DigestItem;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.PastEdition;
@@ -26,18 +28,17 @@ class TrendVelocityServiceTest {
     private static Signal signal(String topicKey, SignalRank rank, int score, SourceDomain... domains) {
         DigestItem item = new DigestItem("Story " + topicKey, "https://example.com/" + topicKey, "GitHub",
                 "AI/LLM", "RELEASE", 8, 10, "Summary", null, topicKey);
-        return new Signal(item, rank, score, List.of(domains));
+        return TestModels.signal(item, rank, score, List.of(domains));
     }
 
     private static PastEdition edition(Instant at, Signal... signals) {
-        return new PastEdition(at, List.of(signals));
+        return TestModels.pastEdition(at, List.of(signals));
     }
 
     @Test
     void aStoryGainingDomainsAndScoreIsFlaggedAsACriticalCandidate() {
         // Two domains and climbing is one independent confirmation away from 🔴.
-        List<Signal> annotated = service.annotate(
-                List.of(signal("mcp", SignalRank.STRONG, 95, SourceDomain.CODE, SourceDomain.SCIENCE)),
+        List<Signal> annotated = service.annotate(List.of(signal("mcp", SignalRank.STRONG, 95, SourceDomain.CODE, SourceDomain.SCIENCE)),
                 List.of(edition(JUL_06, signal("mcp", SignalRank.MODERATE, 70, SourceDomain.CODE))));
 
         assertThat(annotated).singleElement().satisfies(s -> {
@@ -94,8 +95,7 @@ class TrendVelocityServiceTest {
     @Test
     void theBaselineIsTheOldestEditionInsideTheVelocityWindow() {
         // Window is 3 past editions. JUL_01 falls outside it, so JUL_03 is the baseline.
-        List<Signal> annotated = service.annotate(
-                List.of(signal("mcp", SignalRank.STRONG, 95, SourceDomain.CODE, SourceDomain.SCIENCE)),
+        List<Signal> annotated = service.annotate(List.of(signal("mcp", SignalRank.STRONG, 95, SourceDomain.CODE, SourceDomain.SCIENCE)),
                 List.of(edition(JUL_08, signal("mcp", SignalRank.MODERATE, 80, SourceDomain.CODE)),
                         edition(JUL_06, signal("mcp", SignalRank.MODERATE, 75, SourceDomain.CODE)),
                         edition(JUL_03, signal("mcp", SignalRank.MODERATE, 70, SourceDomain.CODE)),

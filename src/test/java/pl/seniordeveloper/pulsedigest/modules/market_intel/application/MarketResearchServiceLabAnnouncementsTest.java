@@ -1,5 +1,7 @@
 package pl.seniordeveloper.pulsedigest.modules.market_intel.application;
 
+import pl.seniordeveloper.pulsedigest.modules.market_intel.application.policy.SourceDisablePolicy;
+
 import org.junit.jupiter.api.Test;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.policy.ResearchPolicy;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.CncfProjectUpdate;
@@ -35,7 +37,7 @@ class MarketResearchServiceLabAnnouncementsTest {
     @Test
     void labAnnouncementUrlsAreCanonicalizedAtTheFetchBoundary() {
         MarketResearchService service = new MarketResearchService(
-                new LabOnlyPort(), researchPolicy(), Runnable::run);
+                new LabOnlyPort(), researchPolicy(), Runnable::run, new SourceDisablePolicy(java.util.Set.of()));
 
         ResearchResult result = service.fetchAndFilter();
 

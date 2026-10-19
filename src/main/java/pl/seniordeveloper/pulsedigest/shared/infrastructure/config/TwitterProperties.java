@@ -13,7 +13,10 @@ import java.util.List;
 @ConfigurationProperties(prefix = "twitter")
 @Validated
 public record TwitterProperties(
-        @NotBlank
+        // Not @NotBlank since K7 (2026-10-19): X is disabled by default, and requiring the one paid
+        // credential in the project for a source nobody fetches would make "disabled" cost exactly
+        // what "enabled" cost. The fail-fast property is kept where it belongs instead —
+        // MarketIntelBootstrap refuses to start when an X source is enabled and this is blank.
         String bearerToken,
         @NotEmpty
         List<@NotBlank String> queries,

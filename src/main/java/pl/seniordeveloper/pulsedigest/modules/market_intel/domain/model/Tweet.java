@@ -2,7 +2,7 @@ package pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model;
 
 /**
  * Reprezentuje pojedynczy tweet po filtrowaniu.
- * Zawiera dane autora, treść oraz metryki zaangażowania.
+ * Carries the author, the text and the engagement metrics.
  */
 public record Tweet(
         String id,
@@ -16,7 +16,7 @@ public record Tweet(
 ) {
 
     /**
-     * Zwraca sformatowaną reprezentację tweeta do wstawienia w prompt LLM.
+     * The tweet as the prompt renders it.
      */
     public String toPromptString() {
         return "@%s (%s) [%d likes, %d RT] – %s – \"%s\""

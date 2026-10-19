@@ -1,5 +1,9 @@
 package pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapter.out.email;
 
+import pl.seniordeveloper.pulsedigest.modules.market_intel.application.policy.SectionsPolicy;
+
+import pl.seniordeveloper.pulsedigest.testing.TestModels;
+
 import org.junit.jupiter.api.Test;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.DigestItem;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ProfileHypothesis;
@@ -11,6 +15,7 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Signal;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SignalRank;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceDomain;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.FeedbackProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ThinWeekProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.WatchlistProperties;
 
 import java.time.Instant;
@@ -26,13 +31,15 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class ReportEmailFooterTest {
 
-    private final ReportEmailBuilder builder = new ReportEmailBuilder(
-            new FeedbackProperties(false, 30, "", ""), new WatchlistProperties(false, List.of()));
+    private final ReportEmailBuilder builder = new ReportEmailBuilder(new FeedbackProperties(false, 30, "", ""),
+            new WatchlistProperties(false, List.of()),
+            new ThinWeekProperties(false, 3),
+                new SectionsPolicy(java.util.Set.of()));
 
     private static ReportData report() {
-        DigestItem item = new DigestItem("Item", "https://example.com/item", "GitHub", "Java",
+        DigestItem item = TestModels.digestItem("Item", "https://example.com/item", "GitHub", "Java",
                 "RELEASE", 8, 10, "Summary", null);
-        return new ReportData("Preview", "Lead", List.of("Insight"), List.of(item), List.of());
+        return TestModels.reportData("Preview", "Lead", List.of("Insight"), List.of(item), List.of());
     }
 
     @Test
@@ -51,8 +58,7 @@ class ReportEmailFooterTest {
     void disclosesTheReaderModelThatShapedTheDigest() {
         // A model distilled from the reader's clicks, silently reshaping what he sees, must be
         // auditable — with the evidence behind every claim.
-        ReportData withProfile = report().withReaderProfile(new ReaderProfile(
-                Instant.parse("2026-07-06T06:00:00Z"), 20,
+        ReportData withProfile = report().withReaderProfile(new ReaderProfile(Instant.parse("2026-07-06T06:00:00Z"), 20,
                 List.of(new ProfileHypothesis("Chce więcej Javy", "+8 netto w java/jvm",
                         LocalDate.of(2026, 7, 6)))));
 
@@ -65,11 +71,11 @@ class ReportEmailFooterTest {
     @Test
     void footerShowsWhatTheReadersVotesDidToTheSourceWeights() {
         // Investment → reward: a 👎 whose effect is invisible is a 👎 nobody casts twice.
-        DigestItem item = new DigestItem("Item", "https://example.com/item", "Hacker News", "Java",
+        DigestItem item = TestModels.digestItem("Item", "https://example.com/item", "Hacker News", "Java",
                 "RELEASE", 8, 10, "Summary", null);
         Signal nudged = new Signal(item, SignalRank.STRONG, 90, List.of(SourceDomain.BUSINESS), null, null,
-                new ScoreBreakdown("Hacker News", 0.80, 0.60, -4, 0, 1.0, 0, 0));
-        ReportData report = new ReportData("Preview", "Lead", List.of(), List.of(item), List.of(nudged));
+                TestModels.scoreBreakdown("Hacker News", 0.80, 0.60, -4, 0, 1.0, 0, 0));
+        ReportData report = TestModels.reportData("Preview", "Lead", List.of(), List.of(item), List.of(nudged));
 
         String html = builder.buildHtml(report, null);
 
@@ -86,12 +92,12 @@ class ReportEmailFooterTest {
     void theMicroLineExplainsMustKnowItemsButNotTheLongTable() {
         // The risk this feature carries is visual noise. The explanation belongs where the reader
         // reads closely, not under every row of a twenty-line table.
-        DigestItem mustKnow = new DigestItem("Hero", "https://example.com/hero", "Hacker News", "Java",
+        DigestItem mustKnow = TestModels.digestItem("Hero", "https://example.com/hero", "Hacker News", "Java",
                 "RELEASE", 9, 10, "Summary", "Do this");
-        DigestItem midTier = new DigestItem("Mid", "https://example.com/mid", "Reddit/r/java", "Java",
+        DigestItem midTier = TestModels.digestItem("Mid", "https://example.com/mid", "Reddit/r/java", "Java",
                 "OPINION", 6, 10, "Summary", null);
-        ScoreBreakdown b = new ScoreBreakdown("Hacker News", 0.80, 0.80, 0, 12, 1.0, 0, 0);
-        ReportData report = new ReportData("Preview", "Lead", List.of(), List.of(mustKnow, midTier),
+        ScoreBreakdown b = TestModels.scoreBreakdown("Hacker News", 0.80, 0.80, 0, 12, 1.0, 0, 0);
+        ReportData report = TestModels.reportData("Preview", "Lead", List.of(), List.of(mustKnow, midTier),
                 List.of(new Signal(mustKnow, SignalRank.STRONG, 92, List.of(SourceDomain.BUSINESS), null, null, b),
                         new Signal(midTier, SignalRank.MODERATE, 60, List.of(SourceDomain.SOCIAL), null, null, b)));
 
@@ -109,8 +115,7 @@ class ReportEmailFooterTest {
 
     @Test
     void escapesHypothesisTextSoAModelCannotInjectMarkupIntoTheMail() {
-        ReportData withProfile = report().withReaderProfile(new ReaderProfile(
-                Instant.parse("2026-07-06T06:00:00Z"), 20,
+        ReportData withProfile = report().withReaderProfile(new ReaderProfile(Instant.parse("2026-07-06T06:00:00Z"), 20,
                 List.of(new ProfileHypothesis("<script>x</script>", "<b>evidence</b>",
                         LocalDate.of(2026, 7, 6)))));
 

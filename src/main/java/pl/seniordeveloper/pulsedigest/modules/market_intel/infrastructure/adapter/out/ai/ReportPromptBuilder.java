@@ -64,7 +64,17 @@ public class ReportPromptBuilder {
     private final ReaderProfilePort readerProfilePort;
     private final ReaderProfilePolicy readerProfilePolicy;
 
-    @Value("classpath:prompts/system-prompt.txt")
+    /**
+     * The system prompt, pointed at by configuration rather than hard-wired (N39).
+     *
+     * <p>A fork's whole personality lives in this file and in {@code interest-profile}. Making it a
+     * property means swapping it is configuration — {@code report.prompt.system=file:/path/to/mine.txt}
+     * — instead of editing a file inside the jar's resources, which is the difference between
+     * running your own digest and maintaining a patch.
+     *
+     * <p>Spring resolves {@code classpath:} and {@code file:} alike, so the default is unchanged.
+     */
+    @Value("${report.prompt.system:classpath:prompts/system-prompt.txt}")
     private Resource systemPromptResource;
 
     private String systemPrompt;
@@ -76,8 +86,9 @@ public class ReportPromptBuilder {
     }
 
     public String buildSystemPrompt() {
-        // Profil odbiorcy doklejany z interest-profile (jedno źródło prawdy) — rubryka scoringu
-        // w system-prompt.txt odsyła do tej sekcji zamiast hardcodować persony.
+        // The reader profile comes from interest-profile, the one source of truth for it: the
+        // scoring rubric in system-prompt.txt points at this section instead of restating a persona
+        // that would then have two places to drift apart in.
         return systemPrompt + "\n\n== PROFIL ODBIORCY ==\n" + interestProfile.persona() + "\n"
                 + readerModelAddendum();
     }

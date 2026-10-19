@@ -1,5 +1,7 @@
 package pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapter.out.ai;
 
+import pl.seniordeveloper.pulsedigest.testing.ResearchResults;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.ResponseDefinitionBuilder;
@@ -9,6 +11,13 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.client.RestClient;
+import io.micrometer.core.instrument.Metrics;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.LlmProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.metrics.BudgetExceededException;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.metrics.CostCeiling;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.metrics.LlmUsageMeter;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.OpenAiProperties;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.DigestItem;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.PromptItemMeta;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportData;
@@ -38,7 +47,9 @@ class GptSynthesisAdapterIT {
     void setUp() throws Exception {
         wireMock = new WireMockServer(WireMockConfiguration.wireMockConfig().dynamicPort());
         wireMock.start();
-        adapter = new GptSynthesisAdapter(new ObjectMapper(), new StubPromptBuilder());
+        adapter = new GptSynthesisAdapter(new OpenAiProperties("test-openai-key"), LlmTestSettings.properties(),
+                LlmTestSettings.meter(), LlmTestSettings.ceiling(), new ObjectMapper(),
+                new StubPromptBuilder());
         setOpenAiClient(adapter, "http://localhost:" + wireMock.port());
     }
 
@@ -50,7 +61,7 @@ class GptSynthesisAdapterIT {
     }
 
     @Test
-    void synthesizePostsJsonModeRequestAndParsesReport() throws Exception {
+    void synthesizePostsASchemaConstrainedRequestAndParsesReport() throws Exception {
         String reportContent = """
                 {
                   "email_preview": "Preview",
@@ -81,7 +92,10 @@ class GptSynthesisAdapterIT {
         assertThat(report.emailPreview()).isEqualTo("Preview");
         assertThat(report.items()).hasSize(1);
         wireMock.verify(postRequestedFor(urlPathEqualTo("/chat/completions"))
-                .withRequestBody(containing("\"response_format\":{\"type\":\"json_object\"}"))
+                // N22: a named schema in strict mode replaced "give me some JSON". The assertion
+                // moved with the behaviour it was pinning, which is the thing that changed.
+                .withRequestBody(containing("\"response_format\":{\"type\":\"json_schema\""))
+                .withRequestBody(containing("\"strict\":true"))
                 .withRequestBody(containing("\"content\":\"system prompt\""))
                 .withRequestBody(containing("\"content\":\"user prompt\"")));
     }
@@ -101,9 +115,8 @@ class GptSynthesisAdapterIT {
 
     @Test
     void synthesizeFailsClearlyWhenResponseTruncatedAtTokenCap() throws Exception {
-        String truncated = new ObjectMapper().writeValueAsString(Map.of(
-                "choices", List.of(Map.of(
-                        "message", Map.of("content", "{\"items\":[{\"title\":\"half"),
+        String truncated = new ObjectMapper(
+                ).writeValueAsString(Map.of("choices", List.of(Map.of("message", Map.of("content", "{\"items\":[{\"title\":\"half"),
                         "finish_reason", "length")),
                 "usage", Map.of("prompt_tokens", 5000, "completion_tokens", 10000, "total_tokens", 15000)));
         wireMock.stubFor(post(urlPathEqualTo("/chat/completions"))
@@ -300,41 +313,49 @@ class GptSynthesisAdapterIT {
     }
 
     private static String truncatedOpenAiResponse() throws Exception {
-        return new ObjectMapper().writeValueAsString(Map.of(
-                "choices", List.of(Map.of(
-                        "message", Map.of("content", "{\"items\":[{\"title\":\"half"),
+        return new ObjectMapper(
+                ).writeValueAsString(Map.of("choices", List.of(Map.of("message", Map.of("content", "{\"items\":[{\"title\":\"half"),
                         "finish_reason", "length"))));
     }
 
     private static ResearchResult emptyResearch() {
-        return new ResearchResult(
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                LocalDateTime.parse("2026-05-14T10:00:00"),
-                0,
-                0,
-                0,
-                0,
-                0
-        );
+        return ResearchResults.builder()
+                .collectedAt(LocalDateTime.parse("2026-05-14T10:00:00"))
+                .build();
     }
 
     private static String openAiResponse(String content) throws Exception {
         return new ObjectMapper().writeValueAsString(Map.of(
                 "choices",
                 List.of(Map.of("message", Map.of("content", content)))));
+    }
+
+    @Test
+    void makesNoOpenAiCallAtAllOnceThePerRunBudgetIsSpent() throws Exception {
+        // N40's "done when", stated against the wire: not merely that the guard throws, but that
+        // nothing reached OpenAI. A ceiling enforced after the request was already billed would
+        // satisfy an exception-only assertion and still cost the money it exists to save.
+        SimpleMeterRegistry registry = new SimpleMeterRegistry();
+        Metrics.addRegistry(registry);
+        try {
+            LlmProperties capped = new LlmProperties(new LlmProperties.Call("gpt-4o", "", 0.25, 10_000),
+                    new LlmProperties.Call("gpt-4o-mini", "", 0.0, 4_000),
+                    new LlmProperties.Call("gpt-4o-mini", "", 0.2, 700),
+                    Map.of(), new LlmProperties.Budget(true, 1_000, 0));
+            new LlmUsageMeter(capped).record("pre-scoring", "gpt-4o-mini", 900, 300);
+
+            GptSynthesisAdapter guarded = new GptSynthesisAdapter(
+                    new OpenAiProperties("test-openai-key"), capped, new LlmUsageMeter(capped),
+                    new CostCeiling(capped, registry), new ObjectMapper(), new StubPromptBuilder());
+            setOpenAiClient(guarded, "http://localhost:" + wireMock.port());
+
+            assertThatThrownBy(() -> guarded.synthesize(emptyResearch()))
+                    .isInstanceOf(BudgetExceededException.class);
+            wireMock.verify(0, postRequestedFor(urlPathEqualTo("/chat/completions")));
+        } finally {
+            Metrics.removeRegistry(registry);
+            registry.close();
+        }
     }
 
     private static void setOpenAiClient(GptSynthesisAdapter target, String baseUrl) throws Exception {
@@ -400,6 +421,17 @@ class GptSynthesisAdapterIT {
                 @Override
                 public java.util.Set<String> downvotedUrls(int lookbackDays) {
                     return java.util.Set.of();
+                }
+
+                @Override
+                public java.util.Set<String> upvotedUrls(int lookbackDays) {
+                    return java.util.Set.of();
+                }
+
+                @Override
+                public java.util.List<pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SavedItem>
+                        savedItems(int lookbackDays) {
+                    return java.util.List.of();
                 }
 
                 @Override

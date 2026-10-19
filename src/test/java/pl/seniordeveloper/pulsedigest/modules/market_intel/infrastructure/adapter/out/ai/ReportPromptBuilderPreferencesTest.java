@@ -1,5 +1,9 @@
 package pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapter.out.ai;
 
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RawCounts;
+
+import pl.seniordeveloper.pulsedigest.testing.ResearchResults;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.policy.ReaderProfilePolicy;
@@ -50,8 +54,7 @@ class ReportPromptBuilderPreferencesTest {
 
     @Test
     void theSystemPromptCarriesTheDistilledReaderModelWithItsEvidence() {
-        ReportPromptBuilder builder = builder(true, Map.of(), Optional.of(new ReaderProfile(
-                Instant.parse("2026-07-06T06:00:00Z"), 20,
+        ReportPromptBuilder builder = builder(true, Map.of(), Optional.of(new ReaderProfile(Instant.parse("2026-07-06T06:00:00Z"), 20,
                 List.of(new ProfileHypothesis("Chce więcej Javy", "+8 netto w java/jvm",
                         LocalDate.now(java.time.ZoneOffset.UTC))))));
 
@@ -63,8 +66,7 @@ class ReportPromptBuilderPreferencesTest {
 
     @Test
     void anExpiredHypothesisNeverReachesThePrompt() {
-        ReportPromptBuilder builder = builder(true, Map.of(), Optional.of(new ReaderProfile(
-                Instant.parse("2026-07-06T06:00:00Z"), 20,
+        ReportPromptBuilder builder = builder(true, Map.of(), Optional.of(new ReaderProfile(Instant.parse("2026-07-06T06:00:00Z"), 20,
                 List.of(new ProfileHypothesis("Stara teza", "kiedyś", LocalDate.of(2020, 1, 1))))));
 
         assertThat(builder.buildSystemPrompt()).doesNotContain("MODEL CZYTELNIKA");
@@ -123,11 +125,11 @@ class ReportPromptBuilderPreferencesTest {
     }
 
     private static ResearchResult research() {
-        return new ResearchResult(
-                List.of(), List.of(new HackerNewsPost("HN item", "https://news.example/hn", 120)),
-                List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(),
-                List.of(), List.of(), List.of(), List.of(),
-                LocalDateTime.parse("2026-05-14T10:00:00"), 0, 1, 0, 0, 0);
+        return ResearchResults.builder()
+                .hackerNews(List.of(new HackerNewsPost("HN item", "https://news.example/hn", 120)))
+                .collectedAt(LocalDateTime.parse("2026-05-14T10:00:00"))
+                .rawCounts(RawCounts.builder().hackerNews(1).build())
+                .build();
     }
 
     private static PublishedUrlsPort noPublishedHistory() {
@@ -149,6 +151,17 @@ class ReportPromptBuilderPreferencesTest {
             @Override
             public Set<String> downvotedUrls(int lookbackDays) {
                 return Set.of();
+            }
+
+            @Override
+            public Set<String> upvotedUrls(int lookbackDays) {
+                return Set.of();
+            }
+
+            @Override
+            public java.util.List<pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SavedItem>
+                    savedItems(int lookbackDays) {
+                return java.util.List.of();
             }
 
             @Override

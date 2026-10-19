@@ -35,7 +35,7 @@ public class AlertEmailBuilder {
         String today = LocalDate.now(ZoneOffset.UTC).format(DATE_FMT);
         boolean hasAccounts = alert.exhaustedAccounts() != null && !alert.exhaustedAccounts().isEmpty();
         String detail = alert.detail() != null && !alert.detail().isBlank()
-                ? "<p style=\"margin:14px 0 0;color:#9ca3af;font-size:12px;font-family:monospace;"
+                ? "<p style=\"margin:14px 0 0;color:#6b7280;font-size:12px;font-family:monospace;"
                   + "word-break:break-word\">" + escapeHtml(alert.detail()) + "</p>"
                 : "";
         String intro;

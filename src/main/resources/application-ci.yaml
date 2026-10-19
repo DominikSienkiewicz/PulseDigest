@@ -1,0 +1,21 @@
+# N41 — structured run logs, in CI only.
+#
+# The Actions log is where a failed run is actually diagnosed, and prose is the wrong shape for
+# that: "Research completed: Zebrano: 214 tweetów, 118 HN…" cannot be grepped for one source's
+# yield, and every tool that could aggregate it has to re-parse a sentence written for a human.
+#
+# Locally the opposite is true — JSON is worse to read by eye — so this lives in a profile the
+# workflow activates and nothing else does. `./gradlew bootRun` keeps the readable console.
+#
+# ECS rather than Logstash/GELF: it is the format whose field names (`log.level`, `service.name`,
+# `event.dataset`) are already understood by the tools someone would reach for, and it carries MDC
+# entries as top-level fields, which is what makes `jobId` greppable across a whole run.
+logging:
+  structured:
+    format:
+      console: ecs
+  include-application-name: true
+
+spring:
+  application:
+    name: pulsedigest

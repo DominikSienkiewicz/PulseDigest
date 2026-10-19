@@ -1,5 +1,8 @@
 package pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out;
 
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SavedItem;
+
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -17,6 +20,30 @@ public interface FeedbackPort {
      * @return canonical URLs to suppress (empty when there is no feedback)
      */
     Set<String> downvotedUrls(int lookbackDays);
+
+    /**
+     * Canonical URLs the reader up-voted within the last {@code lookbackDays}.
+     *
+     * <p>Not a mirror of {@link #downvotedUrls} in purpose: down-votes are acted on (suppression),
+     * up-votes are <em>reported</em>. They answer the question the badge cannot answer about itself
+     * — of the stories this digest called 🔴, how many did the reader agree were worth it (N12).
+     */
+    Set<String> upvotedUrls(int lookbackDays);
+
+    /**
+     * Items the reader kept for later and has not voted on since, within the last
+     * {@code lookbackDays}, earliest save first.
+     *
+     * <p>"Has not voted on" is as close to "unread" as this data can honestly get: the batch serves
+     * no HTTP, nothing observes the reader opening a link, and a save carries no title. What a
+     * later 👍 or 👎 on the same URL does prove is that the reader came back to it and formed an
+     * opinion, so those URLs drop off the shelf. Everything else stays until it ages out of the
+     * window.
+     *
+     * @param lookbackDays how far back saves are honoured
+     * @return saved items without titles, earliest first (empty when nothing is saved)
+     */
+    List<SavedItem> savedItems(int lookbackDays);
 
     /**
      * Net (UP − DOWN) vote count per source within the last {@code lookbackDays}, used to nudge the

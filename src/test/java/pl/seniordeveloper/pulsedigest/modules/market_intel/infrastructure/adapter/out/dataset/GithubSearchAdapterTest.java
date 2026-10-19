@@ -11,6 +11,7 @@ import org.mockito.ArgumentCaptor;
 import java.lang.reflect.Field;
 import java.net.URI;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -82,7 +83,9 @@ class GithubSearchAdapterTest {
         adapter.fetchTrendingRepos();
 
         // `pushed:>=<date>` must use the configured 4-day window, not the old hardcoded 1 day.
-        String expectedDate = LocalDate.now().minusDays(4).toString();
+        // UTC, like the adapter: with the default zone this assertion is a day out — and therefore
+        // red — for every run between local midnight and UTC midnight.
+        String expectedDate = LocalDate.now(ZoneOffset.UTC).minusDays(4).toString();
         assertThat(uriCaptor.getValue().toString()).contains(expectedDate);
     }
 

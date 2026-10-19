@@ -1,0 +1,31 @@
+# F12 — `--spring.profiles.active=preview`: dzisiejsze realne źródła i realna synteza, ale bez maila
+# i bez bazy. Jedno płatne konto (OpenAI), zero pozostałych.
+#
+# UWAGA: bezpieczeństwo tego trybu NIE leży w tych wartościach. Zmienna środowiskowa (albo `.env`)
+# przebija profilowy yaml, więc podstawione klucze mogłyby zostać nadpisane prawdziwymi. Gwarancję
+# daje PreviewConfig: adaptery maila i bazy są podmienione na @Primary no-op wybierane po profilu,
+# więc preview nie wyśle i nie zapisze nic niezależnie od środowiska.
+#
+# OPENAI_API_KEY musi być prawdziwy — to jedyny koszt tego trybu i cała jego treść.
+report:
+  email:
+    resend-api-key: preview-no-mail-is-sent
+    from: preview@example.invalid
+    to: preview@example.invalid
+twitter:
+  bearer-token: preview-x-is-disabled
+
+# Baza nie jest dotykana (patrz PreviewConfig), ale adaptery wymagają istnienia beana DataSource.
+# Hikari łączy się leniwie, więc URL w nikąd wystarcza do startu kontekstu i nigdy nie jest wybierany.
+spring:
+  datasource:
+    url: jdbc:postgresql://preview.invalid:5432/pulsedigest
+    username: preview
+    password: preview
+    hikari:
+      initialization-fail-timeout: -1
+  flyway:
+    enabled: false
+  sql:
+    init:
+      mode: never

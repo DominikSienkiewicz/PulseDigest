@@ -1,5 +1,7 @@
 package pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model;
 
+import pl.seniordeveloper.pulsedigest.testing.TestModels;
+
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -7,7 +9,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ScoreBreakdownTest {
 
     private static ScoreBreakdown breakdown(int netSourceVotes, int netCategoryVotes, double categoryMultiplier) {
-        return new ScoreBreakdown("Hacker News", 0.80, 0.80 + netSourceVotes * 0.05, netSourceVotes,
+        return TestModels.scoreBreakdown("Hacker News", 0.80, 0.80 + netSourceVotes * 0.05, netSourceVotes,
                 12, categoryMultiplier, netCategoryVotes, 50);
     }
 
@@ -32,7 +34,7 @@ class ScoreBreakdownTest {
     @Test
     void aStoryConfirmedAcrossDomainsCarriesTheBonusThatSaysSo() {
         assertThat(breakdown(0, 0, 1.0).wasCrossSourceConfirmed()).isTrue();
-        assertThat(new ScoreBreakdown("GitHub", 0.85, 0.85, 0, 0, 1.0, 0, 0)
+        assertThat(TestModels.scoreBreakdown("GitHub", 0.85, 0.85, 0, 0, 1.0, 0, 0)
                 .wasCrossSourceConfirmed()).isFalse();
     }
 

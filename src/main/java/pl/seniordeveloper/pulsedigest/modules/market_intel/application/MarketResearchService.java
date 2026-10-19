@@ -16,6 +16,8 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ProductH
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RadarEntry;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RedditPost;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ResearchPaper;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.application.policy.SourceDisablePolicy;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RawCounts;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ResearchResult;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RssItem;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SecurityAdvisory;
@@ -53,6 +55,7 @@ public class MarketResearchService {
     private final ResearchPolicy researchPolicy;
     @Qualifier(AsyncQualifiers.DATA_FETCH_EXECUTOR)
     private final Executor taskExecutor;
+    private final SourceDisablePolicy sourceDisablePolicy;
 
     public ResearchResult fetchAndFilter() {
         log.info("Starting market research data gathering...");
@@ -195,13 +198,26 @@ public class MarketResearchService {
                 rawAnnouncements.stream().map(MarketResearchService::canonicalize).toList(),
                 rawSocial.stream().map(MarketResearchService::canonicalize).toList(),
                 LocalDateTime.now(ZoneOffset.UTC),
-                rawInfluencer.size() + rawTopic.size() + rawAnthropic.size(),
-                rawHn.size(), rawGh.size(), rawRss.size(), rawReddit.size(),
+                RawCounts.builder()
+                        .tweets(rawInfluencer.size() + rawTopic.size() + rawAnthropic.size())
+                        .hackerNews(rawHn.size())
+                        .github(rawGh.size())
+                        .rss(rawRss.size())
+                        .reddit(rawReddit.size())
+                        .build(),
                 sourceFetchReports
         );
     }
 
     private <T> CompletableFuture<FetchOutcome<T>> fetchSource(String sourceName, Supplier<List<T>> supplier) {
+        // N27. One short-circuit for sixteen sources, because every fetch goes through here. A
+        // disabled source costs nothing — no call, no timeout budget, no prompt slot — and still
+        // leaves a report, so the footer can say it is off rather than letting it vanish.
+        if (sourceDisablePolicy.isDisabled(sourceName)) {
+            log.info("{} is disabled by configuration — not fetched", sourceName);
+            return CompletableFuture.completedFuture(
+                    new FetchOutcome<>(List.of(), SourceFetchReport.disabled(sourceName)));
+        }
         Instant start = Instant.now();
         return CompletableFuture.supplyAsync(supplier, taskExecutor)
                 .orTimeout(SOURCE_TIMEOUT.toSeconds(), TimeUnit.SECONDS)
@@ -274,7 +290,7 @@ public class MarketResearchService {
 
     private static SecurityAdvisory canonicalize(SecurityAdvisory a) {
         return new SecurityAdvisory(a.ghsaId(), a.summary(), a.severity(), a.publishedAt(),
-                a.affectedEcosystems(), UrlCanonicalizer.canonicalize(a.url()));
+                a.affectedEcosystems(), UrlCanonicalizer.canonicalize(a.url()), a.affectedPackages());
     }
 
     private static JepUpdate canonicalize(JepUpdate j) {
@@ -289,7 +305,7 @@ public class MarketResearchService {
 
     private static RadarEntry canonicalize(RadarEntry r) {
         return new RadarEntry(r.name(), r.ring(), r.quadrant(), r.description(),
-                UrlCanonicalizer.canonicalize(r.url()), r.publishedAt());
+                UrlCanonicalizer.canonicalize(r.url()));
     }
 
     private static ConferenceTalk canonicalize(ConferenceTalk t) {

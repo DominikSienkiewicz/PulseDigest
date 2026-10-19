@@ -16,6 +16,8 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SavedItem;
+
 import java.util.Map;
 import java.util.Set;
 
@@ -166,6 +168,82 @@ class SupabaseFeedbackAdapterIT {
     @Test
     void netVotesEmptyWhenNoFeedback() {
         assertThat(adapter.netVotesBySource(10)).isEmpty();
+    }
+
+    @Test
+    void readsBackWhatTheReaderSavedAndHasNotVotedOnSince() {
+        insert("https://example.com/kept", "SAVE", Instant.now().minus(4, ChronoUnit.DAYS));
+
+        assertThat(adapter.savedItems(30))
+                .extracting(SavedItem::url)
+                .containsExactly("https://example.com/kept");
+    }
+
+    @Test
+    void dropsASavedItemOnceTheReaderCameBackAndVotedOnIt() {
+        // A later 👍 or 👎 is the closest thing this schema has to evidence the reader dealt with it.
+        // Without this the shelf would keep nagging about items that are demonstrably finished.
+        insertInEdition("https://example.com/liked", "SAVE", "2026-10-12");
+        insertInEdition("https://example.com/liked", "UP", "2026-10-15");
+        insertInEdition("https://example.com/disliked", "SAVE", "2026-10-12");
+        insertInEdition("https://example.com/disliked", "DOWN", "2026-10-15");
+        insertInEdition("https://example.com/still-waiting", "SAVE", "2026-10-12");
+
+        assertThat(adapter.savedItems(30))
+                .extracting(SavedItem::url)
+                .containsExactly("https://example.com/still-waiting");
+    }
+
+    @Test
+    void keepsTheEarliestSaveWhenAnItemWasSavedOutOfTwoEditions() {
+        // How long something has been sitting there is the point of the reminder, so the first save
+        // wins — and the row appears once, not twice.
+        jdbc.sql("INSERT INTO feedback (item_url, source, vote, edition, created_at) VALUES (?, ?, ?, ?, ?)")
+                .params("https://example.com/twice", "GitHub", "SAVE", "2026-10-01",
+                        OffsetDateTime.now(ZoneOffset.UTC).minusDays(18))
+                .update();
+        jdbc.sql("INSERT INTO feedback (item_url, source, vote, edition, created_at) VALUES (?, ?, ?, ?, ?)")
+                .params("https://example.com/twice", "GitHub", "SAVE", "2026-10-15",
+                        OffsetDateTime.now(ZoneOffset.UTC).minusDays(4))
+                .update();
+
+        assertThat(adapter.savedItems(30)).hasSize(1);
+        assertThat(adapter.savedItems(30).getFirst().savedAt())
+                .isBefore(Instant.now().minus(17, ChronoUnit.DAYS));
+    }
+
+    @Test
+    void returnsSavedItemsEarliestFirst() {
+        insert("https://example.com/newer", "SAVE", Instant.now().minus(2, ChronoUnit.DAYS));
+        insert("https://example.com/older", "SAVE", Instant.now().minus(20, ChronoUnit.DAYS));
+
+        assertThat(adapter.savedItems(30))
+                .extracting(SavedItem::url)
+                .containsExactly("https://example.com/older", "https://example.com/newer");
+    }
+
+    @Test
+    void forgetsASaveOnceItFallsOutOfTheWindow() {
+        insert("https://example.com/ancient", "SAVE", Instant.now().minus(40, ChronoUnit.DAYS));
+
+        assertThat(adapter.savedItems(30)).isEmpty();
+    }
+
+    @Test
+    void carriesTheSourceAndCategoryTheMailSentWithTheSave() {
+        jdbc.sql("INSERT INTO feedback (item_url, source, vote, category) VALUES (?, ?, ?, ?)")
+                .params("https://example.com/a", "Hacker News", "SAVE", "Java/JVM").update();
+
+        SavedItem saved = adapter.savedItems(30).getFirst();
+
+        assertThat(saved.source()).isEqualTo("Hacker News");
+        assertThat(saved.category()).isEqualTo("Java/JVM");
+        assertThat(saved.title()).as("the receiver never sees a title").isNull();
+    }
+
+    private void insertInEdition(String url, String vote, String edition) {
+        jdbc.sql("INSERT INTO feedback (item_url, source, vote, edition) VALUES (?, ?, ?, ?)")
+                .params(url, "GitHub", vote, edition).update();
     }
 
     private void insert(String url, String vote, Instant createdAt) {

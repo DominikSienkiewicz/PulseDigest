@@ -15,10 +15,9 @@ This file contains PulseDigest-specific engineering rules. Global Codex working 
 
 | Concern          | Technology                     | Version                          |
 |------------------|--------------------------------|----------------------------------|
-| Language         | Java                           | 26 (`--enable-preview` required) |
+| Language         | Java                           | 26 (Temurin 26.0.2.1+1 via toolchain) |
 | Runtime features | Virtual Threads (Project Loom) | always enabled                   |
 | Framework        | Spring Boot                    | 4.1.0-SNAPSHOT                   |
-| AI               | Spring AI                      | 2.0.0-SNAPSHOT                   |
 | Database         | Supabase (Postgres) via JDBC   | JdbcClient + JSONB payloads      |
 | Build            | Gradle 9 (Kotlin DSL)          | —                                |
 
@@ -46,7 +45,7 @@ modules/{context}/
 │
 ├── application/                         # Use cases — Spring @Service beans live here
 │   ├── command/                         # Command handlers
-│   ├── query/                           # Query handlers and view records
+│   ├── query/                           # Query handlers and view records (none today — see note)
 │   └── error/                           # Sealed module error interface
 │
 └── infrastructure/                      # Spring adapters — depends on application only
@@ -54,6 +53,12 @@ modules/{context}/
     │   └── out/                         # Outbound adapters (AI, Twitter, HN, GitHub, file)
     └── config/                          # Module-specific @Configuration classes
 ```
+
+`query/` is a convention for read-side use cases, not a claim that one exists: the package was
+removed on 2026-10-18 because both services in it (`GetLatestMarketReportService`,
+`GetMarketIntelStatusService`) had zero production callers — leftovers from a design that served
+HTTP. A headless batch reads nothing back; add the package again only when something actually
+queries.
 
 ---
 
@@ -141,8 +146,15 @@ Rules:
 ### Integration Tests (`{Component}IT.java`)
 
 - HTTP-based adaptery: `@SpringBootTest` z WireMock.
-- Persystencja: `@JdbcTest` + Testcontainers (`PostgreSQLContainer` z `@ServiceConnection`).
-  IT używa izolowanego kontenera, NIGDY produkcyjnej Supabase — testy nie zaśmiecają prod bazy.
+- Persystencja: Testcontainers (`PostgreSQLContainer`) + `JdbcClient` nad własnym `HikariDataSource`,
+  schemat zakładany produkcyjnymi migracjami Flyway (`TestSchema`). IT używa izolowanego kontenera,
+  NIGDY produkcyjnej Supabase — testy nie zaśmiecają prod bazy. *(Do 2026-10-17 ta linia opisywała
+  `@JdbcTest` z `@ServiceConnection`; żaden test persystencji nigdy tego nie używał.)*
+- Rozruch kontekstu: `PulseDigestContextIT` — jedyny test ładujący PEŁNY kontekst produkcyjny, na
+  Testcontainers Postgres z `@ServiceConnection` i atrapami czterech wartości `@NotBlank`. Zastąpił
+  wyłączony `@Disabled` `contextLoads()`. `@SpringBootTest` **wywołuje** `ApplicationRunner`, więc
+  `DigestRunner` jest tam podstawiony `@MockitoBean` — inaczej jego `System.exit` ubija JVM w
+  środku suity.
 
 ### Architecture Tests (ArchUnit)
 
@@ -166,6 +178,10 @@ ArchUnit enforces:
 - One top-level class per file.
 - No star imports, no unused imports.
 - Javadoc required for public types and interfaces only.
+- No `@Data`, `@UtilityClass` or `@SneakyThrows` (`RegexpSinglelineJava`). This gate lives in
+  Checkstyle rather than ArchUnit on purpose: all three are `@Retention(SOURCE)`, so the compiler
+  erases them and no bytecode analyser can observe them. The ArchUnit rule that used to carry this
+  ban passed whether or not the annotation was present, and was removed on 2026-10-17.
 
 **JaCoCo exclusions** (do not need coverage):
 `*Dto`, `*View`, `*Command`, `*Query`, `*Error`, mappers, configuration classes, records, enums.
@@ -184,6 +200,9 @@ Lombok is on the classpath but **restricted**:
 | `@Data`                    | **FORBIDDEN**                          |
 | `@UtilityClass`            | **FORBIDDEN**                          |
 | `@SneakyThrows`            | **FORBIDDEN**                          |
+
+The three FORBIDDEN entries are enforced by Checkstyle (see **Checkstyle limits** above), not by
+ArchUnit — source-retention annotations never reach the bytecode ArchUnit reads.
 
 Prefer Java `record`s for immutable DTOs and Value Objects over any Lombok annotation.
 
