@@ -15,7 +15,7 @@ The keys currently accepting `${ENV}`:
 `OPENAI_API_KEY` (binds to `openai.api-key`; it was `spring.ai.openai.api-key` until
 2026-10-18, a namespace left over from a Spring AI starter that was removed — the environment
 variable itself never changed) · `TWITTER_BEARER_TOKEN` · `RESEND_API_KEY` · `DIGEST_FROM_EMAIL` ·
-`DIGEST_TO_EMAIL` · `PRODUCTHUNT_DEVELOPER_TOKEN` · `YOUTUBE_API_KEY` ·
+`DIGEST_TO_EMAIL` · `PRODUCTHUNT_DEVELOPER_TOKEN` · `YOUTUBE_API_KEY` · `GITHUB_API_TOKEN` ·
 `FEEDBACK_RECEIVER_URL` · `FEEDBACK_SIGNING_SECRET` · plus the three Supabase datasource
 keys (`SUPABASE_DB_URL`, `SUPABASE_DB_USERNAME`, `SUPABASE_DB_PASSWORD`).
 
@@ -149,6 +149,7 @@ rails, not to punish a busy week. Calibrate it from your own runs: every run log
 | `github.query`                 | `(topic:ai OR topic:machine-learning OR topic:llm)` | GitHub search query              |
 | `github.limit`                 | `8`                      | Max GitHub repos                                   |
 | `github.lookback-days`         | `5`                      | GitHub `pushed:>=` window                          |
+| `github-api.token`             | `${GITHUB_API_TOKEN:}`  | Bearer token sent by every api.github.com source (Search, Releases, Advisories, JEP, CNCF); blank = unauthenticated, 60 requests/h per IP. CI maps it from the automatic `GITHUB_TOKEN` |
 | `rss.limit`                    | `10`                     | Max items per RSS feed                             |
 | `rss.lookback-hours`           | `104`                    | RSS item age window                                |
 | `reddit.min-score`             | `30`                     | Minimum Reddit upvotes                             |

@@ -457,6 +457,10 @@ jobs:
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
           PRODUCTHUNT_DEVELOPER_TOKEN: ${{ secrets.PRODUCTHUNT_DEVELOPER_TOKEN }}
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+          # Every api.github.com source shares one rate limit: unauthenticated it is 60/h per IP, on a
+          # runner whose IP other tenants share, which surfaced as the "GitHub API (token)" banner. The
+          # automatic token needs no secret and lifts it to 1,000/h per repository.
+          GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Optional: external feedback receiver for the email 👍/👎 links (C6). Repository VARIABLE
           # (non-sensitive public URL), not a secret. Blank/unset = no links rendered.
           FEEDBACK_RECEIVER_URL: ${{ vars.FEEDBACK_RECEIVER_URL }}

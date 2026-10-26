@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.http.ExternalRestClients;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.CncfProjectUpdate;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.GithubApiProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.CncfLandscapeProperties;
 
 import java.time.ZoneOffset;
@@ -39,12 +40,14 @@ public class CncfLandscapeAdapter {
 
     private final CncfLandscapeProperties properties;
     private final ObjectMapper objectMapper;
+    private final GithubApiProperties githubApi;
     private RestClient restClient;
 
     @Autowired
-    public CncfLandscapeAdapter(CncfLandscapeProperties properties, ObjectMapper objectMapper) {
+    public CncfLandscapeAdapter(CncfLandscapeProperties properties, ObjectMapper objectMapper, GithubApiProperties githubApi) {
         this.properties = properties;
         this.objectMapper = objectMapper;
+        this.githubApi = githubApi;
     }
 
     @PostConstruct
@@ -54,6 +57,7 @@ public class CncfLandscapeAdapter {
                 .defaultHeader("Accept", "application/vnd.github+json")
                 .defaultHeader("User-Agent", "PulseDigest/1.0")
                 .defaultHeader("X-GitHub-Api-Version", "2022-11-28")
+                .defaultHeaders(githubApi::authorize)
                 .build();
     }
 

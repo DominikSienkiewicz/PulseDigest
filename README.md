@@ -122,6 +122,8 @@ Three tiers, because what you need depends on how far you want to go:
 - Supabase project (free tier) — Postgres for report history, feedback and the published record.
 - *(Optional)* Product Hunt developer token, YouTube Data API key — without them those two adapters
   degrade gracefully (empty list, a warning, pipeline continues).
+- *(Optional)* GitHub token (`GITHUB_API_TOKEN`) — lifts the shared api.github.com limit from 60 requests
+  an hour per IP. In GitHub Actions it comes from the automatic `GITHUB_TOKEN`; nothing to create.
 - *(Optional)* Twitter/X API v2 bearer token — **not required**: X is kept in the code and switched
   off in `report.sources.disabled` (K7). Set it only if you turn the source back on.
 - The feedback receiver is a separate deploy — its source is in [`receiver/`](receiver/README.md),

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.CncfProjectUpdate;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.GithubApiProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.CncfLandscapeProperties;
 
 import java.util.List;
@@ -45,7 +46,7 @@ class CncfLandscapeAdapterTest {
                         7,
                         List.of("sandbox", "incubating", "graduated", "archived")
                 );
-        adapter = new CncfLandscapeAdapter(props, new ObjectMapper());
+        adapter = new CncfLandscapeAdapter(props, new ObjectMapper(), new GithubApiProperties(""));
     }
 
     @Test

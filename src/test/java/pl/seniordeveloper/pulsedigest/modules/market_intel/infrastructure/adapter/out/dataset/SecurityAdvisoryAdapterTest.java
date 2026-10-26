@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SecurityAdvisory;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.GithubApiProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.SecurityAdvisoriesProperties;
 
 import java.time.LocalDateTime;
@@ -25,7 +26,7 @@ class SecurityAdvisoryAdapterTest {
                         24 * 365 * 80,
                         List.of("HIGH", "CRITICAL"),
                         List.of("maven", "npm", "actions"));
-        adapter = new SecurityAdvisoryAdapter(props, new ObjectMapper());
+        adapter = new SecurityAdvisoryAdapter(props, new ObjectMapper(), new GithubApiProperties(""));
     }
 
     @Test
@@ -100,7 +101,7 @@ class SecurityAdvisoryAdapterTest {
                         1,
                         List.of("HIGH", "CRITICAL"),
                         List.of("maven"));
-        SecurityAdvisoryAdapter shortAdapter = new SecurityAdvisoryAdapter(shortLookback, new ObjectMapper());
+        SecurityAdvisoryAdapter shortAdapter = new SecurityAdvisoryAdapter(shortLookback, new ObjectMapper(), new GithubApiProperties(""));
 
         String json = """
                 [{

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.JepUpdate;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.GithubApiProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.OpenJdkProperties;
 
 import java.util.List;
@@ -51,7 +52,7 @@ class OpenJdkJepAdapterTest {
                         7,
                         List.of("Candidate", "Proposed to Target", "Integrated", "Delivered")
                 );
-        adapter = new OpenJdkJepAdapter(props, new ObjectMapper());
+        adapter = new OpenJdkJepAdapter(props, new ObjectMapper(), new GithubApiProperties(""));
     }
 
     @Test

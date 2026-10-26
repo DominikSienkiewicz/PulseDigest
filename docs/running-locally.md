@@ -63,6 +63,7 @@ DIGEST_TO_EMAIL=
 # Optional — omittable; the adapters degrade gracefully when unset
 PRODUCTHUNT_DEVELOPER_TOKEN=
 YOUTUBE_API_KEY=
+GITHUB_API_TOKEN=          # api.github.com sources; blank = 60 requests/h per IP (see below)
 
 # Supabase Session Pooler (NOT the Direct connection — direct is IPv6-only on the free tier)
 # Format: jdbc:postgresql://aws-0-<region>.pooler.supabase.com:5432/postgres?sslmode=require
@@ -399,6 +400,16 @@ Required repository **secrets**: `OPENAI_API_KEY`, `RESEND_API_KEY`,
 Optional secrets: `PRODUCTHUNT_DEVELOPER_TOKEN`, `YOUTUBE_API_KEY`, `SONAR_TOKEN` (enables
 the SonarCloud scan — the `sonarcloud` job is skipped without it), `FEEDBACK_SIGNING_SECRET`
 (shared with the feedback receiver; blank → links are rendered unsigned).
+
+`GITHUB_API_TOKEN` is **not** a secret to set: the `Run digest` step maps it from the
+automatic `GITHUB_TOKEN`. Every api.github.com source (Search, Releases, Security Advisories,
+OpenJDK JEP, CNCF) shares one rate limit — 60 requests an hour per IP unauthenticated, on a
+runner whose IP other tenants share — and running out of it is what opens the edition with the
+"GitHub API (token)" banner. With the token it is 1,000 an hour per repository. Locally it is
+optional: a fine-grained PAT with *Public repositories (read-only)* access and no permissions,
+created at <https://github.com/settings/personal-access-tokens/new>. It is deliberately not
+read from `GITHUB_TOKEN`, which may be exported globally in `~/.zshrc` and, once expired, would
+turn every GitHub source into a 401 instead of the unauthenticated limit.
 
 Repository **variable** (non-sensitive, read via `vars.*`): `FEEDBACK_RECEIVER_URL` — the
 public feedback-receiver endpoint. It lives in *Variables* rather than *Secrets* because,

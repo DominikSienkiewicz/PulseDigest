@@ -515,6 +515,12 @@ report:
     min-score: 40              # było 25 — wyższy próg jakości przy szerszym oknie 104h (mniej szumu)
     lookback-hours: 104        # pokrywa max gap czw->pn (96h) + margines; było 24 (zahardkodowane w adapterze)
 
+  github-api:
+    # One token for every api.github.com source (Search, Releases, Advisories, JEP, CNCF): they share
+    # one rate limit. Blank = unauthenticated, 60 requests/h per IP — too few for ~21 requests a run
+    # on a hosted runner whose IP other tenants share. CI maps it from the automatic GITHUB_TOKEN.
+    token: "${GITHUB_API_TOKEN:}"
+
   github:
     query: "(topic:ai OR topic:machine-learning OR topic:llm)"
     limit: 8

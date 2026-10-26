@@ -20,6 +20,7 @@ import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.SelfCritiqueP
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.SemanticClusteringProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.SourcesProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.FeedbackProperties;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.GithubApiProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.GithubProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.GithubReleasesProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.HackerNewsProperties;
@@ -55,6 +56,7 @@ import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.TwitterProper
         ResearchProperties.class,
         ScoringProperties.class,
         HackerNewsProperties.class,
+        GithubApiProperties.class,
         GithubProperties.class,
         RssProperties.class,
         RedditProperties.class,
