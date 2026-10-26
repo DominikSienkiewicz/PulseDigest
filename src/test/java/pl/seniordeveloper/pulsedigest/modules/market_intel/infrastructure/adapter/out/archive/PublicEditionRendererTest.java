@@ -12,7 +12,6 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SavedIte
 import pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapter.out.email
         .DigestEditionFixture;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ThinWeekProperties;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.WatchlistProperties;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -33,8 +32,7 @@ class PublicEditionRendererTest {
     private static final String RECEIVER = "https://receiver.example.invalid/feedback";
 
     private final DigestEditionFixture fixture = DigestEditionFixture.load();
-    private final PublicEditionRenderer renderer = new PublicEditionRenderer(
-            new WatchlistProperties(true, List.of("Java")), new ThinWeekProperties(true, 3));
+    private final PublicEditionRenderer renderer = new PublicEditionRenderer(new ThinWeekProperties(true, 3));
 
     @Test
     void noSignedFeedbackLinkIsEverPublished() {

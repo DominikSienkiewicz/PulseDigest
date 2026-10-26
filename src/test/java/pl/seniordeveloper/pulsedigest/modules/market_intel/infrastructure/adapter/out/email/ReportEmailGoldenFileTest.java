@@ -12,7 +12,6 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportDa
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Signal;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceDomain;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.FeedbackProperties;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.WatchlistProperties;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -103,7 +102,7 @@ class ReportEmailGoldenFileTest {
                     THIN_GOLDEN_FILE);
         }
         assertThat(rendered)
-                .as("a thin edition must not render tables, watchlist or recap")
+                .as("a thin edition must not render tables or recap")
                 .isEqualTo(read(THIN_GOLDEN_FILE))
                 .contains("Cicho w tym tygodniu")
                 .doesNotContain("Krytyczne trendy");
@@ -180,7 +179,7 @@ class ReportEmailGoldenFileTest {
         // date, so a signed link would change every day. FeedbackLinkBuilderTest owns the signed form.
         return new ReportEmailBuilder(
                 new FeedbackProperties(true, 30, fixture.feedbackReceiverUrl(), ""),
-                new WatchlistProperties(true, fixture.watchlistTechnologies()), new ThinWeekProperties(true, 3),
+                new ThinWeekProperties(true, 3),
                 new SectionsPolicy(java.util.Set.of()));
     }
 

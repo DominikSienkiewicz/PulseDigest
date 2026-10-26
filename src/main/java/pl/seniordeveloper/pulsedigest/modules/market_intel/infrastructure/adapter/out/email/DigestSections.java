@@ -14,7 +14,6 @@ public final class DigestSections {
     static final String INSIGHTS = "insights";
     static final String DEALS = "deals";
     static final String WEEKLY_RECAP = "weekly-recap";
-    static final String WATCHLIST = "watchlist";
     static final String DEPENDENCY_RADAR = "dependency-radar";
     static final String EOL = "eol";
     static final String CALL_FOR_PAPERS = "call-for-papers";
@@ -31,7 +30,7 @@ public final class DigestSections {
 
     /** Every key, for the test that keeps configuration from naming a section that does not exist. */
     static final java.util.Set<String> ALL = java.util.Set.of(
-            CRITICAL_TRENDS, MUST_KNOW, INSIGHTS, DEALS, WEEKLY_RECAP, WATCHLIST,
+            CRITICAL_TRENDS, MUST_KNOW, INSIGHTS, DEALS, WEEKLY_RECAP,
             DEPENDENCY_RADAR, EOL, CALL_FOR_PAPERS, SAVED, TABLES, READING_BUDGET,
             SCORE_EXPLANATIONS, FOOTER_INTAKE);
 

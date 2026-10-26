@@ -12,11 +12,9 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Research
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Signal;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceFetchReport;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceFetchStatus;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.WatchlistScan;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.policy.SectionsPolicy;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.FeedbackProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ThinWeekProperties;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.WatchlistProperties;
 
 import java.time.ZoneOffset;
 import java.time.LocalDate;
@@ -86,20 +84,8 @@ public class ReportEmailBuilder {
     private static final String MIDDOT = " &middot; ";
 
     private final FeedbackProperties feedbackProperties;
-    private final WatchlistProperties watchlistProperties;
     private final ThinWeekProperties thinWeekProperties;
     private final SectionsPolicy sectionsPolicy;
-
-    /**
-     * Scans every fetched headline — not the digest's own items — so a keyword reported as "0
-     * wzmianek" means the sources were silent, not that the item lost a slot in the prompt budget.
-     */
-    private WatchlistScan scanWatchlist(ResearchResult research) {
-        if (research == null || !watchlistProperties.enabled()) {
-            return null;
-        }
-        return WatchlistScan.of(research.allTitles(), watchlistProperties.technologies());
-    }
 
     /**
      * Subject line for one edition. The reader should be able to decide "now or tonight?" from the
@@ -214,7 +200,6 @@ public class ReportEmailBuilder {
                         layout.deals(), feedbackProperties, edition))
                 + on(DigestSections.WEEKLY_RECAP, () -> WeeklyRecapBuilder.buildWeeklyRecapSection(
                         report.weeklyRecap(), layout.renderedUrls()))
-                + on(DigestSections.WATCHLIST, () -> WatchlistBuilder.buildWatchlistSection(scanWatchlist(research)))
                 + on(DigestSections.DEPENDENCY_RADAR, () -> DependencyRadarBuilder
                         .buildDependencyRadarSection(report.dependencyReleases()))
                 + on(DigestSections.EOL, () -> EolRadarBuilder.buildEolRadarSection(
@@ -248,7 +233,7 @@ public class ReportEmailBuilder {
     /**
      * Three lines instead of a document: what happened, and the one thing that came closest.
      *
-     * <p>No tables, no watchlist, no recap, no score explanations. An edition with nothing above the
+     * <p>No tables, no recap, no score explanations. An edition with nothing above the
      * bar has nothing those sections would be about, and rendering them anyway is exactly the padding
      * the thesis forbids. The runner-up carries a feedback link, because "this was close" is the one
      * judgement a reader can usefully correct.
@@ -323,8 +308,8 @@ public class ReportEmailBuilder {
     /**
      * Renders a section, or nothing when configuration switched it off (N19).
      *
-     * <p>A supplier rather than a string, so a disabled section costs nothing to skip — the
-     * watchlist scan and the layout work behind it are not done either.
+     * <p>A supplier rather than a string, so a disabled section costs nothing to skip — the layout
+     * work behind it is not done either.
      */
     private String on(String section, java.util.function.Supplier<String> render) {
         return sectionsPolicy.isEnabled(section) ? render.get() : "";

@@ -9,7 +9,6 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapte
         .ReportEmailBuilder;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.FeedbackProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ThinWeekProperties;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.WatchlistProperties;
 
 import java.util.List;
 import java.util.Set;
@@ -56,7 +55,6 @@ public class PublicEditionRenderer {
             pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapter.out.email
                     .DigestSections.FOOTER_INTAKE);
 
-    private final WatchlistProperties watchlistProperties;
     private final ThinWeekProperties thinWeekProperties;
 
     public String render(ReportData report, ResearchResult research) {
@@ -87,7 +85,6 @@ public class PublicEditionRenderer {
     private ReportEmailBuilder builder() {
         return new ReportEmailBuilder(
                 new FeedbackProperties(false, 30, "", ""),
-                watchlistProperties,
                 thinWeekProperties,
                 new SectionsPolicy(PRIVATE_SECTIONS));
     }

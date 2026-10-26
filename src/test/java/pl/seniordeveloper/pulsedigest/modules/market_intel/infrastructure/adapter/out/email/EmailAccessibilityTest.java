@@ -5,7 +5,6 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.application.policy.Se
 import org.junit.jupiter.api.Test;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.FeedbackProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ThinWeekProperties;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.WatchlistProperties;
 
 import java.util.List;
 import java.util.Set;
@@ -106,7 +105,7 @@ class EmailAccessibilityTest {
 
     private String render() {
         return new ReportEmailBuilder(new FeedbackProperties(true, 30, fixture.feedbackReceiverUrl(), ""),
-                new WatchlistProperties(true, fixture.watchlistTechnologies()), new ThinWeekProperties(true, 3),
+                new ThinWeekProperties(true, 3),
                 new SectionsPolicy(java.util.Set.of()))
                 .buildHtml(fixture.report(), fixture.research());
     }

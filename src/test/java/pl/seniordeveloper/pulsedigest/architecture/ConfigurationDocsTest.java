@@ -46,7 +46,6 @@ class ConfigurationDocsTest {
      */
     private static final Map<String, String> NOT_DOCUMENTED = Map.of(
             "report.eol.entries", "a data table, documented as a block rather than per row",
-            "report.watchlist.technologies", "a keyword list, documented as a block",
             "report.scoring.domain-overrides", "a map, documented as a block",
             "report.scoring.muted-topics", "a topic list, documented as a block",
             "report.dependency-profile.coordinates", "a coordinate list, documented as a block",

@@ -16,7 +16,6 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SignalRa
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceDomain;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.FeedbackProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ThinWeekProperties;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.WatchlistProperties;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -32,7 +31,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ReportEmailFooterTest {
 
     private final ReportEmailBuilder builder = new ReportEmailBuilder(new FeedbackProperties(false, 30, "", ""),
-            new WatchlistProperties(false, List.of()),
             new ThinWeekProperties(false, 3),
                 new SectionsPolicy(java.util.Set.of()));
 

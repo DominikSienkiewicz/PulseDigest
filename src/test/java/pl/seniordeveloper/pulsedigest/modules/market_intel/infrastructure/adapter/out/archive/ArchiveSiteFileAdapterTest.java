@@ -6,7 +6,6 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Archived
 import pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapter.out.email
         .DigestEditionFixture;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ThinWeekProperties;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.WatchlistProperties;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -126,8 +125,7 @@ class ArchiveSiteFileAdapterTest {
 
     private void write(Path dir, List<ArchivedEdition> editions) throws Exception {
         ArchiveSiteFileAdapter adapter = new ArchiveSiteFileAdapter(
-                new PublicEditionRenderer(new WatchlistProperties(true, List.of("Java")),
-                        new ThinWeekProperties(true, 3)),
+                new PublicEditionRenderer(new ThinWeekProperties(true, 3)),
                 new ArchiveSiteBuilder(), new AtomFeedBuilder());
         set(adapter, "outputPath", dir.toString());
         set(adapter, "siteUrl", SITE);

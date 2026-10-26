@@ -131,8 +131,7 @@ class ResendEmailAdapterIT {
         ResendEmailAdapter adapter = new ResendEmailAdapter(new ObjectMapper(),
                 new ReportEmailBuilder(
                         new pl.seniordeveloper.pulsedigest.shared.infrastructure.config.FeedbackProperties(false, 30, "", ""),
-                        new pl.seniordeveloper.pulsedigest.shared.infrastructure.config.WatchlistProperties(
-                                false, java.util.List.of()), new ThinWeekProperties(false, 3),
+                        new ThinWeekProperties(false, 3),
                 new SectionsPolicy(java.util.Set.of())),
                 new AlertEmailBuilder(), new PlainTextDigestBuilder(new ThinWeekProperties(false, 3)),
                 new RetrospectiveEmailBuilder(), emailProperties);

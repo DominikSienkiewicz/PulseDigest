@@ -409,23 +409,6 @@ report:
     enabled: true
     keep: 50
 
-  # Twój radar: technologie, o których digest MUSI się wypowiedzieć — także wtedy, gdy nic się nie
-  # działo ("Spring AI: 0 wzmianek"). Skan leci po WSZYSTKICH pobranych nagłówkach tego biegu, nie po
-  # itemach, które przeszły budżet promptu — inaczej "0" nie odróżniałoby ciszy od przycięcia.
-  watchlist:
-    enabled: true
-    technologies:
-      - spring ai
-      - spring boot
-      - quarkus
-      - graalvm
-      - virtual threads
-      - langgraph
-      - mcp
-      - ollama
-      - vllm
-      - pgvector
-
   # Żywy Model Czytelnika: raz w tygodniu gpt-4o-mini destyluje z głosów 👍/👎 kilka datowanych,
   # udowodnionych hipotez o czytelniku. Każda liczba niżej to bariera przed dryfem profilu:
   # min-votes = nie modeluj czytelnika z szumu; refresh-days = jeden call mini na tydzień, nie na bieg;
