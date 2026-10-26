@@ -97,6 +97,21 @@ class ConfigurationDocsTest {
                 .isEmpty();
     }
 
+    @Test
+    void aFullyPrefixedRowIsStaleEvenWhenItsWholeGroupWasRemoved() {
+        // How the `report.watchlist.*` rows outlived their feature on 2026-10-26: with every leaf of
+        // the group gone, nothing was left to prove the row belonged to this project. A row that
+        // spells out one of this project's own prefixes needs no such proof.
+        Set<String> actual = settings();
+
+        assertThat(isStale("report.removed-group.enabled", actual))
+                .as("a report.* row whose whole group was deleted")
+                .isTrue();
+        assertThat(isStale("llm.removed-group.model", actual))
+                .as("an llm.* row whose whole group was deleted")
+                .isTrue();
+    }
+
     /**
      * The forms a table row might mean. The table writes most rows without their {@code report.}
      * prefix — {@code `social.limit`}, not {@code `report.social.limit`} — so the first version of
@@ -113,17 +128,22 @@ class ConfigurationDocsTest {
     }
 
     /**
-     * A row is stale when nothing answers to any of its forms <em>and</em> the group it sits in is
-     * still declared. The second half is what keeps the check usable: a row about one of Spring's own
-     * settings has no group here and is simply not this test's business, while a row under a group
-     * this project does declare is a leaf that was removed and left its documentation behind.
+     * A row is stale when nothing answers to any of its forms <em>and</em> this project owns it. A row
+     * that spells out a documented prefix is owned by definition. A bare row is owned only while the
+     * group it sits in is still declared: a row about one of Spring's own settings has no group here
+     * and is simply not this test's business, while a row under a group this project does declare is
+     * a leaf that was removed and left its documentation behind.
      */
     private static boolean isStale(String documented, Set<String> actual) {
         List<String> candidates = candidateKeys(documented);
         if (candidates.stream().anyMatch(c -> declared(c, actual) || NOT_DOCUMENTED.containsKey(c))) {
             return false;
         }
-        return candidates.stream().anyMatch(c -> groupIsDeclared(c, actual));
+        return hasDocumentedPrefix(documented) || candidates.stream().anyMatch(c -> groupIsDeclared(c, actual));
+    }
+
+    private static boolean hasDocumentedPrefix(String documented) {
+        return DOCUMENTED_PREFIXES.stream().anyMatch(prefix -> documented.startsWith(prefix + "."));
     }
 
     /** Something declares this exact key, the family it stands for, or a leaf beneath it. */
