@@ -1,5 +1,6 @@
 # 🚀 PulseDigest
-**Designed and maintained by [Dominik](https://www.linkedin.com/in/dominik-sienkiewicz/), built with AI coding agents:** I set the architecture, write the specifications, define the quality gates enforced in CI and review every change.
+
+**Designed and maintained by [Dominik Sienkiewicz](https://www.linkedin.com/in/dominik-sienkiewicz/), built with AI coding agents:** I set the architecture, write the specifications, define the quality gates enforced in CI and review every change.
 
 Headless batch application that collects tech news from 16 sources twice a week (Mon/Thu), scores items with GPT-4o, **detects cross-source signals** (the same topic surfacing in Science + Code + Business = 🔴 Critical Trend), tracks per-source health, and delivers a tier'd, prioritized digest to your inbox — with a must-know hero block, deals & tools, critical trends, top picks, and signals.
 
@@ -7,8 +8,9 @@ Headless batch application that collects tech news from 16 sources twice a week 
 ![Spring Boot 4.1](https://img.shields.io/badge/Spring_Boot-4.1.0--SNAPSHOT-green?style=for-the-badge&logo=springboot&logoColor=white)
 ![Supabase](https://img.shields.io/badge/Supabase-Postgres-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)
 ![Architecture](https://img.shields.io/badge/Architecture-Hexagonal-orange?style=for-the-badge)
-![Quality Gate](https://img.shields.io/sonar/quality_gate/DominikSienkiewicz_PulseDigest?server=https%3A%2F%2Fsonarcloud.io&style=for-the-badge&logo=sonarcloud&label=Quality%20Gate)
-![Coverage](https://img.shields.io/sonar/coverage/DominikSienkiewicz_PulseDigest?server=https%3A%2F%2Fsonarcloud.io&style=for-the-badge&logo=sonarcloud)
+
+[![Quality Gate](https://img.shields.io/sonar/quality_gate/DominikSienkiewicz_PulseDigest?server=https%3A%2F%2Fsonarcloud.io&style=for-the-badge&logo=sonarcloud&label=Quality%20Gate)](https://sonarcloud.io/project/overview?id=DominikSienkiewicz_PulseDigest)
+[![Coverage](https://img.shields.io/sonar/coverage/DominikSienkiewicz_PulseDigest?server=https%3A%2F%2Fsonarcloud.io&style=for-the-badge&logo=sonarcloud)](https://sonarcloud.io/project/overview?id=DominikSienkiewicz_PulseDigest)
 
 ## 📬 What lands in the inbox
 
