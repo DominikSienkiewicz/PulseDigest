@@ -87,8 +87,8 @@ class CostCeilingTest {
     void addsUpSpendAcrossEveryCallSiteNotJustTheLastOne() {
         // The failure this exists for is many small calls, not one big one.
         var ceiling = ceiling(new LlmProperties.Budget(true, 1_000, 0));
-        meter(Map.of()).record("pre-scoring", "gpt-4o", 400, 100);
-        meter(Map.of()).record("reader-profile", "gpt-4o", 400, 200);
+        meter(Map.of()).recordCall("pre-scoring", "gpt-4o", 400, 100);
+        meter(Map.of()).recordCall("reader-profile", "gpt-4o", 400, 200);
 
         assertThat(ceiling.tokensSpent()).isEqualTo(1_100);
         assertThat(ceiling.allows("pre-scoring")).isFalse();
@@ -99,13 +99,13 @@ class CostCeilingTest {
         // The shipped configuration has no price list on purpose, which is exactly why the token
         // ceiling is the primary one: a dollars-only guard would be inert where it is switched on.
         var unpriced = ceiling(new LlmProperties.Budget(true, 0, 0.01), Map.of());
-        meter(Map.of()).record("synthesis", "gpt-4o", 1_000_000, 1_000_000);
+        meter(Map.of()).recordCall("synthesis", "gpt-4o", 1_000_000, 1_000_000);
 
         assertThat(unpriced.usdSpent()).isZero();
         unpriced.requireHeadroom("synthesis");
 
         var priced = ceiling(new LlmProperties.Budget(true, 0, 0.01), PRICED);
-        meter(PRICED).record("synthesis", "gpt-4o", 1_000_000, 0);
+        meter(PRICED).recordCall("synthesis", "gpt-4o", 1_000_000, 0);
 
         assertThat(priced.usdSpent()).isGreaterThan(0.01);
         assertThatThrownBy(() -> priced.requireHeadroom("synthesis"))
@@ -122,7 +122,7 @@ class CostCeilingTest {
     }
 
     private void spend(long prompt, long completion) {
-        meter(Map.of()).record("synthesis", "gpt-4o", prompt, completion);
+        meter(Map.of()).recordCall("synthesis", "gpt-4o", prompt, completion);
     }
 
     private static LlmUsageMeter meter(Map<String, LlmProperties.Price> pricing) {

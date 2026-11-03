@@ -1,6 +1,7 @@
 package pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapter.out.ai;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -97,7 +98,7 @@ public class GptPreScoringAdapter implements PreScoringPort {
         return sb.toString();
     }
 
-    private Map<String, Integer> parseScores(String content, List<PreScoringCandidate> candidates) throws Exception {
+    private Map<String, Integer> parseScores(String content, List<PreScoringCandidate> candidates) throws JsonProcessingException {
         ScorePayload payload = objectMapper.readValue(content, ScorePayload.class);
         if (payload.scores() == null) {
             return Map.of();
@@ -111,7 +112,7 @@ public class GptPreScoringAdapter implements PreScoringPort {
         return Map.copyOf(byUrl);
     }
 
-    private String buildRequest(String userPrompt) throws Exception {
+    private String buildRequest(String userPrompt) throws JsonProcessingException {
         Map<String, Object> request = Map.of(
                 "model", llm.preScoring().model(),
                 "temperature", llm.preScoring().temperature(),
@@ -129,7 +130,7 @@ public class GptPreScoringAdapter implements PreScoringPort {
         return objectMapper.writeValueAsString(request);
     }
 
-    private String extractContent(String json) throws Exception {
+    private String extractContent(String json) throws JsonProcessingException {
         OpenAiResponse response = objectMapper.readValue(json, OpenAiResponse.class);
         if (response.choices() == null || response.choices().isEmpty()) {
             throw new IllegalStateException("OpenAI returned empty choices[]");
@@ -141,7 +142,7 @@ public class GptPreScoringAdapter implements PreScoringPort {
     /** Attributes this call's tokens before the content is handed on. */
     private void meter(Usage usage) {
         if (usage != null) {
-            usageMeter.record("pre-scoring", llm.preScoring().model(), usage.promptTokens(), usage.completionTokens());
+            usageMeter.recordCall("pre-scoring", llm.preScoring().model(), usage.promptTokens(), usage.completionTokens());
         }
     }
 

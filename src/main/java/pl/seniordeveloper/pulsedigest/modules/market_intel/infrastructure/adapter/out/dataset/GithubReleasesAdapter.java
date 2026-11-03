@@ -10,6 +10,7 @@ import org.springframework.web.client.RestClient;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.http.ExternalRestClients;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.http.QuotaErrors;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SoftwareRelease;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.GithubApiProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.GithubReleasesProperties;
 
 import java.time.ZoneOffset;
@@ -30,12 +31,14 @@ public class GithubReleasesAdapter {
 
     private final GithubReleasesProperties properties;
     private final ObjectMapper objectMapper;
+    private final GithubApiProperties githubApi;
     private RestClient restClient;
 
     @Autowired
-    public GithubReleasesAdapter(GithubReleasesProperties properties, ObjectMapper objectMapper) {
+    public GithubReleasesAdapter(GithubReleasesProperties properties, ObjectMapper objectMapper, GithubApiProperties githubApi) {
         this.properties = properties;
         this.objectMapper = objectMapper;
+        this.githubApi = githubApi;
     }
 
     @PostConstruct
@@ -44,6 +47,7 @@ public class GithubReleasesAdapter {
                 .baseUrl(BASE_URL)
                 .defaultHeader("Accept", "application/vnd.github.v3+json")
                 .defaultHeader("User-Agent", "PulseDigest/1.0")
+                .defaultHeaders(githubApi::authorize)
                 .build();
     }
 

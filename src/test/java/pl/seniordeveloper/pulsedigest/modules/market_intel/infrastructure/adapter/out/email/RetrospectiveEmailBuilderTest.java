@@ -86,8 +86,7 @@ class RetrospectiveEmailBuilderTest {
                 .contains("trzymało się i zostało docenione")
                 .contains("wracało w kolejnych wydaniach")
                 .contains("doceniona przez Ciebie")
-                .contains("zgasło bez śladu");
-        assertThat(html)
+                .contains("zgasło bez śladu")
                 .as("the verdict is also carried by colour, not by wording alone")
                 .contains("#15803d")
                 .contains("#6b7280");
@@ -113,9 +112,8 @@ class RetrospectiveEmailBuilderTest {
 
         String html = builder.buildHtml(full);
 
-        assertThat(html).contains("Endorsed story").contains("https://example.com/endorsed");
-        assertThat(html).contains("Recurring story").contains("5 wydań");
-        assertThat(html)
+        assertThat(html).contains("Endorsed story").contains("https://example.com/endorsed")
+                .contains("Recurring story").contains("5 wydań")
                 .as("the yield line rounds the ratio to whole percent")
                 .contains("GitHub Releases: 12 opublikowanych, 3 wysokiej rangi (25%)");
     }

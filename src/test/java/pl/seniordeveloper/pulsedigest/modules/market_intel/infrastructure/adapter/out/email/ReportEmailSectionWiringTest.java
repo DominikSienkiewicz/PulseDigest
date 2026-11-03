@@ -9,7 +9,6 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SavedBac
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SavedItem;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.FeedbackProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ThinWeekProperties;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.WatchlistProperties;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -64,7 +63,7 @@ class ReportEmailSectionWiringTest {
 
     private ReportEmailBuilder builder() {
         return new ReportEmailBuilder(new FeedbackProperties(true, 30, fixture.feedbackReceiverUrl(), ""),
-                new WatchlistProperties(true, fixture.watchlistTechnologies()), new ThinWeekProperties(true, 3),
+                new ThinWeekProperties(true, 3),
                 new SectionsPolicy(java.util.Set.of()));
     }
 }

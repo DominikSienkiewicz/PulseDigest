@@ -3,12 +3,14 @@ package pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapt
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.http.ExternalRestClients;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SecurityAdvisory;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.GithubApiProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.SecurityAdvisoriesProperties;
 
 import java.time.ZoneOffset;
@@ -16,7 +18,6 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Optional;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -30,12 +31,14 @@ public class SecurityAdvisoryAdapter {
 
     private final SecurityAdvisoriesProperties properties;
     private final ObjectMapper objectMapper;
+    private final GithubApiProperties githubApi;
     private RestClient restClient;
 
     @Autowired
-    public SecurityAdvisoryAdapter(SecurityAdvisoriesProperties properties, ObjectMapper objectMapper) {
+    public SecurityAdvisoryAdapter(SecurityAdvisoriesProperties properties, ObjectMapper objectMapper, GithubApiProperties githubApi) {
         this.properties = properties;
         this.objectMapper = objectMapper;
+        this.githubApi = githubApi;
     }
 
     @PostConstruct
@@ -45,6 +48,7 @@ public class SecurityAdvisoryAdapter {
                 .defaultHeader("Accept", "application/vnd.github+json")
                 .defaultHeader("User-Agent", "PulseDigest/1.0")
                 .defaultHeader("X-GitHub-Api-Version", "2022-11-28")
+                .defaultHeaders(githubApi::authorize)
                 .build();
     }
 
@@ -146,22 +150,16 @@ public class SecurityAdvisoryAdapter {
     }
 
     private Set<String> upperSet(List<String> values) {
-        Set<String> out = new HashSet<>();
-        for (String v : values) {
-            if (v != null && !v.isBlank()) {
-                out.add(v.toUpperCase(Locale.ROOT));
-            }
-        }
-        return out;
+        return values.stream()
+                .filter(v -> v != null && !v.isBlank())
+                .map(v -> v.toUpperCase(Locale.ROOT))
+                .collect(Collectors.toSet());
     }
 
     private Set<String> lowerSet(List<String> values) {
-        Set<String> out = new HashSet<>();
-        for (String v : values) {
-            if (v != null && !v.isBlank()) {
-                out.add(v.toLowerCase(Locale.ROOT));
-            }
-        }
-        return out;
+        return values.stream()
+                .filter(v -> v != null && !v.isBlank())
+                .map(v -> v.toLowerCase(Locale.ROOT))
+                .collect(Collectors.toSet());
     }
 }

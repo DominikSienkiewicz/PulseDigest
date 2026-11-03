@@ -113,6 +113,9 @@ if you change the cadence, change those too — the comments beside them say whi
 ./gradlew bootRun            # or let the workflow do it
 ```
 
+Before the first scheduled run, set Settings → Pages → Source to **GitHub Actions**, or the
+`archive` job fails every run — see [archive.md](archive.md#how-it-runs).
+
 ## What you cannot change by configuration
 
 **The digest is Polish, and that is in the code.** Section headings, badges, the footer and the

@@ -35,9 +35,9 @@ class TwitterCredentialCheckTest {
     void anEnabledXWithoutACredentialRefusesToStart() {
         // The failure this replaces would have happened at the first search, after the run had
         // already paid for a dozen other fetches.
-        assertThatThrownBy(() -> bootstrap
-                .twitterCredentialCheck(new SourceDisablePolicy(Set.of("Twitter/X topic")), twitter(""))
-                .afterPropertiesSet())
+        var credentialCheck = bootstrap
+                .twitterCredentialCheck(new SourceDisablePolicy(Set.of("Twitter/X topic")), twitter(""));
+        assertThatThrownBy(credentialCheck::afterPropertiesSet)
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("TWITTER_BEARER_TOKEN")
                 .hasMessageContaining("report.sources.disabled");

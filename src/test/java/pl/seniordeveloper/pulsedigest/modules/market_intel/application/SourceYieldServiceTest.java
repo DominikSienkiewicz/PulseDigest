@@ -45,8 +45,8 @@ class SourceYieldServiceTest {
             assertThat(y.appearances()).isEqualTo(2);
             assertThat(y.highRankAppearances()).isEqualTo(2);
             assertThat(y.yieldRatio()).isCloseTo(1.0, within(0.001));
-        });
-        assertThat(yields).anySatisfy(y -> {
+        })
+                .anySatisfy(y -> {
             assertThat(y.source()).isEqualTo("Reddit");
             assertThat(y.yieldRatio()).isCloseTo(0.0, within(0.001));
         });

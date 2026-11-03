@@ -16,7 +16,6 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ThinWeekProperties;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapter.out.persistence.SupabaseFeedbackAdapter;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.FeedbackProperties;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.WatchlistProperties;
 
 import javax.sql.DataSource;
 import java.util.List;
@@ -133,7 +132,7 @@ class FeedbackVoteContractIT {
     private static List<String> votesRenderedInTheMail() {
         DigestEditionFixture fixture = DigestEditionFixture.load();
         String html = new ReportEmailBuilder(new FeedbackProperties(true, 30, RECEIVER_URL, ""),
-                new WatchlistProperties(true, fixture.watchlistTechnologies()), new ThinWeekProperties(true, 3),
+                new ThinWeekProperties(true, 3),
                 new SectionsPolicy(java.util.Set.of()))
                 .buildHtml(fixture.report(), fixture.research());
 

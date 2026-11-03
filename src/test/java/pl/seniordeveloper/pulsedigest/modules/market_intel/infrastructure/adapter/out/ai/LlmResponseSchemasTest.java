@@ -85,7 +85,7 @@ class LlmResponseSchemasTest {
             try {
                 annotation = component.getDeclaringRecord().getDeclaredField(component.getName())
                         .getAnnotation(com.fasterxml.jackson.annotation.JsonProperty.class);
-            } catch (NoSuchFieldException e) {
+            } catch (NoSuchFieldException _) {
                 annotation = null;
             }
         }

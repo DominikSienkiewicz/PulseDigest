@@ -90,8 +90,11 @@ public class PlainTextDigestBuilder {
                 .ifPresentOrElse(
                         closest -> sb.append("\nNajbli\u017cej by\u0142o:\n")
                                 .append(story(1, new DigestStory(closest, List.of(closest), null, false))),
-                        () -> sb.append("\n\u017badne \u017ar\u00f3d\u0142o nie zwr\u00f3ci\u0142o nic,"
-                                + " co da\u0142oby si\u0119 zmierzy\u0107.\n"));
+                        () -> sb.append("""
+
+                                \u017badne \u017ar\u00f3d\u0142o nie zwr\u00f3ci\u0142o nic, \
+                                co da\u0142oby si\u0119 zmierzy\u0107.
+                                """));
         return sb.toString();
     }
 

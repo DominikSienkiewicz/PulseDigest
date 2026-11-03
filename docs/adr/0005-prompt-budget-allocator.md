@@ -29,11 +29,16 @@ The expensive call sees a bounded, source-balanced payload, and the bound is one
 an emergent property of sixteen feeds.
 
 The cost is that **an item can be dropped before the model ever judges it**, and a dropped item
-leaves no trace in the digest. Two features exist because of this: the watchlist scans
+leaves no trace in the digest. The source yield ledger exists because of this: it reports what each
+source contributed against what it returned, which is the only way to tell a cap that is too tight
+from a source that has nothing to say.
+
+*Until 2026-10-26 a second feature answered the same cost: the 🎯 watchlist scanned
 `ResearchResult.allTitles()` — every headline fetched, not the ones that survived the budget — so
-"0 wzmianek" means the sources were silent rather than that an item lost a slot; and the source
-yield ledger reports what each source contributed against what it returned, which is the only way to
-tell a cap that is too tight from a source that has nothing to say.
+"0 wzmianek" meant the sources were silent rather than that an item lost a slot. It was removed
+because another application now tracks the watched technologies. Anything that needs the whole
+intake again has to restore a pre-budget view of it; scanning the prompt would repeat the mistake
+the watchlist was built to avoid.*
 
 The caps are constants in `PromptItemSelector` rather than configuration, deliberately. They encode
 an editorial judgement about one reader, and the yield ledger is the evidence for changing them —

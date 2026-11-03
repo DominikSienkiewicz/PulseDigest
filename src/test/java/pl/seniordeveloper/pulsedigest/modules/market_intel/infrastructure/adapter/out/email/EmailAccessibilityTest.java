@@ -5,7 +5,6 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.application.policy.Se
 import org.junit.jupiter.api.Test;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.FeedbackProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ThinWeekProperties;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.WatchlistProperties;
 
 import java.util.List;
 import java.util.Set;
@@ -59,8 +58,8 @@ class EmailAccessibilityTest {
         // 🔴 🟨 🟡 ⚪ differ only by colour. Before N16 that was the whole of the rank in the tables.
         String html = render();
 
-        assertThat(html).contains("<strong>Słaby</strong>", "<strong>Umiarkowany</strong>");
-        assertThat(html).contains("aria-label=\"Słaby\"");
+        assertThat(html).contains("<strong>Słaby</strong>", "<strong>Umiarkowany</strong>")
+                .contains("aria-label=\"Słaby\"");
     }
 
     @Test
@@ -68,9 +67,9 @@ class EmailAccessibilityTest {
         // A link whose text is one emoji announces as "link, thumbs up sign" at best, "link" at worst.
         String html = render();
 
-        assertThat(html).contains("aria-label=\"Więcej takich\"", "title=\"Więcej takich\"");
-        assertThat(html).contains("aria-label=\"Mniej takich\"", "title=\"Mniej takich\"");
-        assertThat(html).contains("title=\"Zapisz na później\"");
+        assertThat(html).contains("aria-label=\"Więcej takich\"", "title=\"Więcej takich\"")
+                .contains("aria-label=\"Mniej takich\"", "title=\"Mniej takich\"")
+                .contains("title=\"Zapisz na później\"");
     }
 
     @Test
@@ -100,13 +99,13 @@ class EmailAccessibilityTest {
         String html = render();
 
         assertThat(html.split("<h1", -1).length - 1).as("exactly one h1").isEqualTo(1);
-        assertThat(html).contains("<h2");
-        assertThat(html).doesNotContain("<h3");
+        assertThat(html).contains("<h2")
+                .doesNotContain("<h3");
     }
 
     private String render() {
         return new ReportEmailBuilder(new FeedbackProperties(true, 30, fixture.feedbackReceiverUrl(), ""),
-                new WatchlistProperties(true, fixture.watchlistTechnologies()), new ThinWeekProperties(true, 3),
+                new ThinWeekProperties(true, 3),
                 new SectionsPolicy(java.util.Set.of()))
                 .buildHtml(fixture.report(), fixture.research());
     }

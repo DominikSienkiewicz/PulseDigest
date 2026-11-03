@@ -4,7 +4,6 @@ import org.junit.jupiter.api.Test;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.policy.SectionsPolicy;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.FeedbackProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ThinWeekProperties;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.WatchlistProperties;
 
 import java.util.Set;
 
@@ -25,15 +24,15 @@ class SectionTogglesTest {
     void everythingRendersWhenNothingIsDisabled() {
         String html = render(Set.of());
 
-        assertThat(html).contains("Twój radar", "Top picks", "Dlaczego to widzisz");
+        assertThat(html).contains("Koniec wsparcia", "Top picks", "Dlaczego to widzisz");
     }
 
     @Test
     void aDisabledSectionIsAbsentAndTheRestSurvives() {
-        String html = render(Set.of(DigestSections.WATCHLIST));
+        String html = render(Set.of(DigestSections.EOL));
 
-        assertThat(html).doesNotContain("Twój radar");
-        assertThat(html).as("the rest of the document is untouched").contains("Top picks", "Must-know");
+        assertThat(html).doesNotContain("Koniec wsparcia")
+                .as("the rest of the document is untouched").contains("Top picks", "Must-know");
     }
 
     @Test
@@ -42,8 +41,8 @@ class SectionTogglesTest {
         // the audit specifically wondered about.
         String html = render(Set.of(DigestSections.SCORE_EXPLANATIONS));
 
-        assertThat(html).doesNotContain("Dlaczego to widzisz");
-        assertThat(html).contains("Must-know", "Top picks");
+        assertThat(html).doesNotContain("Dlaczego to widzisz")
+                .contains("Must-know", "Top picks");
     }
 
     @Test
@@ -52,15 +51,15 @@ class SectionTogglesTest {
         // and the shell has to close properly or the mail renders as raw markup.
         String html = render(DigestSections.ALL);
 
-        assertThat(html).startsWith("<!DOCTYPE html>").endsWith("</div></body></html>");
-        assertThat(html).contains("PulseDigest");
+        assertThat(html).startsWith("<!DOCTYPE html>").endsWith("</div></body></html>")
+                .contains("PulseDigest");
     }
 
     @Test
     void anUnknownKeyDisablesNothingRatherThanEverything() {
-        String html = render(Set.of("watchlist-typo"));
+        String html = render(Set.of("eol-typo"));
 
-        assertThat(html).contains("Twój radar");
+        assertThat(html).contains("Koniec wsparcia");
     }
 
     @Test
@@ -110,7 +109,6 @@ class SectionTogglesTest {
     private String render(Set<String> disabled) {
         return new ReportEmailBuilder(
                 new FeedbackProperties(true, 30, fixture.feedbackReceiverUrl(), ""),
-                new WatchlistProperties(true, fixture.watchlistTechnologies()),
                 new ThinWeekProperties(true, 3),
                 new SectionsPolicy(disabled))
                 .buildHtml(populated(), fixture.research());

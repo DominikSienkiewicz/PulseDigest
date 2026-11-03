@@ -37,6 +37,8 @@ import java.util.stream.Stream;
 @Service
 public class BuildFileDependencyProfileAdapter implements DependencyProfilePort {
 
+    private static final String CONFIGURATION_SCOPE = "configuration";
+
     /** `"group:artifact:version"` in a Gradle script, with the version optional. */
     private static final Pattern GRADLE_COORDINATE = Pattern.compile(
             "[\"']([a-zA-Z0-9_.\\-]+):([a-zA-Z0-9_.\\-]+)(?::([a-zA-Z0-9_.\\-${}]+))?[\"']");
@@ -140,9 +142,9 @@ public class BuildFileDependencyProfileAdapter implements DependencyProfilePort 
     private static DependencyCoordinate parseDeclared(String declared) {
         String[] parts = Stream.of(declared.split(":")).map(String::strip).toArray(String[]::new);
         return switch (parts.length) {
-            case 2 -> new DependencyCoordinate(parts[0], parts[1], "", "configuration");
-            case 3 -> new DependencyCoordinate(parts[0], parts[1], parts[2], "configuration");
-            default -> new DependencyCoordinate("", "", "", "configuration");
+            case 2 -> new DependencyCoordinate(parts[0], parts[1], "", CONFIGURATION_SCOPE);
+            case 3 -> new DependencyCoordinate(parts[0], parts[1], parts[2], CONFIGURATION_SCOPE);
+            default -> new DependencyCoordinate("", "", "", CONFIGURATION_SCOPE);
         };
     }
 }

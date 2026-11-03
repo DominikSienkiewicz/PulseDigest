@@ -409,23 +409,6 @@ report:
     enabled: true
     keep: 50
 
-  # Twój radar: technologie, o których digest MUSI się wypowiedzieć — także wtedy, gdy nic się nie
-  # działo ("Spring AI: 0 wzmianek"). Skan leci po WSZYSTKICH pobranych nagłówkach tego biegu, nie po
-  # itemach, które przeszły budżet promptu — inaczej "0" nie odróżniałoby ciszy od przycięcia.
-  watchlist:
-    enabled: true
-    technologies:
-      - spring ai
-      - spring boot
-      - quarkus
-      - graalvm
-      - virtual threads
-      - langgraph
-      - mcp
-      - ollama
-      - vllm
-      - pgvector
-
   # Żywy Model Czytelnika: raz w tygodniu gpt-4o-mini destyluje z głosów 👍/👎 kilka datowanych,
   # udowodnionych hipotez o czytelniku. Każda liczba niżej to bariera przed dryfem profilu:
   # min-votes = nie modeluj czytelnika z szumu; refresh-days = jeden call mini na tydzień, nie na bieg;
@@ -531,6 +514,12 @@ report:
     limit: 15
     min-score: 40              # było 25 — wyższy próg jakości przy szerszym oknie 104h (mniej szumu)
     lookback-hours: 104        # pokrywa max gap czw->pn (96h) + margines; było 24 (zahardkodowane w adapterze)
+
+  github-api:
+    # One token for every api.github.com source (Search, Releases, Advisories, JEP, CNCF): they share
+    # one rate limit. Blank = unauthenticated, 60 requests/h per IP — too few for ~21 requests a run
+    # on a hosted runner whose IP other tenants share. CI maps it from the automatic GITHUB_TOKEN.
+    token: "${GITHUB_API_TOKEN:}"
 
   github:
     query: "(topic:ai OR topic:machine-learning OR topic:llm)"
