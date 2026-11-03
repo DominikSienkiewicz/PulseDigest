@@ -12,6 +12,7 @@ import org.springframework.web.client.RestClient;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.http.ExternalRestClients;
 import org.springframework.web.util.UriComponentsBuilder;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.GithubRepo;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.GithubApiProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.GithubProperties;
 
 import java.net.URI;
@@ -31,6 +32,7 @@ public class GithubSearchAdapter {
 
     private final ObjectMapper objectMapper;
     private final GithubProperties props;
+    private final GithubApiProperties githubApi;
     private RestClient restClient;
 
     @PostConstruct
@@ -38,6 +40,7 @@ public class GithubSearchAdapter {
         this.restClient = ExternalRestClients.builder()
                 .defaultHeader(HttpHeaders.ACCEPT, "application/vnd.github.v3+json")
                 .defaultHeader(HttpHeaders.USER_AGENT, "IT-Market-Report-App")
+                .defaultHeaders(githubApi::authorize)
                 .build();
     }
 

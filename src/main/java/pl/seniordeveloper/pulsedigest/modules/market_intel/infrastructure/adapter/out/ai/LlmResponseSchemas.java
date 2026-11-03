@@ -28,15 +28,18 @@ import java.util.Map;
  */
 final class LlmResponseSchemas {
 
+    private static final String TYPE_STRING = "string";
+    private static final String TYPE_INTEGER = "integer";
+
     private LlmResponseSchemas() {
     }
 
     /** The whole edition: the four fields the model produces, and nothing the pipeline derives. */
     static Map<String, Object> synthesisSchema() {
         Map<String, Object> properties = new LinkedHashMap<>();
-        properties.put("email_preview", type("string"));
-        properties.put("editorial", type("string"));
-        properties.put("top_insights", array(type("string")));
+        properties.put("email_preview", type(TYPE_STRING));
+        properties.put("editorial", type(TYPE_STRING));
+        properties.put("top_insights", array(type(TYPE_STRING)));
         properties.put("items", array(objectOf(DigestItem.class)));
         return object(properties);
     }
@@ -44,8 +47,8 @@ final class LlmResponseSchemas {
     /** Triage: one score per item index. */
     static Map<String, Object> preScoringSchema() {
         Map<String, Object> entry = new LinkedHashMap<>();
-        entry.put("i", type("integer"));
-        entry.put("s", type("integer"));
+        entry.put("i", type(TYPE_INTEGER));
+        entry.put("s", type(TYPE_INTEGER));
         Map<String, Object> properties = new LinkedHashMap<>();
         properties.put("scores", array(object(entry)));
         return object(properties);
@@ -69,9 +72,9 @@ final class LlmResponseSchemas {
      * A record as an object schema, with each component's JSON name and a type derived from its
      * Java type. Reference types are nullable because the model may genuinely have nothing to say.
      */
-    private static Map<String, Object> objectOf(Class<?> record) {
+    private static Map<String, Object> objectOf(Class<?> recordType) {
         Map<String, Object> properties = new LinkedHashMap<>();
-        for (RecordComponent component : record.getRecordComponents()) {
+        for (RecordComponent component : recordType.getRecordComponents()) {
             properties.put(jsonName(component), schemaFor(component.getType()));
         }
         return object(properties);
@@ -93,7 +96,7 @@ final class LlmResponseSchemas {
                 annotation = component.getDeclaringRecord()
                         .getDeclaredField(component.getName())
                         .getAnnotation(JsonProperty.class);
-            } catch (NoSuchFieldException e) {
+            } catch (NoSuchFieldException _) {
                 annotation = null;
             }
         }
@@ -104,10 +107,10 @@ final class LlmResponseSchemas {
 
     private static Map<String, Object> schemaFor(Class<?> type) {
         if (type == int.class || type == long.class) {
-            return type("integer");
+            return type(TYPE_INTEGER);
         }
         if (type == Integer.class || type == Long.class) {
-            return nullable("integer");
+            return nullable(TYPE_INTEGER);
         }
         if (type == boolean.class) {
             return type("boolean");
@@ -115,7 +118,7 @@ final class LlmResponseSchemas {
         if (type == double.class || type == float.class) {
             return type("number");
         }
-        return nullable("string");
+        return nullable(TYPE_STRING);
     }
 
     private static Map<String, Object> object(Map<String, Object> properties) {

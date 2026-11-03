@@ -11,13 +11,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * C1. The roster inside {@link ResearchResult} has to list every source the record carries, or the
- * five aggregations that read it quietly disagree with the data.
+ * aggregations that read it quietly disagree with the data.
  *
  * <p>This is the failure the roster exists to prevent, stated as a test rather than as a convention:
- * before it, a new source was added to {@code isEmpty}, {@code activeSourceCount}, {@code allTitles},
- * {@code rawTotalCount} and {@code summary} by hand, and one that reached four of the five compiled
- * perfectly and reported itself wrong — a watchlist that says "0 wzmianek" because the source was
- * never scanned looks exactly like a quiet week.
+ * before it, a new source was added to {@code isEmpty}, {@code activeSourceCount},
+ * {@code rawTotalCount} and {@code summary} by hand, and one that reached only some of them compiled
+ * perfectly and reported itself wrong — a source missing from the active count looks exactly like a
+ * quiet week.
  */
 class ResearchResultRosterTest {
 
@@ -44,21 +44,20 @@ class ResearchResultRosterTest {
         // timestamp, and has a comma of its own.
         String counts = result.summary().split(" \u2014 ")[0];
 
-        assertThat(counts.split(", ").length)
+        assertThat(counts.split(", "))
                 .as("summary prints one entry per registered source — if this drifts from the "
                         + "component count above, a source is on the record but not in sections()")
-                .isEqualTo(sourceComponents.size());
+                .hasSize(sourceComponents.size());
     }
 
     @Test
-    void aSourceThatReturnedSomethingCountsAsActiveAndIsScanned() {
+    void aSourceThatReturnedSomethingCountsAsActive() {
         ResearchResult result = ResearchResults.builder()
                 .hackerNews(List.of(new HackerNewsPost("Loom lands", "https://news.example/1", 10)))
                 .build();
 
         assertThat(result.isEmpty()).isFalse();
         assertThat(result.activeSourceCount()).isEqualTo(1);
-        assertThat(result.allTitles()).containsExactly("Loom lands");
     }
 
     @Test

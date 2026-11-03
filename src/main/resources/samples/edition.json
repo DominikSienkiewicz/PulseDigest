@@ -15,14 +15,13 @@
     "edition was rendered under: `reader_votes` lets ReportEmailGoldenFileTest re-derive every `signals`",
     "entry through the real SignalScoringService and prove the stored ranks, scores and breakdowns are",
     "values production can actually produce (a fixture nobody checks drifts into a shape the pipeline",
-    "never emits); `config` supplies the two settings the mail reads, with a placeholder receiver host",
+    "never emits); `config` supplies the one setting the mail reads, with a placeholder receiver host",
     "rather than the deployed one; `edition_date` is the date the committed golden file was rendered for,",
     "which is what lets the test compare a render made today against it.",
     "",
     "Deliberate coverage choices. All four SignalRank values occur, so every rank glyph renders. One",
     "source FAILED with a non-quota error, so the footer reports its warning while the amber 'exhausted",
-    "limits' banner stays absent. `spring ai`, `langgraph` and `vllm` appear in no fetched headline, so",
-    "the watchlist renders confirmed silence. Three topic keys are carried by more than one item —",
+    "limits' banner stays absent. Three topic keys are carried by more than one item —",
     "mcp-tool-registry by three — so the collapsed-story path and its `Potwierdzone w:` links render;",
     "and enough stories clear score 8 to overflow the Must-know cap, so the Top picks table is not empty.",
     "",
@@ -38,19 +37,7 @@
   ],
   "edition_date": "2026-10-15",
   "config": {
-    "feedback_receiver_url": "https://feedback.pulsedigest.example/vote",
-    "watchlist_technologies": [
-      "spring ai",
-      "spring boot",
-      "quarkus",
-      "graalvm",
-      "virtual threads",
-      "langgraph",
-      "mcp",
-      "ollama",
-      "vllm",
-      "pgvector"
-    ]
+    "feedback_receiver_url": "https://feedback.pulsedigest.example/vote"
   },
   "reader_votes": {
     "by_source": {

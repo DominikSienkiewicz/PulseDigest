@@ -36,7 +36,7 @@ class SupabaseReportStorageAdapterIT {
     private ObjectMapper objectMapper;
 
     @BeforeAll
-    static void setupDataSource() throws Exception {
+    static void setupDataSource() {
         HikariConfig config = new HikariConfig();
         config.setJdbcUrl(postgres.getJdbcUrl());
         config.setUsername(postgres.getUsername());

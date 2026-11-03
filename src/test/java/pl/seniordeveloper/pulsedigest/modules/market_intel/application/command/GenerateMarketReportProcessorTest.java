@@ -1,5 +1,6 @@
 package pl.seniordeveloper.pulsedigest.modules.market_intel.application.command;
 
+import pl.seniordeveloper.pulsedigest.modules.market_intel.application.EditionDeliveryGuard;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.RawCounts;
 
 import pl.seniordeveloper.pulsedigest.testing.ResearchResults;
@@ -110,7 +111,7 @@ class GenerateMarketReportProcessorTest {
         jobTracker.track(ReportJob.pending(jobId));
         when(researchService.fetchAndFilter()).thenReturn(research);
         when(synthesisPort.synthesize(research)).thenReturn(report);
-        when(emailPort.send(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.eq(research)))
+        when(emailPort.send(any(), eq(research)))
                 .thenReturn(new EmailDeliveryReceipt("resend", "{\"id\":\"email-1\"}"));
 
         processor().process(jobId);
@@ -118,8 +119,8 @@ class GenerateMarketReportProcessorTest {
         ReportJob job = jobTracker.getJob(jobId).orElseThrow();
         assertThat(job.status()).isEqualTo(ReportJobStatus.DELIVERED);
         assertThat(job.report()).isNotNull();
-        verify(storagePort).save(org.mockito.ArgumentMatchers.any());
-        verify(emailPort).send(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.eq(research));
+        verify(storagePort).save(any());
+        verify(emailPort).send(any(), eq(research));
     }
 
     @Test
@@ -162,7 +163,7 @@ class GenerateMarketReportProcessorTest {
         jobTracker.track(ReportJob.pending(jobId));
         when(researchService.fetchAndFilter()).thenReturn(research);
         when(synthesisPort.synthesize(research)).thenReturn(report);
-        when(emailPort.send(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.eq(research)))
+        when(emailPort.send(any(), eq(research)))
                 .thenThrow(new IllegalStateException("resend unavailable"));
 
         processor().process(jobId);
@@ -424,8 +425,7 @@ class GenerateMarketReportProcessorTest {
                         new SemanticClusteringPolicy(false, false, 0.86, 4)),
                 today -> java.util.List.of(),
                 SAVED_SHELF_ON,
-                editionDeliveryPort,
-                new DeliveryGuardPolicy(true),
+                new EditionDeliveryGuard(new DeliveryGuardPolicy(true), editionDeliveryPort),
                 new SignalScoringService(ScoringPolicy.defaults()),
                 feedbackPort,
                 new FeedbackNudgePolicy(true, 30),

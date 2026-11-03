@@ -14,7 +14,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.time.LocalDate;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -35,7 +34,6 @@ public record DigestEditionFixture(
         ResearchResult research,
         LocalDate editionDate,
         String feedbackReceiverUrl,
-        List<String> watchlistTechnologies,
         Map<String, Integer> netVotesBySource,
         Map<String, Integer> netVotesByCategory
 ) {
@@ -65,7 +63,6 @@ public record DigestEditionFixture(
                 SampleEditionLoader.research(mapper, root),
                 LocalDate.parse(root.get("edition_date").asText()),
                 config.get("feedback_receiver_url").asText(),
-                mapper.convertValue(config.get("watchlist_technologies"), new TypeReference<List<String>>() { }),
                 mapper.convertValue(votes.get("by_source"), new TypeReference<Map<String, Integer>>() { }),
                 mapper.convertValue(votes.get("by_category"), new TypeReference<Map<String, Integer>>() { }));
     }

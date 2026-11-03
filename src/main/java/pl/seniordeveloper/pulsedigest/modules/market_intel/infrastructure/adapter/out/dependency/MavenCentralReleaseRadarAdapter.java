@@ -63,17 +63,16 @@ public class MavenCentralReleaseRadarAdapter implements ReleaseRadarPort {
         List<DependencyRelease> behind = new ArrayList<>();
         int lookups = 0;
         for (DependencyCoordinate coordinate : profile.coordinates()) {
-            if (coordinate.pinnedVersion().isBlank() || coordinate.isPreRelease()) {
-                continue;
+            if (!coordinate.pinnedVersion().isBlank() && !coordinate.isPreRelease()) {
+                if (++lookups > MAX_LOOKUPS_PER_RUN) {
+                    log.warn("release-radar stopped at {} lookups — {} coordinate(s) not checked this run",
+                            MAX_LOOKUPS_PER_RUN, profile.coordinates().size() - lookups + 1);
+                    break;
+                }
+                latestVersionOf(coordinate)
+                        .filter(latest -> SemanticVersions.isNewer(latest, coordinate.pinnedVersion()))
+                        .ifPresent(latest -> behind.add(new DependencyRelease(coordinate, latest)));
             }
-            if (++lookups > MAX_LOOKUPS_PER_RUN) {
-                log.warn("release-radar stopped at {} lookups — {} coordinate(s) not checked this run",
-                        MAX_LOOKUPS_PER_RUN, profile.coordinates().size() - lookups + 1);
-                break;
-            }
-            latestVersionOf(coordinate)
-                    .filter(latest -> SemanticVersions.isNewer(latest, coordinate.pinnedVersion()))
-                    .ifPresent(latest -> behind.add(new DependencyRelease(coordinate, latest)));
         }
         log.info("release-radar checked={} behind={} from_build_files={}",
                 lookups, behind.size(), profile.fromBuildFiles());

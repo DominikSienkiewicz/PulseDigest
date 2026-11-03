@@ -8,6 +8,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.client.RestClient;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SecurityAdvisory;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.GithubApiProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.SecurityAdvisoriesProperties;
 
 import java.lang.reflect.Field;
@@ -39,7 +40,7 @@ class SecurityAdvisoryAdapterIT {
                         72,
                         List.of("HIGH", "CRITICAL"),
                         List.of("maven", "npm"));
-        adapter = new SecurityAdvisoryAdapter(props, new ObjectMapper());
+        adapter = new SecurityAdvisoryAdapter(props, new ObjectMapper(), new GithubApiProperties(""));
 
         RestClient testClient = RestClient.builder()
                 .baseUrl("http://localhost:" + wireMock.port())

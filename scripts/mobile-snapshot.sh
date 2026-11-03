@@ -26,6 +26,7 @@ SOURCE="docs/sample-digest.html"
 OUT_DIR="$ROOT/build/mobile"
 OUT="$OUT_DIR/sample-digest-mobile.png"
 BASELINE="$ROOT/docs/images/sample-digest-mobile.png"
+RENDER_LOG="$OUT_DIR/renderer.log"
 
 if ! command -v docker >/dev/null 2>&1; then
   echo "docker is required: the snapshot must come from the pinned renderer, not a local browser." >&2
@@ -33,16 +34,49 @@ if ! command -v docker >/dev/null 2>&1; then
 fi
 
 mkdir -p "$OUT_DIR"
+
+# Why the container is told which user to be.
+#
+# The image declares `USER chrome` (uid 1000), while the directory above belongs to whoever ran this
+# script — uid 1001 on a GitHub runner, and 0755, so uid 1000 cannot create a file in it. A renderer
+# that cannot write its `--screenshot` target exits 2 having written nothing, which is exactly how
+# this gate failed on 2026-10-19 after passing on every macOS machine it was developed on: Docker
+# Desktop grants a bind mount write access whatever the ownership underneath says, so the mismatch
+# stays invisible until the build runs on Linux. Running the container as the invoking user removes
+# the mismatch where it starts; widening the directory's permissions would only hide it again.
+#
+# Taking the uid away from `chrome` also takes away the home directory that uid owned, and a uid with
+# no passwd entry in the image has no home to fall back on, so the profile is pointed somewhere
+# world-writable. It has to be an explicit flag rather than `$HOME` alone, because Chromium derives
+# the profile path once at startup and a failure there is a crash, not a warning.
+status=0
 docker run --rm \
+  --user "$(id -u):$(id -g)" \
+  -e HOME=/tmp \
   -v "$ROOT:/work" -w /work \
   --entrypoint chromium-browser \
   "$CHROME_IMAGE" \
   --headless --no-sandbox --disable-gpu --hide-scrollbars \
+  --user-data-dir=/tmp/chromium-profile \
   --window-size="${WIDTH},${HEIGHT}" \
   --screenshot=/work/build/mobile/sample-digest-mobile.png \
-  "file:///work/${SOURCE}" >/dev/null 2>&1
+  "file:///work/${SOURCE}" >"$RENDER_LOG" 2>&1 || status=$?
 
-[ -f "$OUT" ] || { echo "Renderer produced no screenshot." >&2; exit 1; }
+# Chromium warns about Bluetooth and sandbox threads on a perfectly good run, so its output is kept
+# out of the way — but only until it is worth reading. Discarding it unconditionally, as the first
+# version of this script did, is what turned the failure above into a bare "exit code 2" with not one
+# line of explanation in the CI log; the renderer knew exactly what was wrong and was told to shut up.
+if [ "$status" -ne 0 ]; then
+  echo "Renderer failed (exit $status). Its own output follows:" >&2
+  cat "$RENDER_LOG" >&2
+  exit "$status"
+fi
+
+[ -f "$OUT" ] || {
+  echo "Renderer reported success but produced no screenshot. Its output follows:" >&2
+  cat "$RENDER_LOG" >&2
+  exit 1
+}
 echo "Rendered ${WIDTH}px snapshot -> ${OUT#"$ROOT"/}"
 
 if [ "${1:-}" = "--update" ]; then

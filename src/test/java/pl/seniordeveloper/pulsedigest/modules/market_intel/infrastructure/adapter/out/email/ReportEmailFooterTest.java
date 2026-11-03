@@ -16,7 +16,6 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SignalRa
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceDomain;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.FeedbackProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ThinWeekProperties;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.WatchlistProperties;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -32,7 +31,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ReportEmailFooterTest {
 
     private final ReportEmailBuilder builder = new ReportEmailBuilder(new FeedbackProperties(false, 30, "", ""),
-            new WatchlistProperties(false, List.of()),
             new ThinWeekProperties(false, 3),
                 new SectionsPolicy(java.util.Set.of()));
 
@@ -64,8 +62,8 @@ class ReportEmailFooterTest {
 
         String html = builder.buildHtml(withProfile, null);
 
-        assertThat(html).contains("Model czytelnika");
-        assertThat(html).contains("Chce więcej Javy").contains("+8 netto w java/jvm");
+        assertThat(html).contains("Model czytelnika")
+                .contains("Chce więcej Javy").contains("+8 netto w java/jvm");
     }
 
     @Test
@@ -79,8 +77,8 @@ class ReportEmailFooterTest {
 
         String html = builder.buildHtml(report, null);
 
-        assertThat(html).contains("Twoje głosy w akcji");
-        assertThat(html).contains("Hacker News").contains("0.80").contains("0.60");
+        assertThat(html).contains("Twoje głosy w akcji")
+                .contains("Hacker News").contains("0.80").contains("0.60");
     }
 
     @Test

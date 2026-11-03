@@ -60,8 +60,8 @@ class ReportPromptBuilderPreferencesTest {
 
         String systemPrompt = builder.buildSystemPrompt();
 
-        assertThat(systemPrompt).contains("MODEL CZYTELNIKA");
-        assertThat(systemPrompt).contains("Chce więcej Javy").contains("+8 netto w java/jvm");
+        assertThat(systemPrompt).contains("MODEL CZYTELNIKA")
+                .contains("Chce więcej Javy").contains("+8 netto w java/jvm");
     }
 
     @Test
@@ -95,9 +95,9 @@ class ReportPromptBuilderPreferencesTest {
     void promptStatesTheReadersExpressedCategoryPreferences() {
         String prompt = builder(true, Map.of("java/jvm", 5, "research", -4)).buildUserPrompt(research());
 
-        assertThat(prompt).contains(BLOCK);
-        assertThat(prompt).contains("Chce więcej: java/jvm");
-        assertThat(prompt).contains("Chce mniej: research");
+        assertThat(prompt).contains(BLOCK)
+                .contains("Chce więcej: java/jvm")
+                .contains("Chce mniej: research");
     }
 
     @Test

@@ -25,7 +25,6 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TrendRec
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TrendVelocity;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.FeedbackProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ThinWeekProperties;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.WatchlistProperties;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -37,7 +36,6 @@ class ReportEmailBuilderTest {
 
     private final ReportEmailBuilder builder =
             new ReportEmailBuilder(new FeedbackProperties(false, 30, "", ""),
-                    new WatchlistProperties(false, List.of()),
                     new ThinWeekProperties(false, 3),
                 new SectionsPolicy(java.util.Set.of()));
 
@@ -88,8 +86,8 @@ class ReportEmailBuilderTest {
 
         String subject = builder.buildSubject(report);
 
-        assertThat(subject).contains("…").endsWith(today());
-        assertThat(subject).doesNotContain("Rust in the kernel");
+        assertThat(subject).contains("…").endsWith(today())
+                .doesNotContain("Rust in the kernel");
         // Marker + preview + separator + date must stay inside the inbox-visible budget.
         assertThat(subject.length()).isLessThanOrEqualTo(100);
     }
@@ -138,8 +136,8 @@ class ReportEmailBuilderTest {
 
         String html = builder.buildHtml(report, null);
 
-        assertThat(html).contains("Potwierdzone w:");
-        assertThat(html).contains("arXiv/cs.AI").contains("GitHub").contains("Hacker News");
+        assertThat(html).contains("Potwierdzone w:")
+                .contains("arXiv/cs.AI").contains("GitHub").contains("Hacker News");
     }
 
     private static DigestItem topicItem(String source, String topicKey, int score) {
@@ -156,8 +154,8 @@ class ReportEmailBuilderTest {
 
         String html = builder.buildHtml(report, null);
 
-        assertThat(html).contains("narasta").contains("3. edycja");
-        assertThat(html).contains("Pierwszy sygnał: 18.06.2026");
+        assertThat(html).contains("narasta").contains("3. edycja")
+                .contains("Pierwszy sygnał: 18.06.2026");
     }
 
     @Test
@@ -186,9 +184,9 @@ class ReportEmailBuilderTest {
 
         String html = builder.buildHtml(report, null);
 
-        assertThat(html).contains("Tydzień w sygnałach");
-        assertThat(html).contains("MCP everywhere").contains("Gemini 3").contains("Hype train");
-        assertThat(html).contains("urosło").contains("potwierdzony").contains("wygasł");
+        assertThat(html).contains("Tydzień w sygnałach")
+                .contains("MCP everywhere").contains("Gemini 3").contains("Hype train")
+                .contains("urosło").contains("potwierdzony").contains("wygasł");
     }
 
     @Test
@@ -196,23 +194,6 @@ class ReportEmailBuilderTest {
         String html = builder.buildHtml(fullReport(), null);
 
         assertThat(html).doesNotContain("Tydzień w sygnałach");
-    }
-
-    @Test
-    void watchlistSectionConfirmsSilenceForTechnologiesNobodyMentioned() {
-        ReportEmailBuilder withWatchlist = new ReportEmailBuilder(new FeedbackProperties(false, 30, "", ""),
-                new WatchlistProperties(true, List.of("spring ai", "kubernetes")), new ThinWeekProperties(false, 3),
-                new SectionsPolicy(java.util.Set.of()));
-
-        String html = withWatchlist.buildHtml(fullReport(), researchWithFailedSource());
-
-        assertThat(html).contains("Twój radar");
-        assertThat(html).contains("spring ai").contains("0 wzmianek");
-    }
-
-    @Test
-    void watchlistSectionIsAbsentWhenDisabled() {
-        assertThat(builder.buildHtml(fullReport(), researchWithFailedSource())).doesNotContain("Twój radar");
     }
 
     @Test
@@ -274,7 +255,7 @@ class ReportEmailBuilderTest {
     void buildHtmlRendersFeedbackLinksWhenReceiverConfigured() {
         ReportEmailBuilder withFeedback = new ReportEmailBuilder(
                 new FeedbackProperties(true, 30, "https://fb.example/vote", ""),
-                new WatchlistProperties(false, List.of()), new ThinWeekProperties(false, 3),
+                new ThinWeekProperties(false, 3),
                 new SectionsPolicy(java.util.Set.of()));
 
         String html = withFeedback.buildHtml(fullReport(), researchWithFailedSource());

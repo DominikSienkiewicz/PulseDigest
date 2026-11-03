@@ -92,7 +92,8 @@ class SocialSearchAdapterTest {
         when(bluesky.fetchPosts(anyInt())).thenThrow(new RuntimeException("bsky down"));
         when(mastodon.fetchPosts(anyInt())).thenThrow(new RuntimeException("mast down"));
 
-        assertThatThrownBy(() -> adapter(10, 0).fetchSocialPosts())
+        var adapter = adapter(10, 0);
+        assertThatThrownBy(adapter::fetchSocialPosts)
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Both social networks failed");
     }

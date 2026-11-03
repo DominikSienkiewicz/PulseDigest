@@ -3,7 +3,9 @@ package pl.seniordeveloper.pulsedigest.modules.market_intel.application.command;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.application.EditionDeliveryGuard;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.MarketIntelJobTracker;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.application.SourceBreadth;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.MarketResearchService;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.CalibrationService;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.EolRadarService;
@@ -18,7 +20,6 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.application.SourceYie
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.TrendVelocityService;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.WeeklyRecapService;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.policy.FeedbackNudgePolicy;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.application.policy.DeliveryGuardPolicy;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.policy.SavedBacklogPolicy;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.policy.ReportHistoryPolicy;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.application.policy.SourceFloorPolicy;
@@ -26,6 +27,7 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ApiAccou
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.PastEdition;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ProfileEvidence;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReaderProfile;
+import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SavedItem;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.TrendMemory;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.EmailDeliveryReceipt;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.PersistedReport;
@@ -37,11 +39,9 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportJo
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportJobStatus;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ResearchResult;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceFetchReport;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceFetchStatus;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.CallForPapersPort;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.DependencyProfilePort;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.EditionArchivePort;
-import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.EditionDeliveryPort;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.EditionInputPort;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.EmailDeliveryPort;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.port.out.FeedbackPort;
@@ -61,7 +61,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * Runs the end-to-end market report pipeline synchronously: research → synthesis → scoring →
@@ -92,8 +91,7 @@ public class GenerateMarketReportProcessor {
     private final SemanticClusteringService semanticClusteringService;
     private final CallForPapersPort callForPapersPort;
     private final SavedBacklogPolicy savedBacklogPolicy;
-    private final EditionDeliveryPort editionDeliveryPort;
-    private final DeliveryGuardPolicy deliveryGuardPolicy;
+    private final EditionDeliveryGuard editionDeliveryGuard;
     private final SignalScoringService signalScoringService;
     private final FeedbackPort feedbackPort;
     private final FeedbackNudgePolicy feedbackNudgePolicy;
@@ -104,6 +102,25 @@ public class GenerateMarketReportProcessor {
     private final ReaderProfileService readerProfileService;
     private final ReportHistoryPolicy reportHistoryPolicy;
     private final SourceFloorPolicy sourceFloorPolicy;
+
+    // Guarded reads of the feedback store: "ask the policy, then read, else nothing", four times
+    // over. Disabled yields an empty answer rather than a null, so no caller downstream needs to
+    // know the policy exists — and process() carries four fewer branches than it used to.
+    private Map<String, Integer> netVotesBySource() {
+        return feedbackNudgePolicy.enabled() ? feedbackPort.netVotesBySource(feedbackNudgePolicy.lookbackDays()) : Map.of();
+    }
+
+    private Map<String, Integer> netVotesByCategory() {
+        return feedbackNudgePolicy.enabled() ? feedbackPort.netVotesByCategory(feedbackNudgePolicy.lookbackDays()) : Map.of();
+    }
+
+    private java.util.Set<String> upvotedUrls() {
+        return feedbackNudgePolicy.enabled() ? feedbackPort.upvotedUrls(feedbackNudgePolicy.lookbackDays()) : java.util.Set.of();
+    }
+
+    private List<SavedItem> savedItems() {
+        return savedBacklogPolicy.enabled() ? feedbackPort.savedItems(savedBacklogPolicy.lookbackDays()) : List.of();
+    }
 
     public void process(String jobId) {
         log.info("=== [{}] Starting Market Intelligence Pipeline ===", jobId);
@@ -122,7 +139,7 @@ public class GenerateMarketReportProcessor {
         // F16, cheap half: before a single source is fetched or a single token spent. Advisory —
         // two runs starting together both pass it — but it is what stops the common duplicate (a
         // manual dispatch after a successful scheduled run) from costing anything at all.
-        if (alreadyDelivered(jobId, edition)) {
+        if (editionDeliveryGuard.alreadyDelivered(jobId, edition)) {
             jobTracker.track(job.error("Edition " + edition + " has already been delivered"));
             return;
         }
@@ -131,16 +148,16 @@ public class GenerateMarketReportProcessor {
         try {
             research = researchService.fetchAndFilter();
             log.info("[{}] Research completed: {}", jobId, research.summary());
-            warnOnDegradedSources(jobId, research);
+            SourceBreadth.warnOnDegradedSources(jobId, research);
 
-            int attempted = attemptedSources(research);
-            int active = activeSources(research);
+            int attempted = SourceBreadth.attempted(research);
+            int active = SourceBreadth.active(research);
 
             if (research.isEmpty()) {
                 log.warn("[{}] All data sources returned empty results — skipping synthesis", jobId);
                 jobTracker.track(job.error("All data sources returned empty results"));
                 sendFailureNotification(jobId, research, null,
-                        shortfallDetail(research, "Pusty wynik", active, attempted));
+                        SourceBreadth.shortfallDetail(research, "Pusty wynik", active, attempted));
                 return;
             }
 
@@ -155,7 +172,7 @@ public class GenerateMarketReportProcessor {
                         jobId, active, attempted, floor);
                 jobTracker.track(job.error("Only " + active + " of " + attempted
                         + " sources returned anything, below the floor of " + floor));
-                sendFailureNotification(jobId, research, null, shortfallDetail(research,
+                sendFailureNotification(jobId, research, null, SourceBreadth.shortfallDetail(research,
                         "Zbyt wąskie wydanie (próg: %d aktywnych źródeł)".formatted(floor),
                         active, attempted));
                 return;
@@ -179,12 +196,8 @@ public class GenerateMarketReportProcessor {
                 return;
             }
 
-            Map<String, Integer> netVotesBySource = feedbackNudgePolicy.enabled()
-                    ? feedbackPort.netVotesBySource(feedbackNudgePolicy.lookbackDays())
-                    : Map.of();
-            Map<String, Integer> netVotesByCategory = feedbackNudgePolicy.enabled()
-                    ? feedbackPort.netVotesByCategory(feedbackNudgePolicy.lookbackDays())
-                    : Map.of();
+            Map<String, Integer> netVotesBySource = netVotesBySource();
+            Map<String, Integer> netVotesByCategory = netVotesByCategory();
 
             // Re-distil the reader model BEFORE synthesis, so this run's prompt already carries it.
             Optional<ReaderProfile> readerProfile = readerProfileService.refresh(
@@ -225,18 +238,12 @@ public class GenerateMarketReportProcessor {
 
             // Past editions only: this edition's own 🔴 items have had no chance to be voted on, and
             // counting them would drag every hit rate towards zero by construction.
-            finalReport = finalReport.withCalibration(calibrationService.measure(history,
-                    feedbackNudgePolicy.enabled()
-                            ? feedbackPort.upvotedUrls(feedbackNudgePolicy.lookbackDays())
-                            : java.util.Set.of()));
+            finalReport = finalReport.withCalibration(calibrationService.measure(history, upvotedUrls()));
 
             // The reader's own shelf, read from the same feedback rows the votes come from. History
             // is reused rather than re-queried: it is the only place a saved URL's headline survives.
-            finalReport = finalReport.withSavedBacklog(savedBacklogService.assemble(
-                    savedBacklogPolicy.enabled()
-                            ? feedbackPort.savedItems(savedBacklogPolicy.lookbackDays())
-                            : List.of(),
-                    history));
+            finalReport = finalReport.withSavedBacklog(
+                    savedBacklogService.assemble(savedItems(), history));
 
             // N09. A deadline, not a report of a talk. Fetched here rather than in the research
             // fan-out because it is rendered deterministically and never goes near the prompt.
@@ -287,7 +294,7 @@ public class GenerateMarketReportProcessor {
 
             // F16, authoritative half: the last thing before the irreversible one. A conditional
             // insert on the edition date, so of two runs arriving together exactly one is told yes.
-            if (!claimDelivery(jobId, edition)) {
+            if (!editionDeliveryGuard.claim(jobId, edition)) {
                 log.error("[{}] Another run already owns edition {} — refusing to send it twice", jobId, edition);
                 jobTracker.track(job.error("Edition " + edition + " is already claimed for delivery"));
                 return;
@@ -298,7 +305,7 @@ public class GenerateMarketReportProcessor {
             EmailDeliveryReceipt receipt = emailPort.send(finalReport, research);
             job = job.delivered();
             jobTracker.track(job);
-            markDelivered(jobId, edition);
+            editionDeliveryGuard.markDelivered(jobId, edition);
             log.info("[{}] Email delivered via {}: {}", jobId, receipt.provider(), receipt.responseBody());
 
         } catch (Exception e) {
@@ -313,59 +320,6 @@ public class GenerateMarketReportProcessor {
                 jobTracker.track(job.error(e.getMessage()));
                 sendFailureNotification(jobId, research, e, null);
             }
-        }
-    }
-
-    /**
-     * Whether this edition already went out. A storage failure degrades to "not delivered": the
-     * guard's job is to prevent a second send, and a database that cannot answer must not become a
-     * reason the first one never happens.
-     */
-    private boolean alreadyDelivered(String jobId, LocalDate edition) {
-        if (!deliveryGuardPolicy.enabled()) {
-            return false;
-        }
-        try {
-            return editionDeliveryPort.deliveredAt(edition)
-                    .map(at -> {
-                        log.error("[{}] Edition {} was already delivered at {} — stopping before the run costs"
-                                + " anything", jobId, edition, at);
-                        return true;
-                    })
-                    .orElse(false);
-        } catch (Exception e) {
-            log.warn("[{}] Delivery guard could not read edition {}: {}", jobId, edition, e.getMessage());
-            return false;
-        }
-    }
-
-    /**
-     * Claims the send. A storage failure here fails <em>closed</em>, unlike the advisory check: this
-     * is the last gate before an irreversible action, and sending an edition the guard could not
-     * reason about is exactly what F16 is for.
-     */
-    private boolean claimDelivery(String jobId, LocalDate edition) {
-        if (!deliveryGuardPolicy.enabled()) {
-            return true;
-        }
-        try {
-            return editionDeliveryPort.claim(edition, jobId);
-        } catch (Exception e) {
-            log.error("[{}] Delivery claim failed for edition {}: {}", jobId, edition, e.getMessage());
-            return false;
-        }
-    }
-
-    /** Records the send. Never fails the run — the email has already gone out, and it cannot be unsent. */
-    private void markDelivered(String jobId, LocalDate edition) {
-        if (!deliveryGuardPolicy.enabled()) {
-            return;
-        }
-        try {
-            editionDeliveryPort.markDelivered(edition, jobId);
-        } catch (Exception e) {
-            log.error("[{}] Edition {} was delivered but could not be recorded: {}",
-                    jobId, edition, e.getMessage());
         }
     }
 
@@ -414,68 +368,6 @@ public class GenerateMarketReportProcessor {
         } catch (Exception alertFailure) {
             log.error("[{}] Failed to send failure alert: {}", jobId, alertFailure.getMessage());
         }
-    }
-
-    /**
-     * Sources that actually brought something back — the number the F10 floor is measured against.
-     *
-     * <p>Counted from the run's own fetch ledger rather than from {@code activeSourceCount()}: that
-     * one counts <em>sections</em>, and sixteen sections do not map one to one onto nineteen fetches
-     * (the three X searches share a section, as do all RSS feeds), so a section count cannot say how
-     * many sources are alive. {@code DISABLED} entries can never be counted here, because a source
-     * nobody fetched returned nothing — and a {@code SUCCESS} that returned zero items is not
-     * counted either: a reachable but silent source adds no awareness, which is the thing the floor
-     * exists to measure.
-     */
-    private static int activeSources(ResearchResult research) {
-        return (int) research.sourceFetchReports().stream()
-                .filter(report -> report.status() == SourceFetchStatus.SUCCESS && report.itemCount() > 0)
-                .count();
-    }
-
-    /**
-     * Sources this run tried. {@code DISABLED} is excluded deliberately: switching a source off (K7)
-     * is a decision rather than a degradation, so it must neither count as a silent source nor spend
-     * part of the breadth the floor asks for.
-     */
-    private static int attemptedSources(ResearchResult research) {
-        return research.sourceFetchReports().size() - countByStatus(research, SourceFetchStatus.DISABLED);
-    }
-
-    private static int countByStatus(ResearchResult research, SourceFetchStatus status) {
-        return (int) research.sourceFetchReports().stream()
-                .filter(report -> report.status() == status)
-                .count();
-    }
-
-    /**
-     * What the failure alert says about the intake. It used to claim a 24h window — a window that
-     * stopped existing when the lookbacks became per source (up to 104h), which made the only number
-     * in the sentence the one thing in it that was false. These counts come from the run's own fetch
-     * ledger, so the alert can state nothing the ledger did not record, and name no window at all.
-     */
-    private static String shortfallDetail(ResearchResult research, String headline, int active, int attempted) {
-        int disabled = countByStatus(research, SourceFetchStatus.DISABLED);
-        String disabledNote = disabled > 0 ? ", wyłączonych konfiguracją: %d".formatted(disabled) : "";
-        return "%s: nic nie zwróciło %d z %d odpytanych źródeł%s"
-                .formatted(headline, attempted - active, attempted, disabledNote);
-    }
-
-    /**
-     * Logs a WARN when one or more sources failed this run, so a degraded digest (e.g. 15 of 18
-     * sources down but one returned data) is visible in the logs rather than shipping silently as if
-     * the run had been healthy.
-     */
-    private void warnOnDegradedSources(String jobId, ResearchResult research) {
-        List<SourceFetchReport> failed = research.sourceFetchReports().stream()
-                .filter(r -> r.status() == SourceFetchStatus.FAILED)
-                .toList();
-        if (failed.isEmpty()) {
-            return;
-        }
-        log.warn("[{}] Degraded run: {}/{} sources failed — {}", jobId, failed.size(),
-                research.sourceFetchReports().size(),
-                failed.stream().map(SourceFetchReport::sourceName).collect(Collectors.joining(", ")));
     }
 
     private static String rootMessage(Throwable throwable) {

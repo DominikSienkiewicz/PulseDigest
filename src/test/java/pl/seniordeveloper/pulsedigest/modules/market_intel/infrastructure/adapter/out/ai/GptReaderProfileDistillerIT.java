@@ -56,7 +56,7 @@ class GptReaderProfileDistillerIT {
     }
 
     @Test
-    void distilsDatedHypothesesFromTheReadersVotes() throws Exception {
+    void distilsDatedHypothesesFromTheReadersVotes() {
         stubContent("""
                 {"hypotheses":[
                   {"statement":"Chce więcej Javy","evidence":"+8 netto w java/jvm"},
