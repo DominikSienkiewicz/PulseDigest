@@ -145,6 +145,6 @@ class SourceWeightsTest {
 
     @Test
     void keyOfNullReturnsEmptyString() {
-        assertThat(SourceWeights.keyOf(null)).isEqualTo("");
+        assertThat(SourceWeights.keyOf(null)).isEmpty();
     }
 }

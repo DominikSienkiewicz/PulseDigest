@@ -47,6 +47,10 @@ fi
 findings=0
 while read -r sha parents; do
     # Two or more parents is a merge; one is an ordinary commit and cannot duplicate anything.
+    # $parents is a space-separated list of SHAs and splitting it is the whole point here: the
+    # quoting shellcheck asks for would hand `set` one unusable argument and no merge would ever
+    # be recognised again.
+    # shellcheck disable=SC2086
     set -- $parents
     [ "$#" -ge 2 ] || continue
     merge_subject=$(git log -1 --format=%s "$sha")

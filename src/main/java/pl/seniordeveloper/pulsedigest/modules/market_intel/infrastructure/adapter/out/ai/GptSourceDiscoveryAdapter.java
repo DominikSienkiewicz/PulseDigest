@@ -1,6 +1,7 @@
 package pl.seniordeveloper.pulsedigest.modules.market_intel.infrastructure.adapter.out.ai;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +19,6 @@ import pl.seniordeveloper.pulsedigest.shared.infrastructure.http.ExternalRestCli
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.metrics.CostCeiling;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.metrics.LlmUsageMeter;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -99,7 +99,7 @@ public class GptSourceDiscoveryAdapter implements SourceDiscoveryPort {
         return sb.toString();
     }
 
-    private String buildRequest(String userPrompt) throws Exception {
+    private String buildRequest(String userPrompt) throws JsonProcessingException {
         Map<String, Object> request = Map.of(
                 "model", llm.preScoring().model(),
                 "temperature", llm.preScoring().temperature(),
@@ -113,25 +113,23 @@ public class GptSourceDiscoveryAdapter implements SourceDiscoveryPort {
         return objectMapper.writeValueAsString(request);
     }
 
-    private List<SourceProposal> parse(String content) throws Exception {
+    private List<SourceProposal> parse(String content) throws JsonProcessingException {
         ProposalPayload payload = objectMapper.readValue(content, ProposalPayload.class);
         if (payload.proposals() == null) {
             return List.of();
         }
-        List<SourceProposal> proposals = new ArrayList<>();
-        for (ProposalEntry entry : payload.proposals()) {
-            proposals.add(new SourceProposal(entry.name(), entry.kind(), entry.why(), entry.evidence()));
-        }
-        return List.copyOf(proposals);
+        return payload.proposals().stream()
+                .map(entry -> new SourceProposal(entry.name(), entry.kind(), entry.why(), entry.evidence()))
+                .toList();
     }
 
-    private String extractContent(String json) throws Exception {
+    private String extractContent(String json) throws JsonProcessingException {
         OpenAiResponse response = objectMapper.readValue(json, OpenAiResponse.class);
         if (response.choices() == null || response.choices().isEmpty()) {
             throw new IllegalStateException("OpenAI returned empty choices[]");
         }
         if (response.usage() != null) {
-            usageMeter.record("source-discovery", llm.preScoring().model(),
+            usageMeter.recordCall("source-discovery", llm.preScoring().model(),
                     response.usage().promptTokens(), response.usage().completionTokens());
         }
         return response.choices().getFirst().message().content();

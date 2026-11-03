@@ -60,7 +60,7 @@ public record SourceFloorPolicy(int minActiveSources, int minContributingSection
      * edition, and the configured number would quietly stop meaning what it says.
      */
     public int effectiveFloor(int attemptedSources) {
-        return Math.min(minActiveSources, Math.max(attemptedSources, 0));
+        return Math.clamp(attemptedSources, 0, minActiveSources);
     }
 
     /** Whether this run's breadth is below the floor — the one question the processor asks. */
@@ -79,7 +79,7 @@ public record SourceFloorPolicy(int minActiveSources, int minContributingSection
      * {@link #effectiveFloor(int)} exists to avoid, in its other form.
      */
     public boolean isTooThin(int contributingSections, int activeSources) {
-        int floor = Math.min(minContributingSections, Math.max(activeSources, 0));
+        int floor = Math.clamp(activeSources, 0, minContributingSections);
         return minContributingSections > 0 && contributingSections < floor;
     }
 }

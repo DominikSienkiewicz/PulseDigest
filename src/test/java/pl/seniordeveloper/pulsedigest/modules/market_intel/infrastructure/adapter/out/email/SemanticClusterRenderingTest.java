@@ -11,7 +11,6 @@ import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.ReportDa
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.Signal;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.FeedbackProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.ThinWeekProperties;
-import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.WatchlistProperties;
 import pl.seniordeveloper.pulsedigest.testing.TestModels;
 
 import java.util.List;
@@ -75,7 +74,6 @@ class SemanticClusterRenderingTest {
 
         String html = new ReportEmailBuilder(
                 new FeedbackProperties(false, 30, "", ""),
-                new WatchlistProperties(false, List.of()),
                 new ThinWeekProperties(false, 3),
                 new SectionsPolicy(Set.of())).buildHtml(report, fixture.research());
 

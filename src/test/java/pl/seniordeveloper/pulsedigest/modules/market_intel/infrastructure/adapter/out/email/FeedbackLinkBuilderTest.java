@@ -32,8 +32,8 @@ class FeedbackLinkBuilderTest {
     void signsEachVoteSeparatelyWhenASecretIsSet() {
         String html = FeedbackLinkBuilder.render("https://a", "GitHub", "AI/LLM", EDITION, props(RECEIVER, "secret"));
 
-        assertThat(html).contains("sig=" + HmacSigner.sign("https://a|up|GitHub|AI/LLM|" + EDITION, "secret"));
-        assertThat(html).contains("sig=" + HmacSigner.sign("https://a|down|GitHub|AI/LLM|" + EDITION, "secret"));
+        assertThat(html).contains("sig=" + HmacSigner.sign("https://a|up|GitHub|AI/LLM|" + EDITION, "secret"))
+                .contains("sig=" + HmacSigner.sign("https://a|down|GitHub|AI/LLM|" + EDITION, "secret"));
     }
 
     @Test
@@ -52,8 +52,8 @@ class FeedbackLinkBuilderTest {
         String withOther = FeedbackLinkBuilder.render("https://a", "GitHub", "AI/LLM", EDITION,
                 props(RECEIVER, "secret"));
 
-        assertThat(withCategory).isNotEqualTo(withOther);
-        assertThat(withCategory).contains(HmacSigner.sign("https://a|up|GitHub|Research|" + EDITION, "secret"));
+        assertThat(withCategory).isNotEqualTo(withOther)
+                .contains(HmacSigner.sign("https://a|up|GitHub|Research|" + EDITION, "secret"));
     }
 
     @Test
@@ -69,9 +69,9 @@ class FeedbackLinkBuilderTest {
         String itemUrl = "https://example.com/a?x=1&y=2";
         String html = FeedbackLinkBuilder.render(itemUrl, "RSS/Java", "Java/JVM", EDITION, props(RECEIVER, "secret"));
 
-        assertThat(html).contains("url=https%3A%2F%2Fexample.com%2Fa%3Fx%3D1%26y%3D2");
-        assertThat(html).contains("source=RSS%2FJava");
-        assertThat(html).contains(HmacSigner.sign(itemUrl + "|up|RSS/Java|Java/JVM|" + EDITION, "secret"));
+        assertThat(html).contains("url=https%3A%2F%2Fexample.com%2Fa%3Fx%3D1%26y%3D2")
+                .contains("source=RSS%2FJava")
+                .contains(HmacSigner.sign(itemUrl + "|up|RSS/Java|Java/JVM|" + EDITION, "secret"));
     }
 
     @Test

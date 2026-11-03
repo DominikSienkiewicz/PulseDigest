@@ -7,7 +7,10 @@ if [ ! -f .env ]; then
 fi
 
 set -a
-# shellcheck source=.env
+# .env holds the credentials and is gitignored, so there is never a copy for shellcheck to read:
+# `source=.env` resolved to nothing and left SC1091 for a human to wave through. /dev/null says
+# "do not follow this" on purpose, which is the honest version of the same thing.
+# shellcheck source=/dev/null
 source .env
 set +a
 

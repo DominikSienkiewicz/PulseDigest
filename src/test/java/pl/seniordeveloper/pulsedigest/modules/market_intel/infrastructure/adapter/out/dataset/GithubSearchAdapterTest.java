@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.client.RestClient;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.GithubRepo;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.GithubApiProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.GithubProperties;
 
 import org.mockito.ArgumentCaptor;
@@ -63,7 +64,7 @@ class GithubSearchAdapterTest {
     @SuppressWarnings({"rawtypes", "unchecked"})
     void fetchTrendingReposUsesConfiguredLookbackWindow() throws Exception {
         GithubProperties props = new GithubProperties("language:java", 3, 4);
-        GithubSearchAdapter adapter = new GithubSearchAdapter(new ObjectMapper(), props);
+        GithubSearchAdapter adapter = new GithubSearchAdapter(new ObjectMapper(), props, new GithubApiProperties(""));
         Field propsField = GithubSearchAdapter.class.getDeclaredField("props");
         propsField.setAccessible(true);
         propsField.set(adapter, props);
@@ -92,7 +93,7 @@ class GithubSearchAdapterTest {
     @SuppressWarnings({"rawtypes", "unchecked"})
     private static GithubSearchAdapter adapter(String query, int limit, String responseBody) throws Exception {
         GithubProperties props = new GithubProperties(query, limit, 1);
-        GithubSearchAdapter adapter = new GithubSearchAdapter(new ObjectMapper(), props);
+        GithubSearchAdapter adapter = new GithubSearchAdapter(new ObjectMapper(), props, new GithubApiProperties(""));
 
         Field propsField = GithubSearchAdapter.class.getDeclaredField("props");
         propsField.setAccessible(true);

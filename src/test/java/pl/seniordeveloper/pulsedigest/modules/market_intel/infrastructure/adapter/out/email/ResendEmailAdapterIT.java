@@ -112,7 +112,9 @@ class ResendEmailAdapterIT {
     @Test
     void sendFailsFastWhenConfigIsMissingAndWrapsProviderFailure() throws Exception {
         ResendEmailAdapter missingConfig = adapter(emailProperties("", "from@example.com", "to@example.com"));
-        assertThatThrownBy(() -> missingConfig.send(report(), emptyResearch()))
+        var report = report();
+        var research = emptyResearch();
+        assertThatThrownBy(() -> missingConfig.send(report, research))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Email not configured");
 
@@ -120,7 +122,7 @@ class ResendEmailAdapterIT {
                 .willReturn(aResponse().withStatus(500).withBody("boom")));
         ResendEmailAdapter providerFailure = adapter(emailProperties("resend-key", "from@example.com", "to@example.com"));
 
-        assertThatThrownBy(() -> providerFailure.send(report(), emptyResearch()))
+        assertThatThrownBy(() -> providerFailure.send(report, research))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Failed to send email via Resend");
     }
@@ -129,8 +131,7 @@ class ResendEmailAdapterIT {
         ResendEmailAdapter adapter = new ResendEmailAdapter(new ObjectMapper(),
                 new ReportEmailBuilder(
                         new pl.seniordeveloper.pulsedigest.shared.infrastructure.config.FeedbackProperties(false, 30, "", ""),
-                        new pl.seniordeveloper.pulsedigest.shared.infrastructure.config.WatchlistProperties(
-                                false, java.util.List.of()), new ThinWeekProperties(false, 3),
+                        new ThinWeekProperties(false, 3),
                 new SectionsPolicy(java.util.Set.of())),
                 new AlertEmailBuilder(), new PlainTextDigestBuilder(new ThinWeekProperties(false, 3)),
                 new RetrospectiveEmailBuilder(), emailProperties);

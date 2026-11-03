@@ -17,6 +17,7 @@ import pl.seniordeveloper.pulsedigest.shared.result.Result;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 class DigestRunnerTest {
 
@@ -42,7 +43,7 @@ class DigestRunnerTest {
     void dumpsTheMetricsSnapshotBeforeExitingRatherThanFromAShutdownHook() {
         runner.exitCode(Result.success("j0"));
 
-        org.mockito.Mockito.verify(metricsLogger).dump();
+        verify(metricsLogger).dump();
     }
 
     @Test

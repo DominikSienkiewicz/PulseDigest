@@ -75,7 +75,8 @@ class HuggingFaceTrendingAdapterTest {
     void filtersOutLowEngagementModelsBelowBothLikesAndDownloads() {
         List<HuggingFaceModel> models = adapter.parseModels(MODELS_JSON);
 
-        assertThat(models).extracting(HuggingFaceModel::id)
+        assertThat(models).isNotEmpty()
+                .extracting(HuggingFaceModel::id)
                 .doesNotContain("tiny-author/obscure-model");
     }
 
@@ -83,7 +84,8 @@ class HuggingFaceTrendingAdapterTest {
     void filtersOutModelsWithNonRelevantPipelineTag() {
         List<HuggingFaceModel> models = adapter.parseModels(MODELS_JSON);
 
-        assertThat(models).extracting(HuggingFaceModel::id)
+        assertThat(models).isNotEmpty()
+                .extracting(HuggingFaceModel::id)
                 .doesNotContain("irrelevant/sentiment-analyzer");
     }
 

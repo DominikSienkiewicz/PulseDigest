@@ -6,18 +6,16 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /**
  * Aggregate of all raw data collected from external intelligence sources.
  */
 /*
- * Serialisation note (N24): the five derived accessors below are @JsonIgnore'd so a stored edition
+ * Serialisation note (N24): the four derived accessors below are @JsonIgnore'd so a stored edition
  * input is exactly the components the prompt was built from. Jackson otherwise writes them as
- * `empty`, `summary`, `allTitles`, `rawTotalCount` and `activeSourceCount` — fields no constructor
- * can read back, which made the payload unreadable rather than merely larger.
+ * `empty`, `summary`, `rawTotalCount` and `activeSourceCount` — fields no constructor can read back,
+ * which made the payload unreadable rather than merely larger.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record ResearchResult(
@@ -57,18 +55,6 @@ public record ResearchResult(
         return sections().stream().allMatch(section -> section.items().isEmpty());
     }
 
-    /**
-     * Every headline this run fetched, before any prompt budget was applied. The watchlist scans
-     * these — scanning only the items that reached the digest would make "0 mentions" meaningless.
-     */
-    @JsonIgnore
-    public List<String> allTitles() {
-        return sections().stream()
-                .flatMap(Section::titles)
-                .filter(title -> title != null && !title.isBlank())
-                .toList();
-    }
-
     @JsonIgnore
     public int rawTotalCount() {
         return sections().stream().mapToInt(Section::rawCount).sum();
@@ -89,61 +75,52 @@ public record ResearchResult(
     }
 
     /**
-     * One fetched source: what to call it, what it returned, and how to read a headline out of it.
+     * One fetched source: what to call it, and how much it returned.
      *
      * <p>The roster below is C1's concession made concrete. ADR-0002 argues that adding a source
      * should cost a deliberate edit, and that still holds — but it does not follow that the edit
-     * should be repeated five times in one file. {@code isEmpty}, {@code activeSourceCount},
-     * {@code allTitles}, {@code rawTotalCount} and {@code summary} each used to restate the same
-     * sixteen lists, so a new source that was added to four of them and forgotten in the fifth
-     * compiled perfectly and reported itself wrong.
+     * should be repeated in every aggregation of one file. {@code isEmpty}, {@code activeSourceCount},
+     * {@code rawTotalCount} and {@code summary} each used to restate the same sixteen lists, so a new
+     * source that was added to some of them and forgotten in another compiled perfectly and reported
+     * itself wrong.
      *
      * @param label    what {@link #summary()} calls this source
      * @param items    what it returned after filtering
-     * @param title    a headline for one item, for the watchlist scan
      * @param rawCount what it returned <em>before</em> filtering — the same number for sources that
      *                 do not page, and {@link RawCounts} for the five that do
      */
-    private record Section<T>(String label, List<T> items, Function<T, String> title, int rawCount) {
+    private record Section(String label, List<?> items, int rawCount) {
 
-        static <T> Section<T> of(String label, List<T> items, Function<T, String> title) {
-            return new Section<>(label, items, title, items.size());
+        static Section of(String label, List<?> items) {
+            return new Section(label, items, items.size());
         }
 
-        static <T> Section<T> paged(String label, List<T> items, Function<T, String> title, int rawCount) {
-            return new Section<>(label, items, title, rawCount);
-        }
-
-        /** Mapping happens inside, so callers can hold a {@code Section<?>} without capturing T. */
-        Stream<String> titles() {
-            return items.stream().map(title);
+        static Section paged(String label, List<?> items, int rawCount) {
+            return new Section(label, items, rawCount);
         }
     }
 
     /**
      * Every source this result carries, in the order {@link #summary()} prints them. The one place a
-     * new source has to be registered for all five aggregations to see it.
+     * new source has to be registered for all four aggregations to see it.
      */
-    private List<Section<?>> sections() {
+    private List<Section> sections() {
         return List.of(
-                Section.paged("tweetów", tweets, Tweet::text, rawCounts.tweets()),
-                Section.paged("HN", hackerNewsPosts, HackerNewsPost::title, rawCounts.hackerNews()),
-                Section.paged("GH", githubRepos,
-                        r -> r.name() + " " + (r.description() != null ? r.description() : ""),
-                        rawCounts.github()),
-                Section.paged("RSS", rssItems, RssItem::title, rawCounts.rss()),
-                Section.paged("Reddit", redditPosts, RedditPost::title, rawCounts.reddit()),
-                Section.of("papers", papers, ResearchPaper::title),
-                Section.of("releases", releases, r -> r.repoFullName() + " " + r.version()),
-                Section.of("HF models", huggingFaceModels, HuggingFaceModel::id),
-                Section.of("ProductHunt", productHuntPosts, ProductHuntPost::name),
-                Section.of("security advisories", securityAdvisories,
-                        a -> a.summary() != null ? a.summary() : a.ghsaId()),
-                Section.of("JEP", jepUpdates, j -> j.title() != null ? j.title() : j.jepId()),
-                Section.of("CNCF", cncfProjectUpdates, CncfProjectUpdate::projectName),
-                Section.of("Radar", radarEntries, RadarEntry::name),
-                Section.of("Talks", conferenceTalks, ConferenceTalk::title),
-                Section.of("Lab announcements", labAnnouncements, LabAnnouncement::title),
-                Section.of("Social", socialPosts, SocialPost::text));
+                Section.paged("tweetów", tweets, rawCounts.tweets()),
+                Section.paged("HN", hackerNewsPosts, rawCounts.hackerNews()),
+                Section.paged("GH", githubRepos, rawCounts.github()),
+                Section.paged("RSS", rssItems, rawCounts.rss()),
+                Section.paged("Reddit", redditPosts, rawCounts.reddit()),
+                Section.of("papers", papers),
+                Section.of("releases", releases),
+                Section.of("HF models", huggingFaceModels),
+                Section.of("ProductHunt", productHuntPosts),
+                Section.of("security advisories", securityAdvisories),
+                Section.of("JEP", jepUpdates),
+                Section.of("CNCF", cncfProjectUpdates),
+                Section.of("Radar", radarEntries),
+                Section.of("Talks", conferenceTalks),
+                Section.of("Lab announcements", labAnnouncements),
+                Section.of("Social", socialPosts));
     }
 }

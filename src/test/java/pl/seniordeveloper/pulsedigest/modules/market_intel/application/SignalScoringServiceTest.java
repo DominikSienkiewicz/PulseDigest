@@ -48,8 +48,8 @@ class SignalScoringServiceTest {
                 topicItem("Twitter/X", "Community", "mcp"),
                 topicItem("Hugging Face", "Research", "mcp")));
 
-        assertThat(result).allMatch(s -> s.rank() == SignalRank.CRITICAL);
-        assertThat(result).anyMatch(s -> s.signalScore() < 101);
+        assertThat(result).allMatch(s -> s.rank() == SignalRank.CRITICAL)
+                .anyMatch(s -> s.signalScore() < 101);
     }
 
     /**
@@ -86,7 +86,7 @@ class SignalScoringServiceTest {
         SignalScoringService lenient = new SignalScoringService(
                 new ScoringPolicy(2, 50, 50, 1_000, 100, 60, java.util.Map.of(), java.util.Set.of(), 1.0));
 
-        assertThat(lenient.score(twoDomains)).allMatch(s -> s.rank() == SignalRank.CRITICAL);
+        assertThat(lenient.score(twoDomains)).isNotEmpty().allMatch(s -> s.rank() == SignalRank.CRITICAL);
     }
 
     /**
@@ -108,7 +108,7 @@ class SignalScoringServiceTest {
                 java.util.Map.of("Reddit", SourceDomain.CODE, "RSS", SourceDomain.BUSINESS),
                 java.util.Set.of(), 1.0));
 
-        assertThat(split.score(allSocialByDefault)).allMatch(s -> s.rank() == SignalRank.CRITICAL);
+        assertThat(split.score(allSocialByDefault)).isNotEmpty().allMatch(s -> s.rank() == SignalRank.CRITICAL);
     }
 
     /** An override must not win over a more specific one just because of map ordering. */
@@ -154,7 +154,7 @@ class SignalScoringServiceTest {
                 topicItem("GitHub", "Crypto", "stablecoin-settlement"),
                 topicItem("Hacker News", "Crypto", "stablecoin-settlement")));
 
-        assertThat(result).allMatch(s -> s.rank() == SignalRank.CRITICAL);
+        assertThat(result).isNotEmpty().allMatch(s -> s.rank() == SignalRank.CRITICAL);
     }
 
     /** Matched against the topic key too, so a mute works wherever the model put the subject. */
@@ -177,7 +177,7 @@ class SignalScoringServiceTest {
                 topicItem("GitHub", "Open Source", "mcp"),
                 topicItem("Hacker News", "Community", "mcp")));
 
-        assertThat(result).allMatch(s -> s.rank() == SignalRank.CRITICAL);
+        assertThat(result).isNotEmpty().allMatch(s -> s.rank() == SignalRank.CRITICAL);
     }
 
     @Test
@@ -199,7 +199,7 @@ class SignalScoringServiceTest {
                 topicItem("GitHub", "Open Source", "mcp"),
                 topicItem("Product Hunt", "Other", "Mcp")));
 
-        assertThat(result).allMatch(s -> s.rank() == SignalRank.CRITICAL);
+        assertThat(result).isNotEmpty().allMatch(s -> s.rank() == SignalRank.CRITICAL);
     }
 
     @Test
@@ -210,7 +210,7 @@ class SignalScoringServiceTest {
                 topicItem("GitHub", "llm", null),
                 topicItem("Hacker News", "llm", "")));
 
-        assertThat(result).allMatch(s -> s.rank() == SignalRank.CRITICAL);
+        assertThat(result).isNotEmpty().allMatch(s -> s.rank() == SignalRank.CRITICAL);
     }
 
     // --- C7: every scored signal explains itself ---
@@ -252,7 +252,7 @@ class SignalScoringServiceTest {
                 topicItem("GitHub", "Open Source", "mcp"),
                 topicItem("Hacker News", "Community", "mcp")));
 
-        assertThat(result).allSatisfy(s -> assertThat(s.breakdown().wasCrossSourceConfirmed()).isTrue());
+        assertThat(result).isNotEmpty().allSatisfy(s -> assertThat(s.breakdown().wasCrossSourceConfirmed()).isTrue());
     }
 
     // --- C13: per-category preference multiplier ---
@@ -284,7 +284,7 @@ class SignalScoringServiceTest {
                 topicItem("GitHub", "Research", "mcp"),
                 topicItem("Hacker News", "Research", "mcp")), Map.of(), Map.of("research", -100));
 
-        assertThat(muted).allMatch(s -> s.rank() == SignalRank.CRITICAL);
+        assertThat(muted).isNotEmpty().allMatch(s -> s.rank() == SignalRank.CRITICAL);
     }
 
     @Test
@@ -352,7 +352,7 @@ class SignalScoringServiceTest {
         DigestItem product = item("Product Hunt", "LLM", 0);
         List<Signal> result = service.score(List.of(paper, repo, product));
         // SCIENCE + CODE + BUSINESS → 3 domains → CRITICAL
-        assertThat(result).allMatch(s -> s.rank() == SignalRank.CRITICAL);
+        assertThat(result).isNotEmpty().allMatch(s -> s.rank() == SignalRank.CRITICAL);
     }
 
     @Test
