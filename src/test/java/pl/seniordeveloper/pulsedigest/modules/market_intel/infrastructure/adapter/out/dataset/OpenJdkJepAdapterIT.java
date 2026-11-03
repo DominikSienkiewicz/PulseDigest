@@ -8,6 +8,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.client.RestClient;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.JepUpdate;
+import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.GithubApiProperties;
 import pl.seniordeveloper.pulsedigest.shared.infrastructure.config.OpenJdkProperties;
 
 import java.lang.reflect.Field;
@@ -42,7 +43,7 @@ class OpenJdkJepAdapterIT {
                         "http://localhost:" + wireMock.port(),
                         7,
                         List.of("Integrated"));
-        adapter = new OpenJdkJepAdapter(props, new ObjectMapper());
+        adapter = new OpenJdkJepAdapter(props, new ObjectMapper(), new GithubApiProperties(""));
 
         RestClient testClient = RestClient.builder()
                 .baseUrl("http://localhost:" + wireMock.port())

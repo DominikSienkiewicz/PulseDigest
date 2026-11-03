@@ -137,7 +137,7 @@ public class TwitterSearchAdapter {
                 .uri(uriBuilder -> uriBuilder
                         .path("/tweets/search/recent")
                         .queryParam("query", effectiveQuery)
-                        .queryParam("max_results", Math.max(10, Math.min(maxResults, 100)))
+                        .queryParam("max_results", Math.clamp(maxResults, 10, 100))
                         .queryParam("tweet.fields", "created_at,author_id,text,public_metrics")
                         .queryParam("expansions", "author_id")
                         .queryParam("user.fields", "username,name")
@@ -165,10 +165,9 @@ public class TwitterSearchAdapter {
             }
 
             Map<String, TwitterApiResponse.UserData> usersById = buildUsersById(response);
-            List<Tweet> result = new ArrayList<>();
-            for (TwitterApiResponse.TweetData td : response.data()) {
-                result.add(toTweet(td, usersById));
-            }
+            List<Tweet> result = response.data().stream()
+                    .map(td -> toTweet(td, usersById))
+                    .toList();
             log.info("Sparsowano {} tweetów", result.size());
             return result;
 

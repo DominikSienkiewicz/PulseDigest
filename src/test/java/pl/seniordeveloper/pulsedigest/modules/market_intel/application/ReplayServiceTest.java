@@ -17,8 +17,11 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class ReplayServiceTest {
@@ -83,7 +86,7 @@ class ReplayServiceTest {
 
         service.replay("job-3");
 
-        org.mockito.Mockito.verify(history, org.mockito.Mockito.never()).recentEditions(anyInt());
+        verify(history, never()).recentEditions(anyInt());
     }
 
     /**
@@ -101,11 +104,11 @@ class ReplayServiceTest {
         when(
                 history.edition("job-9")).thenReturn(Optional.of(TestModels.pastEdition(Instant.now(), List.of(signal(
                         shipped, SignalRank.MODERATE, 80), signal(dropped, SignalRank.MODERATE, 70)))));
-        when(estimates.estimate(org.mockito.ArgumentMatchers.any()))
+        when(estimates.estimate(any()))
                 .thenReturn(pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model
                         .PromptCostEstimate.unpriced(12_000));
         when(
-                synthesis.synthesize(org.mockito.ArgumentMatchers.any())).thenReturn(new pl.seniordeveloper
+                synthesis.synthesize(any())).thenReturn(new pl.seniordeveloper
                         .pulsedigest.modules.market_intel.domain.model.ReportData("p", "e", List.of(), List.of(shipped, fresh)));
 
         ReplayService.PromptReplayReport report = service.replayPrompt("job-9").orElseThrow();
@@ -123,10 +126,10 @@ class ReplayServiceTest {
         when(inputs.load("job-old")).thenReturn(Optional.empty());
 
         assertThat(service.replayPrompt("job-old")).isEmpty();
-        org.mockito.Mockito.verify(synthesis, org.mockito.Mockito.never())
-                .synthesize(org.mockito.ArgumentMatchers.any());
-        org.mockito.Mockito.verify(estimates, org.mockito.Mockito.never())
-                .estimate(org.mockito.ArgumentMatchers.any());
+        verify(synthesis, never())
+                .synthesize(any());
+        verify(estimates, never())
+                .estimate(any());
     }
 
     private static DigestItem item(String url, String title, String source) {

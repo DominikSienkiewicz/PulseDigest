@@ -148,9 +148,22 @@ test task up to date and the check did not run at all. Both were found the same 
 baseline bug before them: by making the violation on purpose and watching the build stay green.
 `CLAUDE.md` meanwhile asserted that a removed-but-documented key "też wywala build". It did not.
 
+**A link checker that trusted the author's disk.** A CI step walks every tracked Markdown file and
+reports relative links pointing at nothing — README is the router into `/docs/`, and a dead link
+there is a public defect no Java test can see. It resolved each target with `[ -e ]`, against the
+filesystem of whatever machine happened to run it. `docs/concepts/` is local and ignored by design,
+so it exists on the author's disk and in no checkout anywhere; this document linked to it, in the
+same sentence that calls it untracked. The check was therefore green on the machine that wrote the
+link, and red in CI — which sees it only after the push that publishes it. Two mistakes of one kind:
+a gate that runs only in CI reports a push too late, and a gate that asks the disk is not examining
+the artifact. It is now `scripts/check-markdown-links.sh`, runs locally, and resolves against the
+files git tracks — a target present here but untracked is reported dead, and says so. The
+replacement was checked by planting the link again and watching the old logic stay green while the
+new one failed, because a gate nobody has seen fail is not yet a gate.
+
 ## What is still wrong
 
-[`docs/concepts/`](concepts/) is local and untracked, so the backlog is not here. What is public:
+`docs/concepts/` is local and untracked, so the backlog is not here. What is public:
 
 - **`GenerateMarketReportProcessor` is at 488 of the 500 lines Checkstyle allows**, with three
   pre-synthesis aborts in it. The next guard added there does not fit, so the choice — extract the

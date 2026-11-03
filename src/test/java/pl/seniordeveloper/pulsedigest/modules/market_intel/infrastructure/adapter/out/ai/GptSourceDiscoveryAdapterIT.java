@@ -6,6 +6,8 @@ import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.web.client.RestClient;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.DigestItem;
 import pl.seniordeveloper.pulsedigest.modules.market_intel.domain.model.SourceProposal;
@@ -100,32 +102,29 @@ class GptSourceDiscoveryAdapterIT {
         });
     }
 
-    @Test
-    void anEmptyProposalListIsAValidAnswer() {
-        // "The record does not argue for a missing source" is a successful answer to the question.
-        stubProposals("{\"proposals\":[]}");
+    /**
+     * Three payloads, one behaviour: nothing to propose is an answer, not a failure.
+     *
+     * <p>The empty list is the interesting one — "the record does not argue for a missing source" is
+     * a successful answer to the question, not a broken call — and the other two reach the same place
+     * by being unreadable rather than by being empty. The case name says which is which when one fails.
+     */
+    @ParameterizedTest(name = "{1}")
+    @CsvSource(delimiter = '|', textBlock = """
+            {"proposals":[]} | an empty proposal list is a valid answer
+            {}               | a payload without the proposals field
+            this is not json | content the parser cannot read
+            """)
+    void aPayloadThatProposesNothingYieldsNothing(String payload, String why) {
+        stubProposals(payload);
 
-        assertThat(adapter.propose(BEST)).isEmpty();
-    }
-
-    @Test
-    void aPayloadWithoutTheProposalsFieldYieldsNothing() {
-        stubProposals("{}");
-
-        assertThat(adapter.propose(BEST)).isEmpty();
+        assertThat(adapter.propose(BEST)).as(why).isEmpty();
     }
 
     @Test
     void aFailedCallMeansNoProposalsRatherThanAFailedRun() {
         wireMock.stubFor(post(urlPathEqualTo("/chat/completions"))
                 .willReturn(aResponse().withStatus(429).withBody("{\"error\":\"rate limited\"}")));
-
-        assertThat(adapter.propose(BEST)).isEmpty();
-    }
-
-    @Test
-    void unparseableContentYieldsNothing() {
-        stubProposals("this is not json");
 
         assertThat(adapter.propose(BEST)).isEmpty();
     }

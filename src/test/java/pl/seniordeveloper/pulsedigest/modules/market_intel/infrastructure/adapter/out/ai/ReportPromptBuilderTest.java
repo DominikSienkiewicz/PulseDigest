@@ -171,8 +171,8 @@ class ReportPromptBuilderTest {
         assertThat(payload).anySatisfy(item -> {
             assertThat(item).containsEntry("source", "Security Advisories");
             assertThat(item).containsEntry("engagement_score", 1000);
-        });
-        assertThat(payload).anySatisfy(item -> {
+        })
+                .anySatisfy(item -> {
             assertThat(item).containsEntry("source", "OpenJDK JEP");
             assertThat(item).containsEntry("engagement_score", 300);
         });
@@ -204,13 +204,13 @@ class ReportPromptBuilderTest {
 
         List<Map<String, Object>> payload = payload(builder.buildUserPrompt(researchWithNullOptionalFields()));
 
-        assertThat(payload).hasSize(11);
-        assertThat(payload).allSatisfy(item -> assertThat(item.values()).doesNotContainNull());
-        assertThat(payload).anySatisfy(item -> {
+        assertThat(payload).hasSize(11)
+                .allSatisfy(item -> assertThat(item.values()).doesNotContainNull())
+                .anySatisfy(item -> {
             assertThat(item).containsEntry("source", "arXiv/cs.AI");
             assertThat(item).containsEntry("authors", "Unknown");
-        });
-        assertThat(payload).anySatisfy(item -> {
+        })
+                .anySatisfy(item -> {
             assertThat(item).containsEntry("source", "Hugging Face");
             assertThat(item.get("text_preview")).asString().contains("Pipeline: n/a");
         });
@@ -297,8 +297,8 @@ class ReportPromptBuilderTest {
 
         String prompt = builder.buildUserPrompt(researchWithEverySource());
 
-        assertThat(prompt).contains("JUŻ OPUBLIKOWANE");
-        assertThat(prompt).contains("Spring Boot 4.2 released").contains("MCP hits 1.0");
+        assertThat(prompt).contains("JUŻ OPUBLIKOWANE")
+                .contains("Spring Boot 4.2 released").contains("MCP hits 1.0");
     }
 
     @Test
@@ -395,9 +395,9 @@ class ReportPromptBuilderTest {
         assertThat(result.stream().anyMatch(m -> "arXiv/cs.AI".equals(m.get("source"))))
                 .as("arXiv item must survive the cap despite zero engagement")
                 .isTrue();
-        assertThat(result.get(0).get("source"))
+        assertThat(result.get(0))
                 .as("arXiv must be first — highest preScore")
-                .isEqualTo("arXiv/cs.AI");
+                .containsEntry("source", "arXiv/cs.AI");
     }
 
     @Test
@@ -407,8 +407,8 @@ class ReportPromptBuilderTest {
                 Map.of("source", "arXiv/cs.AI", "engagement_score", 0)
         );
         List<Map<String, Object>> result = PromptItemSelector.applyTotalCap(items, 100);
-        assertThat(result).hasSize(2);
-        assertThat(result).isSameAs(items);
+        assertThat(result).hasSize(2)
+                .isSameAs(items);
     }
 
     private List<Map<String, Object>> payload(String prompt) throws Exception {

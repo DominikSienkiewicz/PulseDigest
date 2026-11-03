@@ -69,6 +69,13 @@ edition never republishes. It is a separate job with its own `pages: write` perm
 deliberately **not given the feedback signing secret**: a job that cannot sign a link cannot leak a
 signed one, even if the renderer changed.
 
+**Once per repository, by hand:** Settings → Pages → Build and deployment → Source: **GitHub
+Actions**. Until then `actions/configure-pages` fails with `Get Pages site failed … Not Found`: the
+archive builds and passes the feedback-link guard, nothing is deployed, and the run is red although
+the digest was delivered. The workflow cannot do this itself — the action's `enablement` input
+needs a token other than `GITHUB_TOKEN`, and a long-lived admin token for a one-time switch is a
+worse trade than a click.
+
 ## What is still true of the published pages
 
 They are Polish. [ADR-0001](adr/0001-polish-as-the-product-language.md) explains why that is a

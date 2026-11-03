@@ -40,11 +40,6 @@ import java.util.Locale;
 public class GithubStepSummaryAdapter implements RunSummaryPort {
 
     /**
-     * Where the summary is appended. The default is GitHub Actions' own variable, so nothing had to
-     * change in the workflow; a blank value — the case on any machine that is not an Actions runner —
-     * means every method here writes nothing.
-     */
-    /**
      * The registry the figures are read from, injected rather than reached for through Micrometer's
      * global composite — the same decision, for the same reason, that {@code CostCeiling} documents.
      * That global is shared with every other test in the JVM, and this class's first test proved what
@@ -53,6 +48,11 @@ public class GithubStepSummaryAdapter implements RunSummaryPort {
      */
     private final MeterRegistry registry;
 
+    /**
+     * Where the summary is appended. The default is GitHub Actions' own variable, so nothing had to
+     * change in the workflow; a blank value — the case on any machine that is not an Actions runner —
+     * means every method here writes nothing.
+     */
     @Value("${report.run-summary-path:${GITHUB_STEP_SUMMARY:}}")
     private String summaryPath;
 
@@ -84,7 +84,9 @@ public class GithubStepSummaryAdapter implements RunSummaryPort {
 
     @Override
     public void writeOutcome(String status, String detail) {
-        append("### Outcome: %s\n\n%s\n".formatted(status, detail == null ? "" : detail));
+        // A literal LF, not %n: this file is read by GitHub as Markdown, so the separator is the
+        // format's, not the host's.
+        append("### Outcome: " + status + "\n\n" + (detail == null ? "" : detail) + "\n");
     }
 
     private String tokens(String kind) {

@@ -88,8 +88,8 @@ public record ReportData(
     /**
      * Copy of this report carrying the reader's own outdated dependencies (N07).
      *
-     * <p>Rendered deterministically, like the watchlist: these lines are a registry lookup against a
-     * build file, not something the model should be asked to summarise or allowed to reword.
+     * <p>Rendered deterministically: these lines are a registry lookup against a build file, not
+     * something the model should be asked to summarise or allowed to reword.
      */
     public ReportData withDependencyReleases(List<DependencyRelease> releases) {
         return toBuilder().dependencyReleases(releases).build();

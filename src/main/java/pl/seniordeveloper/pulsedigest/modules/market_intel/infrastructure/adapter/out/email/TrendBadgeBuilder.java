@@ -94,15 +94,6 @@ final class TrendBadgeBuilder {
     }
 
     /**
-     * The 🔴 hit rate the reader's own votes produced (N12): of the stories past editions called
-     * CRITICAL, how many he up-voted.
-     *
-     * <p>Absent until there are at least three to divide by — "100% (1/1)" is a number that looks
-     * like calibration and is not. This is the badge's only assessment that comes from outside the
-     * system; {@code buildRadarAccuracyLine} grades the radar against the scorer's own later
-     * verdict, which is the digest marking its own homework.
-     */
-    /**
      * Names the sources that have gone quiet, in the footer the reader actually sees (N27).
      *
      * <p>The run log has warned about these since F7, and nobody reads a green run's log. A source
@@ -122,6 +113,15 @@ final class TrendBadgeBuilder {
                 + " Wy&#322;&#261;cz je w <code>report.sources.disabled</code>, je&#347;li to sta&#322;e.</div>";
     }
 
+    /**
+     * The 🔴 hit rate the reader's own votes produced (N12): of the stories past editions called
+     * CRITICAL, how many he up-voted.
+     *
+     * <p>Absent until there are at least three to divide by — "100% (1/1)" is a number that looks
+     * like calibration and is not. This is the badge's only assessment that comes from outside the
+     * system; {@code buildRadarAccuracyLine} grades the radar against the scorer's own later
+     * verdict, which is the digest marking its own homework.
+     */
     static String buildCalibrationLine(Calibration calibration) {
         if (calibration == null || !calibration.isReportable()) {
             return "";
