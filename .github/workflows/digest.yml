@@ -329,7 +329,7 @@ jobs:
           fi
           echo "Archive is clean: no feedback links in $(find build/archive -type f | wc -l) file(s)."
 
-      - uses: actions/configure-pages@v5.0.0
+      - uses: actions/configure-pages@v6.0.0
 
       - uses: actions/upload-pages-artifact@v4.0.0
         with:
