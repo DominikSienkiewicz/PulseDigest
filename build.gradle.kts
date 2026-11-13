@@ -407,7 +407,7 @@ tasks.bootJar {
 val pitest: Configuration by configurations.creating
 
 dependencies {
-    pitest("org.pitest:pitest-command-line:1.30.1")
+    pitest("org.pitest:pitest-command-line:1.30.2")
     pitest("org.pitest:pitest-junit5-plugin:1.2.3")
 }
 
