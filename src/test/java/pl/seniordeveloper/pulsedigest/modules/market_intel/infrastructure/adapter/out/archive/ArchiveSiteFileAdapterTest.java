@@ -66,14 +66,15 @@ class ArchiveSiteFileAdapterTest {
     }
 
     @Test
-    void thePagesLinkTheSourceInTheOrganizationThatOwnsTheRepository(@TempDir Path dir) throws Exception {
-        // The repository moved to the organization on 2026-11-13; GitHub's redirect from the old
-        // owner disappears as soon as that name is reused, and an indexed page cannot be fixed later.
+    void thePagesLinkTheSourceInTheAccountThatOwnsTheRepository(@TempDir Path dir) throws Exception {
+        // The repository spent 2026-11-13 and 2026-11-14 in an organization and moved back; GitHub's
+        // redirect from a former owner disappears as soon as that name is reused, and an indexed page
+        // cannot be fixed later.
         write(dir, editions());
 
         assertThat(Files.readString(dir.resolve("index.html")))
-                .contains("href=\"https://github.com/SeniorDeveloper-pl-Dominik-Sienkiewicz/PulseDigest\"")
-                .doesNotContain("github.com/DominikSienkiewicz/");
+                .contains("href=\"https://github.com/DominikSienkiewicz/PulseDigest\"")
+                .doesNotContain("github.com/SeniorDeveloper-pl-Dominik-Sienkiewicz/");
     }
 
     @Test
