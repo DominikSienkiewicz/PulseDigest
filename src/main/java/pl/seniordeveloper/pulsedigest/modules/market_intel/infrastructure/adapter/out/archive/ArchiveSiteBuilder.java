@@ -178,7 +178,7 @@ public class ArchiveSiteBuilder {
 
     private static String footer() {
         return "<footer>Wydania bez linków zwrotnych i bez danych czytelnika. "
-                + "<a href=\"https://github.com/DominikSienkiewicz/PulseDigest\">źródło</a>"
+                + "<a href=\"https://github.com/SeniorDeveloper-pl-Dominik-Sienkiewicz/PulseDigest\">źródło</a>"
                 + "</footer></main></body></html>";
     }
 
