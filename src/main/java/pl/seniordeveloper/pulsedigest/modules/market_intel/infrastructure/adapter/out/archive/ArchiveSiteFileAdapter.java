@@ -33,7 +33,7 @@ public class ArchiveSiteFileAdapter implements ArchiveSitePort {
     @Value("${report.archive.output-path:build/archive}")
     private String outputPath;
 
-    @Value("${report.archive.site-url:https://dominiksienkiewicz.github.io/PulseDigest/}")
+    @Value("${report.archive.site-url:https://seniordeveloper-pl-dominik-sienkiewicz.github.io/PulseDigest/}")
     private String siteUrl;
 
     @Override

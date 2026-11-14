@@ -66,6 +66,17 @@ class ArchiveSiteFileAdapterTest {
     }
 
     @Test
+    void thePagesLinkTheSourceInTheOrganizationThatOwnsTheRepository(@TempDir Path dir) throws Exception {
+        // The repository moved to the organization on 2026-11-13; GitHub's redirect from the old
+        // owner disappears as soon as that name is reused, and an indexed page cannot be fixed later.
+        write(dir, editions());
+
+        assertThat(Files.readString(dir.resolve("index.html")))
+                .contains("href=\"https://github.com/SeniorDeveloper-pl-Dominik-Sienkiewicz/PulseDigest\"")
+                .doesNotContain("github.com/DominikSienkiewicz/");
+    }
+
+    @Test
     void theFeedIsWellFormedAtomWithOneEntryPerEdition(@TempDir Path dir) throws Exception {
         write(dir, editions());
         String feed = Files.readString(dir.resolve("feed.xml"));

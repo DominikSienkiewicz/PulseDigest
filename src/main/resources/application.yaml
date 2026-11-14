@@ -308,7 +308,7 @@ report:
   # czego digest nauczył się o czytelniku. To jedyna nieodwracalna rzecz w tym projekcie.
   archive:
     output-path: build/archive
-    site-url: https://dominiksienkiewicz.github.io/PulseDigest/
+    site-url: https://seniordeveloper-pl-dominik-sienkiewicz.github.io/PulseDigest/
 
   # N20 — retrospektywa kwartalna, uruchamiana na żądanie: `--retrospective`. Czyta WYŁĄCZNIE
   # zapisane wydania, więc ten sam kwartał zawsze daje ten sam wynik — bez tego artefakt, który
