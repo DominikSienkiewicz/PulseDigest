@@ -19,6 +19,22 @@ set -euo pipefail
 # The newest commit that predates the convention. Everything after it is held to it.
 BASELINE="9e5ba4f"
 
+# Duplicates after the baseline that are already on the published main, accepted for the same reason
+# as the baseline: rewriting published history costs more than the noise. Full SHA, one per line,
+# each with the reason it slipped through. Every other merge stays held to the convention.
+KNOWN_DUPLICATES=(
+    # 2026-11-14: a local merge took the subject of c3db357 from a command suggested to the author.
+    c32553783a9115dd2bd13482199564af7bdaea39
+)
+
+is_known_duplicate() {
+    local known
+    for known in "${KNOWN_DUPLICATES[@]}"; do
+        [ "$1" = "$known" ] && return 0
+    done
+    return 1
+}
+
 usage() {
     echo "usage: $(basename "$0") [<git range>]" >&2
     exit 2
@@ -53,6 +69,7 @@ while read -r sha parents; do
     # shellcheck disable=SC2086
     set -- $parents
     [ "$#" -ge 2 ] || continue
+    is_known_duplicate "$sha" && continue
     merge_subject=$(git log -1 --format=%s "$sha")
     for parent in "$@"; do
         parent_subject=$(git log -1 --format=%s "$parent")
