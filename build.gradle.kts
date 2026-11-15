@@ -81,7 +81,7 @@ repositories {
 val archunitVersion = "1.5.1"
 val instancioVersion = "6.1.0"
 val testcontainersVersion = "1.21.4"
-val flywayVersion = "13.10.3"
+val flywayVersion = "13.12.2"
 val wiremockVersion = "3.13.2"
 val dotenvVersion = "5.1.0"
 // Pinned above the 1.18.46 that the Spring Boot snapshot manages: 1.18.46 cannot initialise on
