@@ -4,7 +4,7 @@
 
 Headless batch application that collects tech news from 16 sources twice a week (Mon/Thu), scores items with GPT-4o, **detects cross-source signals** (the same topic surfacing in Science + Code + Business = 🔴 Critical Trend), tracks per-source health, and delivers a tier'd, prioritized digest to your inbox — with a must-know hero block, deals & tools, critical trends, top picks, and signals.
 
-![Java 26](https://img.shields.io/badge/Java-26-red?style=for-the-badge&logo=openjdk&logoColor=white)
+![Java 27](https://img.shields.io/badge/Java-27-red?style=for-the-badge&logo=openjdk&logoColor=white)
 ![Spring Boot 4.1](https://img.shields.io/badge/Spring_Boot-4.1.0--SNAPSHOT-green?style=for-the-badge&logo=springboot&logoColor=white)
 ![Supabase](https://img.shields.io/badge/Supabase-Postgres-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)
 ![Architecture](https://img.shields.io/badge/Architecture-Hexagonal-orange?style=for-the-badge)
@@ -113,7 +113,7 @@ Three tiers, because what you need depends on how far you want to go:
 
 | To… | You need |
 |-----|----------|
-| build and test | JDK 26 (Oracle EA or Temurin) + Docker Desktop (Testcontainers) |
+| build and test | JDK 27 (Oracle or Temurin) + Docker Desktop (Testcontainers) |
 | `--dry-run` | nothing else at all |
 | `--spring.profiles.active=preview` | an OpenAI API key |
 | run the real thing | the above, plus a Resend account and a Supabase project (both free tiers) |

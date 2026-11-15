@@ -15,7 +15,7 @@ This file contains PulseDigest-specific engineering rules. Global Codex working 
 
 | Concern          | Technology                     | Version                          |
 |------------------|--------------------------------|----------------------------------|
-| Language         | Java                           | 26 (Temurin 26.0.2.1+1 via toolchain) |
+| Language         | Java                           | 27 (Temurin 27.0.1.0.2+1 via toolchain) |
 | Runtime features | Virtual Threads (Project Loom) | always enabled                   |
 | Framework        | Spring Boot                    | 4.1.0-SNAPSHOT                   |
 | Database         | Supabase (Postgres) via JDBC   | JdbcClient + JSONB payloads      |

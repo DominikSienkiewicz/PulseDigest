@@ -15,17 +15,17 @@ version = "0.0.1-SNAPSHOT"
 // ── Java toolchain ─────────────────────────────────────────────────────────────
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(26)
+        languageVersion = JavaLanguageVersion.of(27)
     }
 }
 
 // No `--enable-preview`. It was here until 2026-10-18 with a comment blaming "sealed pattern
-// matching in switch" — a feature finalised in Java 21, five releases before the 26 this targets.
+// matching in switch" — a feature finalised in Java 21, five releases before the 26 it then targeted.
 // Measured before removing it: of 264 compiled classes, zero carried the preview marker
 // (class-file minor version 65535), so the flag was ceremony in six places at once (compiler, test
 // JVM, bootRun, Sonar, the CI run command, and the tech-stack table that called it "required").
 // It also had the opposite effect to the one the flag usually implies: with nothing preview-marked
-// the JAR is not locked to one JDK major, which a run of a 26-built JAR under Temurin 27 confirms.
+// the JAR is not locked to one JDK major, which a run of a 26-built JAR under Temurin 27 confirmed.
 tasks.withType<JavaCompile> {
     options.compilerArgs.add("-Xlint:deprecation")
 }
@@ -84,6 +84,9 @@ val testcontainersVersion = "1.21.4"
 val flywayVersion = "13.10.3"
 val wiremockVersion = "3.13.2"
 val dotenvVersion = "5.1.0"
+// Pinned above the 1.18.46 that the Spring Boot snapshot manages: 1.18.46 cannot initialise on
+// JDK 27 (ClassNotFoundException: com.sun.tools.javac.tree.EndPosTable); 1.18.48 adds JDK 27 support.
+val lombokVersion = "1.18.48"
 
 // Classpath for the flywayMigrate task only — the Flyway engine, its Postgres module and the driver.
 // Kept off the app's runtime classpath on purpose: the app assumes the schema exists; migrating it is
@@ -112,10 +115,10 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-restclient")
 
     // ── Compile-time only ─────────────────────────────────────────────────────
-    compileOnly("org.projectlombok:lombok")
+    compileOnly("org.projectlombok:lombok:$lombokVersion")
     // Flyway is used only by the FlywayMigrate entrypoint, never at app runtime.
     compileOnly("org.flywaydb:flyway-core:$flywayVersion")
-    annotationProcessor("org.projectlombok:lombok")
+    annotationProcessor("org.projectlombok:lombok:$lombokVersion")
 
     // ── Runtime ───────────────────────────────────────────────────────────────
     runtimeOnly("org.postgresql:postgresql")
@@ -171,7 +174,9 @@ checkstyle {
 
 // ── JaCoCo ───────────────────────────────────────────────────────────────────
 jacoco {
-    toolVersion = "0.8.14"
+    // 0.8.16 is the first release with official Java 27 support; 0.8.14 rejected every class file
+    // compiled for 27 (Unsupported class file major version 71), so it measured no coverage at all.
+    toolVersion = "0.8.16"
 }
 
 val coverageExclusions = listOf(

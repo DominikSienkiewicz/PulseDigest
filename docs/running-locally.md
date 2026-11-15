@@ -2,15 +2,17 @@
 
 ## Tech stack
 
-- **Java 26**, compiled by **Eclipse Temurin 26.0.2.1+1** — the Gradle toolchain
-  (`languageVersion = 26`) provisions it into `~/.gradle/jdks` automatically, so you do not need a
-  matching JDK installed to build. CI uses **Oracle JDK 26**. Class files are major version 70.
+- **Java 27**, compiled locally by **Eclipse Temurin 27.0.1.0.2+1** — the Gradle toolchain
+  (`languageVersion = 27`) uses an installed JDK 27, found by Gradle's auto-detection or through
+  `JAVA_HOME` (`org.gradle.java.installations.fromEnv` in `gradle.properties`). The build configures
+  no toolchain download repository, so Gradle cannot provision one for you: install JDK 27 before
+  building. CI uses **Oracle JDK 27**. Class files are major version 71.
 - **No `--enable-preview`.** It was passed in six places until 2026-10-18 — compiler, test JVM,
   `bootRun`, Sonar, the CI run command, and a tech-stack row calling it "required" — while **zero of
   264 compiled classes** carried the preview marker (class-file minor version 65535). The build
   comment blamed "sealed pattern matching in switch", finalised in Java 21, five releases earlier.
   Because nothing is preview-marked the JAR is **not** locked to one JDK major version: a JAR built
-  on 26 starts normally under Temurin 27, which is how this was confirmed rather than assumed.
+  on 26 started normally under Temurin 27, which is how this was confirmed rather than assumed.
 - **Spring Boot 4.1.0-SNAPSHOT** — `web-application-type: none` (headless)
 - **GPT-4o via OpenAI** — called over a hand-rolled `RestClient` adapter (`spring-boot-starter-restclient`), not an AI framework: the project treats the model as a ranking function behind a port, so a client library would add a dependency without removing any code
 - **Supabase (Postgres) via JDBC** — `JdbcClient` + `JSONB` payloads; schema owned by **Flyway** migrations (`db/migration`), applied as a discrete CI step (`./gradlew flywayMigrate`), not by the app at startup
@@ -35,7 +37,7 @@ and the dependency arrow points inward only (`infrastructure → application →
 
 ## Prerequisites
 
-- JDK 26 (Oracle EA or Temurin)
+- JDK 27 (Oracle or Temurin)
 - Twitter API v2 Bearer Token
 - OpenAI API key (GPT-4o for synthesis, GPT-4o-mini for the reader-model distillation)
 - Resend account + API key
