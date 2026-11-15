@@ -263,7 +263,7 @@ report:
   # (N01): okazało się, że NIC go nie czytało, a trzy komentarze w kodzie opisywały go jako żywy
   # element promptu.
   #
-  # Daty poniżej pobrane z endoflife.date 2026-10-19, nie z pamięci.
+  # Daty poniżej pobrane z endoflife.date 2026-11-16, nie z pamięci.
   # N19 — sekcje wyłączone bez dotykania kodu. Pusta lista to stan domyślny; wpis tutaj to
   # eksperyment: audyt nie był w stanie ustalić, które sekcje są w ogóle czytane, a wyłączenie jednej
   # na kilka wydań jest najtańszym sposobem, żeby się dowiedzieć. Dozwolone klucze są stałymi w
@@ -357,12 +357,12 @@ report:
   eol:
     enabled: true
     warn-within-months: 6
-    valid-as-of: 2026-10-19
+    valid-as-of: 2026-11-16
     entries:
-      - name: "Eclipse Temurin 26 (toolchain tego projektu)"
-        date: 2026-09-22
-      - name: "Oracle JDK 26 (używany w CI)"
-        date: 2026-09-18
+      - name: "Eclipse Temurin 27 (toolchain tego projektu)"
+        date: 2027-03-23
+      - name: "Oracle JDK 27 (używany w CI)"
+        date: 2027-03-31
       - name: "Spring Boot 3.5"
         date: 2026-06-30
       - name: "Spring Boot 4.0"
