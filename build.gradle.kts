@@ -79,7 +79,7 @@ repositories {
 
 // ── Dependency versions ───────────────────────────────────────────────────────
 val archunitVersion = "1.5.1"
-val instancioVersion = "6.1.0"
+val instancioVersion = "6.2.1"
 val testcontainersVersion = "1.21.4"
 val flywayVersion = "13.10.3"
 val wiremockVersion = "3.13.2"
