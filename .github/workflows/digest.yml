@@ -133,7 +133,7 @@ jobs:
           distribution: oracle
           java-version: '27'
 
-      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
 
       # N17 — render the recorded digest at phone width before the gate, so
       # MobileRenderingRegressionTest has something to compare against. The renderer is a pinned
@@ -204,7 +204,7 @@ jobs:
           distribution: oracle
           java-version: '27'
 
-      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
 
       # The baseline is main's state, not this branch's — main is what wrote the history table the
       # deployed database carries. Both the build file AND the migration directory are swapped: with
@@ -261,7 +261,7 @@ jobs:
           distribution: oracle
           java-version: '27'
 
-      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
 
       # Runs tests, produces the JaCoCo XML report, then the Gradle Sonar plugin uploads
       # sources + bytecode + coverage to SonarCloud. Skipped until SONAR_TOKEN is set
@@ -300,7 +300,7 @@ jobs:
           distribution: oracle
           java-version: '27'
 
-      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
 
       - name: Build the archive from stored editions
         run: |
@@ -363,7 +363,7 @@ jobs:
           distribution: oracle
           java-version: '27'
 
-      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
 
       - name: Verify required secrets are present
         env:
