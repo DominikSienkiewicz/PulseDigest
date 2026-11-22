@@ -79,6 +79,171 @@ Social (Bsky/Mastodon)  ┘
 Each stage, the full source list, the two-dimensional classification and the reader model
 are described in **[docs/how-it-works.md](docs/how-it-works.md)**.
 
+## Architecture
+
+PulseDigest is one Spring Boot process that GitHub Actions starts twice a week: it fetches,
+writes, sends and exits. Between runs nothing of it is listening; the only component that answers
+anything in the meantime is the feedback receiver, a separate Supabase Edge Function whose source
+is in [`receiver/`](receiver/README.md).
+
+### What it is made of
+
+Where the data comes from and where it goes: every arrow names the interface it travels over and
+what crosses it.
+
+```mermaid
+flowchart LR
+    gha["GitHub Actions<br/>digest.yml<br/>Mon and Thu 04:00 UTC"]
+    ghapi["GitHub REST API<br/>Search, Releases, Advisories,<br/>openjdk/jdk and<br/>cncf/landscape commits"]
+    open["Keyless feeds and APIs<br/>Hacker News, Reddit,<br/>30 RSS feeds, arXiv,<br/>Hugging Face, Tech Radar,<br/>Bluesky, Mastodon,<br/>AI-lab blogs, confs.tech"]
+    keyed["Keyed APIs<br/>Product Hunt, YouTube<br/>(X wired, switched off)"]
+    app["PulseDigest batch<br/>Java 27, Spring Boot 4.1<br/>one run, then exit"]
+    openai["OpenAI API<br/>gpt-4o, gpt-4o-mini,<br/>text-embedding-3-small"]
+    db[("Supabase Postgres<br/>reports, edition_inputs,<br/>feedback, reader_profile,<br/>edition_deliveries")]
+    resend["Resend"]
+    inbox["Reader's inbox"]
+    receiver["Feedback receiver<br/>Supabase Edge Function<br/>(source in receiver/)"]
+    pages["GitHub Pages<br/>public archive, Atom feed"]
+
+    gha -->|"java -jar app.jar"| app
+    ghapi -->|"REST: repos, releases,<br/>advisories, JEP, CNCF"| app
+    open -->|"HTTP: JSON,<br/>RSS/Atom, HTML"| app
+    keyed -->|"GraphQL, REST<br/>with API keys"| app
+    app <-->|"REST: items out,<br/>scored edition back"| openai
+    app <-->|"JDBC: editions, votes,<br/>delivery claim"| db
+    app -->|"REST POST /emails:<br/>digest, alerts"| resend
+    resend -->|"email"| inbox
+    inbox -->|"HTTPS GET:<br/>signed vote link"| receiver
+    receiver -->|"supabase-js:<br/>insert feedback"| db
+    app -->|"--publish-archive:<br/>static site"| pages
+```
+
+The Maven Central release radar is wired as well, but sends no request with the committed
+configuration, because `report.dependency-profile` lists no projects and no coordinates. Every
+service, with its switch, is in [Integrations](#integrations).
+
+### One scheduled run, end to end
+
+Read it top to bottom: one Monday or Thursday run, from the cron trigger to the exit code GitHub
+Actions reads. Two floors stop a thin run before it spends a token, and a claim in
+`edition_deliveries` stops a second send of the same edition.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant GHA as GitHub Actions
+    participant Run as PulseDigest run
+    participant Src as Sources
+    participant DB as Supabase
+    participant AI as OpenAI
+    participant Mail as Resend
+
+    GHA->>DB: flywayMigrate before the run
+    GHA->>Run: java -jar app.jar (profile ci)
+    Run->>DB: edition_deliveries: already sent today?
+    Run->>Src: fan out: one virtual thread per enabled source, 90 s timeout
+    alt nothing back, under 3 active sources or under 3 sections
+        Run->>Mail: failure alert, no tokens spent
+    else enough to write an edition
+        Run->>DB: votes (30 days) and the stored reader profile
+        Run->>AI: re-distil the reader profile, at most weekly (gpt-4o-mini)
+        Run->>DB: URLs already published (10 days)
+        Run->>AI: pre-score with gpt-4o-mini, keep the top 50
+        Run->>AI: synthesise with gpt-4o (fallback gpt-4o-mini)
+        Run->>AI: self-critique and embeddings, logged only
+        Run->>DB: past editions (28 days) for trend memory
+        Note over Run: rank by cross-source corroboration,<br/>not by the model's score
+        Run->>DB: save the reports row and edition_inputs
+        Run->>DB: claim today's edition_deliveries row
+        Run->>Mail: POST /emails: HTML and text/plain digest
+        Run->>DB: mark the edition delivered
+    end
+    Run-->>GHA: exit 0 only on DELIVERED
+```
+
+Self-critique and semantic clustering run in shadow mode (`enforcing: false`): they log what they
+would cut or merge and leave the edition unchanged. The rendered edition is also written to
+`build/digest.html` before the send, so a failed delivery still leaves it as a run artifact.
+
+### How a run ends
+
+Each run is one job, and its last status becomes the process exit code: only `DELIVERED` exits 0,
+which is what the workflow's failure alert hangs off.
+
+```mermaid
+stateDiagram-v2
+    [*] --> PENDING: DigestRunner starts the job
+    PENDING --> IN_PROGRESS
+    IN_PROGRESS --> GENERATED: synthesised and scored
+    GENERATED --> PERSISTED: reports row saved
+    PERSISTED --> DELIVERING: delivery claim won
+    DELIVERING --> DELIVERED: Resend accepted the mail
+    DELIVERING --> EMAIL_FAILED: Resend call failed
+    IN_PROGRESS --> ERROR: already sent today, too few sources or an exception
+    GENERATED --> ERROR: exception while saving
+    PERSISTED --> ERROR: claim lost or an exception
+    DELIVERED --> [*]: exit 0
+    EMAIL_FAILED --> [*]: exit 1
+    ERROR --> [*]: exit 1
+```
+
+An empty or too narrow fetch, and an exception before delivery, also send an alert from the
+application itself, naming the accounts to top up when a quota ran out. `EMAIL_FAILED` does not,
+because the mail channel is what broke; the workflow's `Notify on failure` step mails on every
+exit 1 regardless.
+
+### Where it runs
+
+Everything runs on GitHub Actions: two scheduled workflows, three jobs, and the services each job
+touches.
+
+```mermaid
+flowchart LR
+    cron(["digest.yml<br/>Mon and Thu 04:00 UTC,<br/>or manual dispatch"]) --> digest["digest job<br/>check, bootJar, SBOM, attestation,<br/>java -jar app.jar"]
+    digest -->|"on success"| archive["archive job<br/>java -jar app.jar --publish-archive"]
+    daily(["watchdog.yml<br/>daily 10:00 UTC"]) --> watchdog["watchdog job<br/>newest edition older than 108 h?<br/>then a Resend alert"]
+
+    digest -->|"REST: digest email, alerts"| resend["Resend"]
+    archive -->|"deploy-pages: build/archive"| pages["GitHub Pages"]
+    archive -->|"JDBC: last 90 days of editions"| db[("Supabase Postgres")]
+    digest -->|"flywayMigrate, then JDBC"| db
+    watchdog -->|"psql: newest generated_at"| db
+```
+
+Pull requests and pushes to `main` run the gates instead of the digest: gitleaks; the merge-subject,
+Markdown-link, shell and workflow checks with `./gradlew check`; a Flyway upgrade test against
+Postgres 16; and SonarQube Cloud.
+
+## Integrations
+
+Every external service the code or the workflows call, with its state in `application.yaml` and
+the workflows today. The logos only identify the services.
+
+| Service | Used for | Interface | Status |
+|---|---|---|---|
+| <img src="https://cdn.simpleicons.org/githubactions" alt="GitHub Actions" height="16"> GitHub Actions | The digest on Mondays and Thursdays at 04:00 UTC, the archive after it, the watchdog daily at 10:00 UTC, and CI on pull requests and pushes to `main` | Workflows in [`.github/workflows/`](.github/workflows/) | On |
+| OpenAI | Synthesis (`gpt-4o`, fallback `gpt-4o-mini`); pre-scoring, self-critique and the weekly reader profile (`gpt-4o-mini`); embeddings for semantic clustering (`text-embedding-3-small`); `--discover-sources` on demand | REST `/v1/chat/completions` and `/v1/embeddings`, hand-rolled client ([ADR-0004](docs/adr/0004-hand-rolled-openai-client.md)) | On; self-critique and clustering log only (`enforcing: false`) |
+| <img src="https://cdn.simpleicons.org/supabase" alt="Supabase" height="16"> Supabase | Postgres for `reports`, `edition_inputs`, `feedback`, `reader_profile` and `edition_deliveries` | JDBC (`JdbcClient`, HikariCP); Flyway migrations in the `digest` job | On; replaced by no-ops under the `preview` profile, untouched by `--dry-run` |
+| <img src="https://cdn.simpleicons.org/supabase" alt="Supabase" height="16"> Supabase Edge Functions | The feedback receiver: records 👍/👎/zapisz clicks in `feedback` | HTTPS GET signed with HMAC ([`receiver/`](receiver/README.md)) | Deployed separately; no vote links while `FEEDBACK_RECEIVER_URL` is blank |
+| <img src="https://cdn.simpleicons.org/resend/000000/ffffff" alt="Resend" height="16"> Resend | The digest, failure and quota alerts, the quarterly `--retrospective`; the workflows' failure and watchdog emails | REST `POST /emails` | On |
+| <img src="https://cdn.simpleicons.org/githubpages/222222/ffffff" alt="GitHub Pages" height="16"> GitHub Pages | Public archive of the editions with an Atom feed | `actions/deploy-pages` in the `archive` job | On, after each scheduled or manual digest that succeeds |
+| <img src="https://cdn.simpleicons.org/github/181717/ffffff" alt="GitHub" height="16"> GitHub REST API | Trending AI repositories, the latest releases of 17 repositories, HIGH and CRITICAL advisories, JEP changes from `openjdk/jdk` commits, CNCF status changes from `cncf/landscape` commits | REST `api.github.com` with one `GITHUB_API_TOKEN` (the workflow's `GITHUB_TOKEN`) | On |
+| Hacker News | Stories matching 22 keywords with a score of at least 40 | Algolia HN Search API | On |
+| <img src="https://cdn.simpleicons.org/reddit" alt="Reddit" height="16"> Reddit | Top posts of the day in 8 subreddits | REST `/r/{sub}/top.json`, anonymous | On |
+| <img src="https://cdn.simpleicons.org/rss" alt="RSS" height="16"> RSS and Atom feeds | 30 feeds, from InfoQ and the Spring blog to the AWS, Google Cloud and Azure update feeds | HTTP GET, XML parsed with DOCTYPE disabled | On |
+| <img src="https://cdn.simpleicons.org/arxiv" alt="arXiv" height="16"> arXiv | Papers in cs.AI, cs.LG, cs.CR, cs.DC and cs.PL that match the keywords | REST `export.arxiv.org/api/query`, Atom | On |
+| <img src="https://cdn.simpleicons.org/huggingface" alt="Hugging Face" height="16"> Hugging Face | Trending models in 7 pipelines | REST `/api/models` | On |
+| <img src="https://cdn.simpleicons.org/producthunt" alt="Product Hunt" height="16"> Product Hunt | Launches with at least 100 votes in 5 topics | GraphQL API v2, developer token | Only with `PRODUCTHUNT_DEVELOPER_TOKEN`; an empty list otherwise |
+| <img src="https://cdn.simpleicons.org/youtube" alt="YouTube" height="16"> YouTube | New talks on the Spring I/O, Devoxx and CNCF channels | YouTube Data API v3 `search` | Only with `YOUTUBE_API_KEY`; an empty list otherwise |
+| Thoughtworks Technology Radar | Entries of volume 34 | JSON from `setchy/thoughtworks-tech-radar-volumes` on raw.githubusercontent.com | On |
+| <img src="https://cdn.simpleicons.org/bluesky" alt="Bluesky" height="16"> Bluesky | Posts by 5 handles | Public AppView `app.bsky.feed.getAuthorFeed` | On |
+| <img src="https://cdn.simpleicons.org/mastodon" alt="Mastodon" height="16"> Mastodon | 5 hashtags on fosstodon.org | REST `/api/v1/timelines/tag/{tag}` | On |
+| AI-lab blogs | Anthropic News and Engineering, the Claude blog, the Google Gemini blog and the OpenAI developer blog | HTML pages parsed per site (embedded Sanity data, JSON-LD) | On |
+| confs.tech | Calls for Papers closing within 120 days, in 5 topics | JSON from `tech-conferences/conference-data` on raw.githubusercontent.com | On (`report.call-for-papers.enabled`) |
+| <img src="https://cdn.simpleicons.org/x/000000/ffffff" alt="X" height="16"> X | Posts by 24 accounts and 4 topic queries | API v2 search, bearer token | Off (`report.sources.disabled`, K7) |
+| Maven Central | Release radar for the reader's own dependencies | REST `search.maven.org` | Enabled, but no request: `report.dependency-profile` is empty |
+| <img src="https://cdn.simpleicons.org/sonarqubecloud" alt="SonarQube Cloud" height="16"> SonarQube Cloud | The quality gate and coverage badges above | Gradle `sonar` task in the `sonarcloud` job | When `SONAR_TOKEN` is set |
+
 ## Documentation
 
 - **What the pipeline does** → **[docs/how-it-works.md](docs/how-it-works.md)** — stages,
