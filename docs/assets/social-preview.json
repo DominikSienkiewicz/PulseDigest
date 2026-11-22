@@ -1,0 +1,35 @@
+{
+  "name": "PulseDigest",
+  "kicker": "Headless Java batch",
+  "description": "Tech news from 15 sources, scored by GPT-4o, mailed twice a week as one ranked digest.",
+  "accent": "#E5484D",
+  "stack": [
+    {
+      "icon": "openjdk",
+      "label": "Java 27",
+      "color": "#F89820"
+    },
+    {
+      "icon": "springboot",
+      "label": "Spring Boot 4.1",
+      "color": "#6DB33F"
+    },
+    {
+      "icon": "supabase",
+      "label": "Supabase",
+      "color": "#3ECF8E"
+    },
+    {
+      "icon": null,
+      "label": "OpenAI GPT-4o",
+      "color": "#FFFFFF"
+    }
+  ],
+  "preview": {
+    "type": "image",
+    "path": "docs/images/sample-digest.png",
+    "position": "top"
+  },
+  "previewLabel": "Sample edition rendered from the test fixture · synthetic content",
+  "authorCaption": "Designed and maintained by"
+}
