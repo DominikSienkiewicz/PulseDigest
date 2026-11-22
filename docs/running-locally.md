@@ -349,7 +349,9 @@ overlapping the scheduled run (no double-send / double-spend of OpenAI credits),
 `if: failure()` step emails the recipient via Resend whenever the run fails for **any**
 reason — including a crash or `EMAIL_FAILED` where the app itself couldn't send its own
 alert. [`.github/dependabot.yml`](../.github/dependabot.yml) keeps the Actions and
-test/tooling dependencies current (the Spring Boot SNAPSHOT is intentionally excluded).
+test/tooling dependencies current (the Spring Boot SNAPSHOT is intentionally excluded). It groups
+the updates into one weekly pull request per ecosystem, because a burst of single-dependency merges
+on 2026-11-16 started about 27 Gradle builds at once and Maven Central rate-limited them (HTTP 429).
 
 The scheduled run also generates a **CycloneDX SBOM from the built JAR** and signs **build
 provenance** for it (N44), uploading both as run artifacts, so "which dependencies were in the run

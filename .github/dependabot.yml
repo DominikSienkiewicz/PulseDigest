@@ -1,4 +1,16 @@
 version: 2
+
+# One grouped pull request per ecosystem per week, not one per dependency.
+#
+# On 2026-11-16 nine separate Dependabot PRs were merged to main within 150 seconds. Each push starts
+# three Gradle jobs (check, flyway, sonarcloud), so about 27 builds ran at once. The instancio-junit
+# 6.2.1 bump was not in any restored setup-gradle cache, so every one of those builds requested it
+# from Maven Central at the same moment from GitHub's shared runner addresses. Central answered
+# 429 Too Many Requests. Gradle retries a 429 only three times within about three seconds, and three
+# of the nine runs (#41, #45, #49) went red on a dependency Central was serving. Grouping turns a
+# week of updates into at most two merges, so no merge burst can arise from Dependabot in the first
+# place. If a group fails because of one bump, ignore that dependency here, and the rest of the
+# group can still merge.
 updates:
   # Keep the GitHub Actions used by the workflows pinned and up to date.
   - package-ecosystem: github-actions
@@ -7,6 +19,10 @@ updates:
       interval: weekly
     commit-message:
       prefix: "ci"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
 
   # Keep test/tooling libraries current. Spring Boot is intentionally on a pre-release
   # SNAPSHOT (bleeding-edge showcase), so it is excluded — bumping it is a deliberate manual act.
@@ -18,3 +34,7 @@ updates:
       prefix: "build"
     ignore:
       - dependency-name: "org.springframework.boot*"
+    groups:
+      gradle:
+        patterns:
+          - "*"
