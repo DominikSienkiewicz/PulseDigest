@@ -6,7 +6,7 @@ plugins {
     id("io.spring.dependency-management") version "1.1.7"
     checkstyle
     jacoco
-    id("org.sonarqube") version "7.5.0.8588"
+    id("org.sonarqube") version "7.6.0.18749"
 }
 
 group = "pl.seniordeveloper"
@@ -81,7 +81,7 @@ repositories {
 val archunitVersion = "1.5.1"
 val instancioVersion = "6.2.1"
 val testcontainersVersion = "1.21.4"
-val flywayVersion = "13.12.2"
+val flywayVersion = "13.13.0"
 val wiremockVersion = "3.13.2"
 val dotenvVersion = "5.1.0"
 // Pinned above the 1.18.46 that the Spring Boot snapshot manages: 1.18.46 cannot initialise on
