@@ -210,9 +210,11 @@ flowchart LR
     watchdog -->|"psql: newest generated_at"| db
 ```
 
-Pull requests and pushes to `main` run the gates instead of the digest: gitleaks; the merge-subject,
-Markdown-link, shell and workflow checks with `./gradlew check`; a Flyway upgrade test against
-Postgres 16; and SonarQube Cloud.
+Pull requests and pushes to `main` run the checksum-pinned Gitleaks CLI using `.gitleaks.toml`. It checks the
+incoming commits, including files removed before the tip. A new branch, a rewritten history or an unavailable
+previous commit triggers a scan of the full history reachable from the new tip. The job reports only the outcome.
+The other gates cover merge subjects, Markdown links, shell scripts, workflows, `./gradlew check`, a Flyway
+upgrade against Postgres 16, and SonarQube Cloud.
 
 ## Integrations
 

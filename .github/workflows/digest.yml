@@ -25,17 +25,32 @@ jobs:
     if: github.event_name == 'pull_request' || github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v7.0.1
         with:
-          # Full history: a secret removed from the tip is still a leaked secret.
           fetch-depth: 0
+          persist-credentials: false
 
-      - name: gitleaks
-        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+      - name: Install Gitleaks CLI
+        run: |
+          mkdir -p "$RUNNER_TEMP/gitleaks-bin"
+          curl -fsSL --proto '=https' --proto-redir '=https' \
+            https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz \
+            -o "$RUNNER_TEMP/gitleaks.tar.gz"
+          echo "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  $RUNNER_TEMP/gitleaks.tar.gz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/gitleaks.tar.gz" -C "$RUNNER_TEMP/gitleaks-bin" gitleaks
+          echo "$RUNNER_TEMP/gitleaks-bin" >> "$GITHUB_PATH"
+
+      - name: Check scan ranges on synthetic commits
+        run: bash scripts/tests/scan-secrets.test.sh
+
+      - name: Scan Git history
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITLEAKS_CONFIG: .gitleaks.toml
+          SCAN_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          SCAN_HEAD: ${{ github.event.pull_request.head.sha || github.event.after }}
+        run: bash scripts/scan-secrets.sh
 
   check:
     if: github.event_name == 'pull_request' || github.event_name == 'push'
