@@ -360,7 +360,7 @@ The scheduled run also generates a **CycloneDX SBOM from the built JAR** and sig
 provenance** for it (N44), uploading both as run artifacts, so "which dependencies were in the run
 that sent Thursday's edition" is answerable without anyone having recorded it. Every dependency
 packaged in the JAR is a Maven Central release, and a version published there never changes, so
-each version string the SBOM records identifies one set of bytes.
+each dependency version the SBOM records identifies one set of bytes.
 
 It runs under the **`ci` Spring profile**, which turns the console log into ECS JSON (N41) so a
 failed run is greppable by source and stage rather than by sentence; every record carries the run's

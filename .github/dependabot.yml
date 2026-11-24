@@ -25,9 +25,8 @@ updates:
           - "*"
 
   # Keep test/tooling libraries current. Spring Boot patch releases ride the weekly gradle group
-  # below. Minor and major upgrades stay deliberate manual work: they move the documented stack
-  # (README badge and diagram, AGENTS.md, social preview, EOL row) and need their release notes
-  # read against this codebase.
+  # below. Minor and major upgrades stay deliberate manual work: the docs, the social preview and
+  # the EOL table name the minor version, and the release notes need reading against this codebase.
   - package-ecosystem: gradle
     directory: /
     schedule:

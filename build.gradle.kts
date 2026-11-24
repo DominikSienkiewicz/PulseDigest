@@ -328,14 +328,10 @@ sonar {
         // `gradle/verification-metadata.xml`. Do 2026-11-24 nie dało się ich spełnić uczciwie:
         // build stał na Spring Boot 4.1.0-SNAPSHOT, a plik blokady przypina wersję rozwiązaną,
         // podczas gdy SNAPSHOT zmienia się pod tą samą nazwą. Ten powód zniknął razem ze
-        // SNAPSHOT-em: build przeszedł na wydania z Maven Central.
+        // SNAPSHOT-em: build przeszedł na wydania stabilne.
         //
         // Oba wyciszenia zostają, bo blokada to osobna, przeglądana zmiana, a nie dopisek do
-        // przejścia na wydania (decyzja z 2026-11-24): trzeba ustalić, które konfiguracje
-        // blokować (także `flywayCli`, `pitest`, `annotationProcessor` i classpath samego builda)
-        // i jak blokada współgra z grupowym PR-em Dependabota. Dependabot sam aktualizuje
-        // `gradle.lockfile` (od czerwca 2025); czy obsługuje też `verification-metadata.xml`, nie
-        // potwierdzono — rozstrzygnie to zadanie blokady.
+        // przejścia na wydania (decyzja z 2026-11-24).
         //
         // Wyciszenie jest zapisane TUTAJ, a nie oznaczone jako "Accepted" w interfejsie
         // SonarCloud, świadomie: decyzja przechodzi wtedy przez przegląd kodu, jest

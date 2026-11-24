@@ -433,7 +433,7 @@ jobs:
       # has an answer that does not depend on anyone remembering.
       #
       # Every dependency packaged in the JAR is a Maven Central release, and a version published
-      # there never changes, so each version string the SBOM records identifies one set of bytes.
+      # there never changes, so each dependency version the SBOM records identifies one set of bytes.
       - name: Generate SBOM
         uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
         with:

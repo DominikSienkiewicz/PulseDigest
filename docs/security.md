@@ -148,7 +148,7 @@ Dependency *locking* is deferred, not impossible, and the reason is recorded in
 [`build.gradle.kts`](../build.gradle.kts): adopting a lockfile and verification metadata is a
 separate, reviewed change (decided 2026-11-24), not a footnote to a framework upgrade. Every
 dependency packaged in the JAR is a Maven Central release, and a version published there never
-changes, so each version string the SBOM records identifies one set of bytes.
+changes, so each dependency version the SBOM records identifies one set of bytes.
 
 ## Deliberately out of scope
 
