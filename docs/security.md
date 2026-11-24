@@ -144,11 +144,11 @@ the JAR it is about to execute. Each run generates a **CycloneDX SBOM from the b
 **build provenance** for it (N44), so "what was in the run that sent Thursday's edition" is
 answerable without anyone having remembered to record it.
 
-Dependency *locking* is deliberately absent and the reason is recorded in
-[`build.gradle.kts`](../build.gradle.kts): the build stands on a pre-release Spring Boot SNAPSHOT,
-and a lockfile pins a resolved version while a SNAPSHOT changes under the same name. The same
-limitation applies to the SBOM, which records a version string that resolves to different bytes over
-time. Both improve the day the project leaves SNAPSHOTs.
+Dependency *locking* is deferred, not impossible, and the reason is recorded in
+[`build.gradle.kts`](../build.gradle.kts): adopting a lockfile and verification metadata is a
+separate, reviewed change (decided 2026-11-24), not a footnote to a framework upgrade. Every
+dependency packaged in the JAR is a Maven Central release, and a version published there never
+changes, so each version string the SBOM records identifies one set of bytes.
 
 ## Deliberately out of scope
 

@@ -23,7 +23,7 @@ The full index, with statuses, is [docs/adr/README.md](docs/adr/README.md).
 |------------------|--------------------------------|------------------------------------------------------|
 | Language         | Java                           | 27 via the Gradle toolchain (Temurin locally, Oracle JDK in CI); no `--enable-preview` |
 | Concurrency      | Virtual Threads (Project Loom) | `dataFetchExecutor` for all source fan-out           |
-| Framework        | Spring Boot                    | 4.1.0-SNAPSHOT                                       |
+| Framework        | Spring Boot                    | 4.2 (GA from Maven Central; exact patch in `build.gradle.kts`) |
 | Database         | Supabase (Postgres) via JDBC   | JdbcClient + JSONB payloads, Flyway migrations       |
 | Build            | Gradle 9 (Kotlin DSL)          | —                                                    |
 

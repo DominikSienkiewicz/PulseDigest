@@ -5,7 +5,7 @@
 Headless batch application that collects tech news from 16 sources twice a week (Mon/Thu), scores items with GPT-4o, **detects cross-source signals** (the same topic surfacing in Science + Code + Business = 🔴 Critical Trend), tracks per-source health, and delivers a tier'd, prioritized digest to your inbox — with a must-know hero block, deals & tools, critical trends, top picks, and signals.
 
 ![Java 27](https://img.shields.io/badge/Java-27-red?style=for-the-badge&logo=openjdk&logoColor=white)
-![Spring Boot 4.1](https://img.shields.io/badge/Spring_Boot-4.1.0--SNAPSHOT-green?style=for-the-badge&logo=springboot&logoColor=white)
+![Spring Boot 4.2](https://img.shields.io/badge/Spring_Boot-4.2-green?style=for-the-badge&logo=springboot&logoColor=white)
 ![Supabase](https://img.shields.io/badge/Supabase-Postgres-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)
 ![Architecture](https://img.shields.io/badge/Architecture-Hexagonal-orange?style=for-the-badge)
 
@@ -97,7 +97,7 @@ flowchart LR
     ghapi["GitHub REST API<br/>Search, Releases, Advisories,<br/>openjdk/jdk and<br/>cncf/landscape commits"]
     open["Keyless feeds and APIs<br/>Hacker News, Reddit,<br/>30 RSS feeds, arXiv,<br/>Hugging Face, Tech Radar,<br/>Bluesky, Mastodon,<br/>AI-lab blogs, confs.tech"]
     keyed["Keyed APIs<br/>Product Hunt, YouTube<br/>(X wired, switched off)"]
-    app["PulseDigest batch<br/>Java 27, Spring Boot 4.1<br/>one run, then exit"]
+    app["PulseDigest batch<br/>Java 27, Spring Boot 4.2<br/>one run, then exit"]
     openai["OpenAI API<br/>gpt-4o, gpt-4o-mini,<br/>text-embedding-3-small"]
     db[("Supabase Postgres<br/>reports, edition_inputs,<br/>feedback, reader_profile,<br/>edition_deliveries")]
     resend["Resend"]
