@@ -227,14 +227,16 @@ jobs:
       # with the OLD engine, leaving the new engine with nothing to do — the job would go green
       # having skipped the thing it exists to exercise. Seeding from main's migrations instead means
       # the new engine both reads a history the old one wrote and applies the new migration itself.
+      # settings.gradle.kts travels with the build file, because its pluginManagement block decides
+      # where main's plugin versions resolve from.
       - name: Seed flyway_schema_history using main's Flyway version and migrations
         run: |
           git fetch --no-tags --depth=1 origin main
-          git checkout FETCH_HEAD -- build.gradle.kts src/main/resources/db/migration
+          git checkout FETCH_HEAD -- build.gradle.kts settings.gradle.kts src/main/resources/db/migration
           grep -E 'val flywayVersion' build.gradle.kts
           ls src/main/resources/db/migration
           ./gradlew flywayMigrate --no-daemon
-          git checkout HEAD -- build.gradle.kts src/main/resources/db/migration
+          git checkout HEAD -- build.gradle.kts settings.gradle.kts src/main/resources/db/migration
 
       # The step under test. On a Flyway bump this is the first time the new engine reads a history
       # table written by the old one — the exact path the scheduled digest takes against Supabase.
