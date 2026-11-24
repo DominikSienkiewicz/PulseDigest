@@ -2,7 +2,7 @@ import java.io.File
 
 plugins {
     java
-    id("org.springframework.boot") version "4.1.0-SNAPSHOT"
+    id("org.springframework.boot") version "4.2.0"
     id("io.spring.dependency-management") version "1.1.7"
     checkstyle
     jacoco
@@ -73,8 +73,6 @@ tasks.withType<Test> {
 // ── Repositories ──────────────────────────────────────────────────────────────
 repositories {
     mavenCentral()
-    maven { url = uri("https://repo.spring.io/snapshot") }
-    maven { url = uri("https://repo.spring.io/milestone") }
 }
 
 // ── Dependency versions ───────────────────────────────────────────────────────
@@ -84,9 +82,6 @@ val testcontainersVersion = "1.21.4"
 val flywayVersion = "13.13.0"
 val wiremockVersion = "3.13.2"
 val dotenvVersion = "5.1.0"
-// Pinned above the 1.18.46 that the Spring Boot snapshot manages: 1.18.46 cannot initialise on
-// JDK 27 (ClassNotFoundException: com.sun.tools.javac.tree.EndPosTable); 1.18.48 adds JDK 27 support.
-val lombokVersion = "1.18.48"
 
 // Classpath for the flywayMigrate task only — the Flyway engine, its Postgres module and the driver.
 // Kept off the app's runtime classpath on purpose: the app assumes the schema exists; migrating it is
@@ -115,10 +110,10 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-restclient")
 
     // ── Compile-time only ─────────────────────────────────────────────────────
-    compileOnly("org.projectlombok:lombok:$lombokVersion")
+    compileOnly("org.projectlombok:lombok")
     // Flyway is used only by the FlywayMigrate entrypoint, never at app runtime.
     compileOnly("org.flywaydb:flyway-core:$flywayVersion")
-    annotationProcessor("org.projectlombok:lombok:$lombokVersion")
+    annotationProcessor("org.projectlombok:lombok")
 
     // ── Runtime ───────────────────────────────────────────────────────────────
     runtimeOnly("org.postgresql:postgresql")
