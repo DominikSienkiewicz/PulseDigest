@@ -250,6 +250,8 @@ Trust any new test or gate only after it has been seen failing on purpose.
   `docs/configuration.md`, and every documented key still exists.
 - `CommentLanguageTest`: Polish in a Java comment fails the build (ADR-0001). The same boundary
   makes log and exception messages English, though no test checks them.
+- `DigestWorkflowTest`: the `Run digest` step keeps `shell: bash`. Without it, GitHub runs `bash -e`
+  with no `pipefail`, `tee` hides the application's exit code, and a failed run stays green.
 - `./scripts/check-markdown-links.sh`: relative links in tracked Markdown resolve against tracked
   files. An ignored path (`docs/concepts/`, `CLAUDE.md`, `.maister/`) may be named but never linked.
 - `./scripts/check-merge-subjects.sh`: a merge commit never repeats a parent's subject. Prefer a
