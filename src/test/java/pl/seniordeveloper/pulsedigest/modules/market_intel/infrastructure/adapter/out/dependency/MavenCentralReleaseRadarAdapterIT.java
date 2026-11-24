@@ -58,9 +58,9 @@ class MavenCentralReleaseRadarAdapterIT {
     }
 
     /**
-     * The worked example from this very repository: it pins Spring Boot {@code 4.1.0-SNAPSHOT} while
-     * Central's latest release is 3.5.x. Comparing them would report going *backwards* as an upgrade,
-     * so a pre-release pin is skipped — and skipped without a lookup, since the answer cannot be
+     * A pin ahead of the latest release: {@code 4.1.0-SNAPSHOT} against a stubbed latest of
+     * {@code 3.5.3}. Comparing them would report going *backwards* as an upgrade, so a
+     * pre-release pin is skipped — and skipped without a lookup, since the answer cannot be
      * useful either way.
      */
     @Test

@@ -28,9 +28,9 @@ import java.util.List;
  * silently dropped.
  *
  * <p>Pre-release pins are skipped by construction. Central only indexes releases, so comparing a
- * {@code -SNAPSHOT} or {@code -RC} pin against its latest release reports a *lower* number as an
- * upgrade — this project's own {@code 4.1.0-SNAPSHOT} Spring Boot pin against Central's 3.5.x is the
- * worked example. Running ahead of releases is a decision, not a staleness to nag about.
+ * {@code -SNAPSHOT} or {@code -RC} pin against its latest release can report a *lower* number as an
+ * upgrade: a {@code 4.3.0-SNAPSHOT} pin checked against a latest of {@code 4.2.1} would be told to go
+ * backwards. Running ahead of releases is a decision, not a staleness to nag about.
  */
 @Slf4j
 @RequiredArgsConstructor
