@@ -457,6 +457,8 @@ jobs:
           retention-days: 30
 
       - name: Run digest
+        # An explicit bash shell adds pipefail: the application's exit code, not tee's, decides the step.
+        shell: bash
         run: java -jar build/libs/app.jar 2>&1 | tee digest.log
         env:
           # N41 — the `ci` profile turns the console log into ECS JSON, so a failed run is
