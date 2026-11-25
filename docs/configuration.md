@@ -121,8 +121,8 @@ rails, not to punish a busy week. Calibrate it from your own runs: every run log
 | `report.saved.max-items`       | `5`                      | How many of the oldest saved items the mail shows; the rest are counted, never silently dropped. The window is **not** a key of its own — saves are read over `report.feedback.lookback-days`, so the shelf and the loop that fills it cannot develop two notions of "recent" |
 | `report.eol.enabled`           | `true`                   | Render the ⌛ end-of-life block (N08) |
 | `report.eol.warn-within-months`| `6`                      | How far ahead support deadlines are announced; anything further away stays silent, and anything already past is always shown |
-| `report.eol.valid-as-of`       | `2026-11-16`             | When the table below was last verified against [endoflife.date](https://endoflife.date). **Required.** Rendered in the mail, and flagged there once it is over 180 days old — a hand-kept table of dates rots, and one that cannot show its own age states an EOL with full confidence years after anyone checked it |
-| `report.eol.entries`           | (7 entries)              | `name` + `date` pairs for the stack you actually run |
+| `report.eol.valid-as-of`       | `2026-11-24`             | When the table below was last verified against [endoflife.date](https://endoflife.date). **Required.** Rendered in the mail, and flagged there once it is over 180 days old — a hand-kept table of dates rots, and one that cannot show its own age states an EOL with full confidence years after anyone checked it |
+| `report.eol.entries`           | (8 entries)              | `name` + `date` pairs for the stack you actually run |
 | `report.reader-profile.enabled`| `true`                   | Distil and inject the living reader model |
 | `report.reader-profile.min-votes` | `10`                  | Clicks required before a profile is distilled at all |
 | `report.reader-profile.refresh-days` | `7`                | How often the profile is re-distilled (one gpt-4o-mini call) |

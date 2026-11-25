@@ -13,7 +13,7 @@
   comment blamed "sealed pattern matching in switch", finalised in Java 21, five releases earlier.
   Because nothing is preview-marked the JAR is **not** locked to one JDK major version: a JAR built
   on 26 started normally under Temurin 27, which is how this was confirmed rather than assumed.
-- **Spring Boot 4.1.0-SNAPSHOT** — `web-application-type: none` (headless)
+- **Spring Boot 4.2** — `web-application-type: none` (headless)
 - **GPT-4o via OpenAI** — called over a hand-rolled `RestClient` adapter (`spring-boot-starter-restclient`), not an AI framework: the project treats the model as a ranking function behind a port, so a client library would add a dependency without removing any code
 - **Supabase (Postgres) via JDBC** — `JdbcClient` + `JSONB` payloads; schema owned by **Flyway** migrations (`db/migration`), applied as a discrete CI step (`./gradlew flywayMigrate`), not by the app at startup
 - **springboot4-dotenv** — auto-loads `.env` locally (parity with GitHub Actions secrets)
@@ -118,7 +118,9 @@ Swapping the migration directory as well as the build file is what makes the job
 a branch that adds `V2` *and* bumps Flyway. Seed from the branch's migrations and the old
 engine would apply `V2`, leaving the new engine nothing to do — the job would pass having
 skipped the thing it exists to exercise. Seeding from `main`'s migrations means the new
-engine both reads a history the old one wrote and applies the new migration itself.
+engine both reads a history the old one wrote and applies the new migration itself. The
+seed also swaps in `main`'s `settings.gradle.kts` together with the build file, because its
+`pluginManagement` block decides where `main`'s plugin versions resolve from.
 
 That job is also the only place `./gradlew flywayMigrate` itself runs on a pull request.
 The task hangs off its own `flywayCli` configuration and is otherwise invoked solely by the
@@ -343,21 +345,22 @@ job runs on a **Mon/Thu schedule** at **04:00 UTC** (= 06:00 CEST / 05:00 CET) v
 > uploads the JaCoCo coverage report the "Sonar way" gate (≥ 80% on new code) needs.
 
 The scheduled job is hardened against silent failure: it runs the full `./gradlew check`
-gate **before** building the JAR (so a broken pre-release SNAPSHOT is caught instead of
+gate **before** building the JAR (so a broken dependency update is caught instead of
 shipping into the digest), a job-level `concurrency` guard prevents a manual dispatch from
 overlapping the scheduled run (no double-send / double-spend of OpenAI credits), and an
 `if: failure()` step emails the recipient via Resend whenever the run fails for **any**
 reason — including a crash or `EMAIL_FAILED` where the app itself couldn't send its own
 alert. [`.github/dependabot.yml`](../.github/dependabot.yml) keeps the Actions and
-test/tooling dependencies current (the Spring Boot SNAPSHOT is intentionally excluded). It groups
-the updates into one weekly pull request per ecosystem, because a burst of single-dependency merges
-on 2026-11-16 started about 27 Gradle builds at once and Maven Central rate-limited them (HTTP 429).
+test/tooling dependencies current (Spring Boot patch releases included; minor and major upgrades
+stay deliberate). It groups the updates into one weekly pull request per ecosystem, because a
+burst of single-dependency merges on 2026-11-16 started about 27 Gradle builds at once and Maven
+Central rate-limited them (HTTP 429).
 
 The scheduled run also generates a **CycloneDX SBOM from the built JAR** and signs **build
 provenance** for it (N44), uploading both as run artifacts, so "which dependencies were in the run
-that sent Thursday's edition" is answerable without anyone having recorded it. Both degrade honestly
-under the one remaining SNAPSHOT: the SBOM records a version string that resolves to different bytes
-over time, which is a limitation of depending on a pre-release rather than of the SBOM.
+that sent Thursday's edition" is answerable without anyone having recorded it. Every dependency
+packaged in the JAR is a Maven Central release, and a version published there never changes, so
+each dependency version the SBOM records identifies one set of bytes.
 
 It runs under the **`ci` Spring profile**, which turns the console log into ECS JSON (N41) so a
 failed run is greppable by source and stage rather than by sentence; every record carries the run's

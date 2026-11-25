@@ -227,14 +227,16 @@ jobs:
       # with the OLD engine, leaving the new engine with nothing to do — the job would go green
       # having skipped the thing it exists to exercise. Seeding from main's migrations instead means
       # the new engine both reads a history the old one wrote and applies the new migration itself.
+      # settings.gradle.kts travels with the build file, because its pluginManagement block decides
+      # where main's plugin versions resolve from.
       - name: Seed flyway_schema_history using main's Flyway version and migrations
         run: |
           git fetch --no-tags --depth=1 origin main
-          git checkout FETCH_HEAD -- build.gradle.kts src/main/resources/db/migration
+          git checkout FETCH_HEAD -- build.gradle.kts settings.gradle.kts src/main/resources/db/migration
           grep -E 'val flywayVersion' build.gradle.kts
           ls src/main/resources/db/migration
           ./gradlew flywayMigrate --no-daemon
-          git checkout HEAD -- build.gradle.kts src/main/resources/db/migration
+          git checkout HEAD -- build.gradle.kts settings.gradle.kts src/main/resources/db/migration
 
       # The step under test. On a Flyway bump this is the first time the new engine reads a history
       # table written by the old one — the exact path the scheduled digest takes against Supabase.
@@ -409,7 +411,7 @@ jobs:
           echo "All required secrets are configured."
 
       # Run the full gate (tests + Checkstyle + ArchUnit + coverage) before building the JAR, so a
-      # broken pre-release SNAPSHOT dependency is caught here instead of shipping into the digest.
+      # broken dependency update is caught here instead of shipping into the digest.
       - name: Verify build and build JAR
         run: ./gradlew check bootJar --no-daemon
 
@@ -430,10 +432,8 @@ jobs:
       # against the same file, so "which dependencies were in the run that sent Thursday's edition"
       # has an answer that does not depend on anyone remembering.
       #
-      # Both degrade honestly under the one remaining SNAPSHOT (Spring Boot 4.1.0-SNAPSHOT, see C2):
-      # the SBOM records the version string, which resolves to different bytes over time. That is a
-      # limitation of depending on a pre-release, not of the SBOM, and it disappears with the
-      # SNAPSHOT.
+      # Every dependency packaged in the JAR is a Maven Central release, and a version published
+      # there never changes, so each dependency version the SBOM records identifies one set of bytes.
       - name: Generate SBOM
         uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
         with:

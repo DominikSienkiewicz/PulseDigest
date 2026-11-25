@@ -45,9 +45,9 @@ public record DependencyCoordinate(String groupId, String artifactId, String pin
      * Whether the pinned version is a pre-release.
      *
      * <p>Maven Central only knows releases, so comparing a `-SNAPSHOT`, `-RC1` or `-M2` pin against
-     * its "latest" reports a *lower* number as an upgrade — this project pins Spring Boot
-     * {@code 4.1.0-SNAPSHOT} while Central's latest is 3.5.x. A pre-release pin is a deliberate
-     * choice to be ahead of releases, so the radar skips it instead of nagging about going backwards.
+     * its "latest" can report a *lower* number as an upgrade: a {@code 4.3.0-SNAPSHOT} pin checked
+     * against a latest release of {@code 4.2.1} would be told to go backwards. A pre-release pin is a
+     * deliberate choice to be ahead of releases, so the radar skips it rather than nag about it.
      */
     @JsonIgnore
     public boolean isPreRelease() {

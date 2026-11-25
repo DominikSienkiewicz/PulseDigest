@@ -24,8 +24,9 @@ updates:
         patterns:
           - "*"
 
-  # Keep test/tooling libraries current. Spring Boot is intentionally on a pre-release
-  # SNAPSHOT (bleeding-edge showcase), so it is excluded — bumping it is a deliberate manual act.
+  # Keep test/tooling libraries current. Spring Boot patch releases ride the weekly gradle group
+  # below. Minor and major upgrades stay deliberate manual work: the docs, the social preview and
+  # the EOL table name the minor version, and the release notes need reading against this codebase.
   - package-ecosystem: gradle
     directory: /
     schedule:
@@ -34,6 +35,9 @@ updates:
       prefix: "build"
     ignore:
       - dependency-name: "org.springframework.boot*"
+        update-types:
+          - "version-update:semver-major"
+          - "version-update:semver-minor"
     groups:
       gradle:
         patterns:

@@ -2,7 +2,7 @@ import java.io.File
 
 plugins {
     java
-    id("org.springframework.boot") version "4.1.0-SNAPSHOT"
+    id("org.springframework.boot") version "4.2.0"
     id("io.spring.dependency-management") version "1.1.7"
     checkstyle
     jacoco
@@ -73,8 +73,6 @@ tasks.withType<Test> {
 // ── Repositories ──────────────────────────────────────────────────────────────
 repositories {
     mavenCentral()
-    maven { url = uri("https://repo.spring.io/snapshot") }
-    maven { url = uri("https://repo.spring.io/milestone") }
 }
 
 // ── Dependency versions ───────────────────────────────────────────────────────
@@ -84,9 +82,6 @@ val testcontainersVersion = "1.21.4"
 val flywayVersion = "13.13.0"
 val wiremockVersion = "3.13.2"
 val dotenvVersion = "5.1.0"
-// Pinned above the 1.18.46 that the Spring Boot snapshot manages: 1.18.46 cannot initialise on
-// JDK 27 (ClassNotFoundException: com.sun.tools.javac.tree.EndPosTable); 1.18.48 adds JDK 27 support.
-val lombokVersion = "1.18.48"
 
 // Classpath for the flywayMigrate task only — the Flyway engine, its Postgres module and the driver.
 // Kept off the app's runtime classpath on purpose: the app assumes the schema exists; migrating it is
@@ -115,10 +110,10 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-restclient")
 
     // ── Compile-time only ─────────────────────────────────────────────────────
-    compileOnly("org.projectlombok:lombok:$lombokVersion")
+    compileOnly("org.projectlombok:lombok")
     // Flyway is used only by the FlywayMigrate entrypoint, never at app runtime.
     compileOnly("org.flywaydb:flyway-core:$flywayVersion")
-    annotationProcessor("org.projectlombok:lombok:$lombokVersion")
+    annotationProcessor("org.projectlombok:lombok")
 
     // ── Runtime ───────────────────────────────────────────────────────────────
     runtimeOnly("org.postgresql:postgresql")
@@ -327,21 +322,16 @@ sonar {
             (sonarCoverageExclusions + recordAndEnumSourceExclusions()).joinToString(",")
         )
 
-        // ── Blokada zależności: świadomie nieobecna, nie zapomniana ───────────────────
+        // ── Blokada zależności: odłożona świadomie, nie zapomniana ────────────────────
         //
-        // Dwie reguły żądają `gradle.lockfile` albo `gradle/verification-metadata.xml`.
-        // W tym projekcie żadnego z nich nie da się utrzymać uczciwie: build stoi CELOWO
-        // na wersji przedpremierowej — Spring Boot 4.1.0-SNAPSHOT — a plik blokady przypina
-        // wersję rozwiązaną, podczas gdy SNAPSHOT z definicji zmienia się pod tą samą nazwą.
-        // `.github/dependabot.yml` wyklucza tę zależność dokładnie z tego powodu.
+        // Reguły text:S8569 i kotlin:S6474 żądają odpowiednio `gradle.lockfile` i
+        // `gradle/verification-metadata.xml`. Do 2026-11-24 nie dało się ich spełnić uczciwie:
+        // build stał na Spring Boot 4.1.0-SNAPSHOT, a plik blokady przypina wersję rozwiązaną,
+        // podczas gdy SNAPSHOT zmienia się pod tą samą nazwą. Ten powód zniknął razem ze
+        // SNAPSHOT-em: build przeszedł na wydania stabilne.
         //
-        // Do 2026-10-17 wyciszenie opierało się na DWÓCH SNAPSHOT-ach; drugim było Spring AI
-        // 2.0.0-SNAPSHOT, zadeklarowane i nigdy nieimportowane, więc połowa uzasadnienia tej
-        // reguły była pozorna. Po jego usunięciu wyciszenie stoi na jednym SNAPSHOCIE, który
-        // naprawdę jest nośny.
-        //
-        // Drugi koszt jest operacyjny: każde podbicie Dependabota wymagałoby regeneracji
-        // pliku blokady, a pozycja "domknąć PR-y Dependabota" i tak wraca cyklicznie.
+        // Oba wyciszenia zostają, bo blokada to osobna, przeglądana zmiana, a nie dopisek do
+        // przejścia na wydania (decyzja z 2026-11-24).
         //
         // Wyciszenie jest zapisane TUTAJ, a nie oznaczone jako "Accepted" w interfejsie
         // SonarCloud, świadomie: decyzja przechodzi wtedy przez przegląd kodu, jest
@@ -349,8 +339,8 @@ sonar {
         // zgłoszenia znikają z Sonara całkowicie, także przyszłe wystąpienia tych reguł
         // w tym pliku, więc nikt ich już tam nie zobaczy.
         //
-        // DO PONOWNEGO ROZWAŻENIA, gdy projekt zejdzie ze SNAPSHOT-ów na wydania stabilne:
-        // wtedy blokada zależności staje się wykonalna i to wyciszenie powinno zniknąć.
+        // WARUNEK WYCOFANIA: zadanie wprowadzające blokadę usuwa `blokadaZaleznosci` razem z
+        // `gradle.lockfile`, a `weryfikacjaZaleznosci` razem z metadanymi weryfikacji.
         property("sonar.issue.ignore.multicriteria", "blokadaZaleznosci,weryfikacjaZaleznosci,hasloUslugiCi")
         property("sonar.issue.ignore.multicriteria.blokadaZaleznosci.ruleKey", "text:S8569")
         property("sonar.issue.ignore.multicriteria.blokadaZaleznosci.resourceKey", "**/build.gradle.kts")
